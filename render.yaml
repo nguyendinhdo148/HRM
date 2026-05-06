@@ -1,0 +1,20 @@
+services:
+  - type: web
+    name: frontend
+    env: static # Render khuyên dùng 'env: static' thay vì 'runtime' cho static site
+    buildCommand: cd frontend && npm install --legacy-peer-deps && npm run build
+    staticPublishPath: frontend/build/client
+    routes:
+      # Đây là rule bắt buộc cho React/Vite SPA để không bị trắng trang
+      - type: rewrite
+        source: /*
+        destination: /index.html
+
+  - type: web
+    name: backend
+    env: node
+    buildCommand: cd backend && npm install --legacy-peer-deps
+    startCommand: cd backend && npm start
+    envVars:
+      - key: PORT
+        value: "5000"
