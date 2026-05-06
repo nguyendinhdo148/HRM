@@ -1,7 +1,6 @@
 import { Header } from "@/components/layout/header";
 import { SidebarComponent } from "@/components/layout/sidebar-component";
 import { Button } from "@/components/ui/button";
-import CreateWorkspace from "@/components/workspace/create-workspace";
 import { fetchData } from "@/lib/fetch-util";
 import { useAuth } from "@/provider/auth-context";
 import type { Workspace } from "@/types";
@@ -99,10 +98,6 @@ const DashboardLayout = () => {
         </main>
       </div>
 
-      <CreateWorkspace
-        isCreatingWorkspace={isCreatingWorkspace}
-        setIsCreatingWorkspace={setIsCreatingWorkspace}
-      />
     </div>
   );
 };

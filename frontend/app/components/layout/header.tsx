@@ -15,7 +15,6 @@ import {
 } from "../ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
 import { Link, useLoaderData, useLocation, useNavigate } from "react-router";
-import { WorkspaceAvatar } from "../workspace/workspace-avatar";
 import { NotificationDropdown } from "@/routes/dashboard/components/notification/NotificationDropdown";
 
 interface HeaderProps {
@@ -64,20 +63,6 @@ export const Header = ({
         </Button>
 
         <DropdownMenu>
-          {/* Gỡ bỏ <DropdownMenuTrigger> và <Button>, thay bằng 1 thẻ div bọc ngoài */}
-<div className="flex items-center gap-2 px-4 py-2 border border-transparent min-w-[150px]">
-  {selectedWorkspace && (
-    <>
-      {selectedWorkspace.color && (
-        <WorkspaceAvatar
-          color={selectedWorkspace.color}
-          name={selectedWorkspace.name}
-        />
-      )}
-      <span className="font-medium">{selectedWorkspace.name}</span>
-    </>
-  )}
-</div>
 
           <DropdownMenuContent>
             <DropdownMenuLabel>Công nợ</DropdownMenuLabel>
@@ -89,9 +74,7 @@ export const Header = ({
                   key={ws._id}
                   onClick={() => handleOnClick(ws)}
                 >
-                  {ws.color && (
-                    <WorkspaceAvatar color={ws.color} name={ws.name} />
-                  )}
+                 
                   <span className="ml-2">{ws.name}</span>
                 </DropdownMenuItem>
               ))}

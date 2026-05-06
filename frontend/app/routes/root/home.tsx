@@ -1,12 +1,12 @@
 import type { Route } from "../../+types/root";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router";
-import { Wrench, CheckCircle2, Users, ListCheck } from "lucide-react";
+import { Users, CalendarDays, CircleDollarSign, Building2 } from "lucide-react";
 
 export function meta({}: Route.MetaArgs) {
   return [
-    { title: "Botdev789 - Manage your work smarter" },
-    { name: "description", content: "Task management platform" },
+    { title: "Lighthouse HRM - Giải pháp quản lý nhân sự toàn diện" },
+    { name: "description", content: "Nền tảng quản lý nhân sự, chấm công và tính lương thông minh" },
   ];
 }
 
@@ -16,21 +16,21 @@ const HomePage = () => {
       {/* ================= NAVBAR ================= */}
       <header className="flex items-center justify-between px-6 py-4 max-w-7xl mx-auto w-full">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-500 to-purple-600 flex items-center justify-center shadow-md">
-            <Wrench className="w-5 h-5 text-white" />
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-500 to-cyan-600 flex items-center justify-center shadow-md">
+            <Building2 className="w-5 h-5 text-white" />
           </div>
-          <span className="text-2xl font-bold bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 bg-clip-text text-transparent tracking-wide">
-            botdev789
+          <span className="text-2xl font-bold bg-gradient-to-r from-blue-600 via-cyan-500 to-teal-500 bg-clip-text text-transparent tracking-wide">
+            Lighthouse HRM
           </span>
         </div>
 
         <div className="flex gap-3">
           <Link to="/sign-in">
-            <Button variant="ghost">Sign in</Button>
+            <Button variant="ghost">Đăng nhập</Button>
           </Link>
           {/* <Link to="/sign-up">
-            <Button className="bg-indigo-600 hover:bg-indigo-700 text-white">
-              Get Started
+            <Button className="bg-blue-600 hover:bg-blue-700 text-white">
+              Đăng ký ngay
             </Button>
           </Link> */}
         </div>
@@ -39,30 +39,29 @@ const HomePage = () => {
       {/* ================= HERO ================= */}
       <section className="flex flex-col items-center text-center px-6 mt-16">
         <h1 className="text-4xl md:text-6xl font-bold text-gray-900 max-w-3xl leading-tight">
-          Manage your tasks <br />
-          <span className="bg-gradient-to-r from-indigo-500 to-purple-600 bg-clip-text text-transparent">
-            faster & smarter
+          Quản lý đội ngũ nhân sự <br />
+          <span className="bg-gradient-to-r from-blue-500 to-cyan-600 bg-clip-text text-transparent">
+            hiệu quả & chuyên nghiệp
           </span>
         </h1>
 
-        <p className="mt-6 text-gray-600 max-w-xl">
-          TaskHub helps you organize work, collaborate with your team, and stay
-          productive — all in one place.
+        <p className="mt-6 text-gray-600 max-w-xl text-lg">
+          Tự động hóa quy trình HR, quản lý hồ sơ nhân viên, chấm công và tính lương — tất cả trên một nền tảng duy nhất.
         </p>
 
         <div className="flex gap-4 mt-8">
           {/* <Link to="/sign-up">
-            <Button className="px-6 py-5 text-base bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl shadow-md">
-              Get Started Free
+            <Button className="px-6 py-5 text-base bg-blue-600 hover:bg-blue-700 text-white rounded-xl shadow-md">
+              Bắt đầu miễn phí
             </Button>
           </Link> */}
 
           <Link to="/sign-in">
             <Button
               variant="outline"
-              className="px-6 py-5 text-base rounded-xl"
+              className="px-6 py-5 text-base rounded-xl border-blue-200 text-blue-700 hover:bg-blue-50"
             >
-              Sign in
+              Đăng nhập hệ thống
             </Button>
           </Link>
         </div>
@@ -70,33 +69,33 @@ const HomePage = () => {
 
       {/* ================= FEATURES ================= */}
       <section className="mt-24 px-6 max-w-6xl mx-auto grid md:grid-cols-3 gap-8">
-        <div className="p-6 rounded-2xl bg-white shadow-sm border">
-          <div className="w-10 h-10 rounded-lg bg-indigo-100 flex items-center justify-center mb-4">
-            <ListCheck className="w-5 h-5 text-indigo-600" />
+        <div className="p-6 rounded-2xl bg-white shadow-sm border border-slate-100 hover:shadow-md transition-shadow">
+          <div className="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center mb-4">
+            <Users className="w-5 h-5 text-blue-600" />
           </div>
-          <h3 className="font-semibold text-lg mb-2">Task Management</h3>
-          <p className="text-gray-600 text-sm">
-            Create, organize and track your tasks easily with a clean interface.
+          <h3 className="font-semibold text-lg mb-2">Hồ sơ & Nhân sự</h3>
+          <p className="text-gray-600 text-sm leading-relaxed">
+            Quản lý thông tin nhân viên, theo dõi hợp đồng, phòng ban và quy trình onboard/offboard dễ dàng.
           </p>
         </div>
 
-        <div className="p-6 rounded-2xl bg-white shadow-sm border">
-          <div className="w-10 h-10 rounded-lg bg-purple-100 flex items-center justify-center mb-4">
-            <Users className="w-5 h-5 text-purple-600" />
+        <div className="p-6 rounded-2xl bg-white shadow-sm border border-slate-100 hover:shadow-md transition-shadow">
+          <div className="w-10 h-10 rounded-lg bg-cyan-100 flex items-center justify-center mb-4">
+            <CalendarDays className="w-5 h-5 text-cyan-600" />
           </div>
-          <h3 className="font-semibold text-lg mb-2">Team Collaboration</h3>
-          <p className="text-gray-600 text-sm">
-            Work together with your team in real-time and stay aligned.
+          <h3 className="font-semibold text-lg mb-2">Chấm công & Nghỉ phép</h3>
+          <p className="text-gray-600 text-sm leading-relaxed">
+            Theo dõi thời gian làm việc, quản lý ca làm, và duyệt đơn từ xin nghỉ phép nhanh chóng trực tuyến.
           </p>
         </div>
 
-        <div className="p-6 rounded-2xl bg-white shadow-sm border">
-          <div className="w-10 h-10 rounded-lg bg-pink-100 flex items-center justify-center mb-4">
-            <CheckCircle2 className="w-5 h-5 text-pink-600" />
+        <div className="p-6 rounded-2xl bg-white shadow-sm border border-slate-100 hover:shadow-md transition-shadow">
+          <div className="w-10 h-10 rounded-lg bg-teal-100 flex items-center justify-center mb-4">
+            <CircleDollarSign className="w-5 h-5 text-teal-600" />
           </div>
-          <h3 className="font-semibold text-lg mb-2">Track Progress</h3>
-          <p className="text-gray-600 text-sm">
-            Monitor completed tasks and boost your productivity daily.
+          <h3 className="font-semibold text-lg mb-2">Tính lương & C&B</h3>
+          <p className="text-gray-600 text-sm leading-relaxed">
+            Tự động hóa bảng lương, tính toán thuế, BHXH và quản lý các chính sách đãi ngộ nhân viên chính xác.
           </p>
         </div>
       </section>
@@ -105,32 +104,32 @@ const HomePage = () => {
       <section className="mt-24 px-6 flex justify-center">
         <div className="w-full max-w-5xl rounded-2xl overflow-hidden border shadow-xl bg-white">
           <img
-            src="https://projectresources.cdt.ca.gov/wp-content/uploads/sites/50/2017/08/Assigning-Work-with-a-Team-Wall.png"
-            alt="TaskHub preview"
-            className="w-full h-full object-cover"
+            src="https://images.unsplash.com/photo-1600880292203-757bb62b4baf?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&q=80"
+            alt="HRM Dashboard Preview"
+            className="w-full h-[500px] object-cover"
           />
         </div>
       </section>
 
       {/* ================= CTA ================= */}
       <section className="mt-24 text-center px-6">
-        <h2 className="text-3xl font-bold mb-4">
-          Ready to boost your productivity?
+        <h2 className="text-3xl font-bold mb-4 text-slate-800">
+          Sẵn sàng tối ưu hóa quy trình nhân sự?
         </h2>
         <p className="text-gray-600 mb-6">
-          Join TaskHub and start managing your work efficiently today.
+          Tham gia hệ thống Lighthouse HRM và xây dựng môi trường làm việc tốt hơn ngay hôm nay.
         </p>
 
         {/* <Link to="/sign-up">
-          <Button className="px-8 py-6 text-lg bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl shadow-md">
-            Get Started Now 🚀
+          <Button className="px-8 py-6 text-lg bg-blue-600 hover:bg-blue-700 text-white rounded-xl shadow-md">
+            Trải nghiệm ngay 🚀
           </Button>
         </Link> */}
       </section>
 
       {/* ================= FOOTER ================= */}
       <footer className="mt-24 py-6 text-center text-sm text-gray-400">
-        © {new Date().getFullYear()} TaskHub. All rights reserved.
+        © {new Date().getFullYear()} Lighthouse HRM. Đã đăng ký bản quyền.
       </footer>
     </div>
   );

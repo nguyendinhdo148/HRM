@@ -1,4 +1,3 @@
-import { ActivityLog } from "../models/activity.js";
 
 const recordActivity = async (
   userId,

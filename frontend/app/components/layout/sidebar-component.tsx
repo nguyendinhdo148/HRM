@@ -37,8 +37,8 @@ export const SidebarComponent = ({
 
   const allNavItems = [
     { title: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-    { title: "Công nợ", href: "/workspaces", icon: Users },
-    { title: "Báo cáo doanh thu", href: "/my-tasks", icon: ListCheck },
+    { title: "Nhân sự", href: "/employee", icon: Users },
+    { title: "Chấm công", href: "/attendance", icon: ListCheck },
     { title: "Đã post & Chưa post", href: "/backlog", icon: FolderTree },
     { title: "Chia Tips", href: "/members", icon: Users },
     { title: "Hoa Hồng Rượu", href: "/wine-commission", icon: GlassWater },
@@ -95,7 +95,7 @@ export const SidebarComponent = ({
               </div>
 
               <span className="text-lg font-bold bg-linear-to-r from-indigo-500 via-purple-500 to-pink-500 bg-clip-text text-transparent tracking-wide">
-                botdev789
+                Lighthouse
               </span>
             </>
           ) : (

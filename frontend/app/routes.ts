@@ -18,21 +18,15 @@ export default [
   layout("routes/dashboard/dashboard-layout.tsx", [
     route("dashboard", "routes/dashboard/index.tsx"),
     route("backlog", "routes/dashboard/backlog.tsx"),
-    route("workspaces", "routes/dashboard/workspaces/index.tsx"),
-    route(
-      "workspaces/:workspaceId",
-      "routes/dashboard/workspaces/workspace-details.tsx",
-    ),
-    route(
-      "workspaces/:workspaceId/projects/:projectId",
-      "routes/dashboard/project/project-details.tsx",
-    ),
+    route("employee", "routes/dashboard/employee/index.tsx"),
+   
+   
     route(
       "workspaces/:workspaceId/projects/:projectId/tasks/:taskId",
       "routes/dashboard/task/task-details.tsx",
     ),
 
-    route("my-tasks", "routes/dashboard/my-tasks.tsx"),
+    route("attendance", "routes/dashboard/AttendanceBoard.tsx"),  
     route("daily-report/:reportId", "routes/dashboard/DailyReport.tsx"),
     route("members", "routes/dashboard/members.tsx"),
     

@@ -74,7 +74,7 @@ const SignIn = () => {
           </div>
 
           <span className="text-2xl font-bold tracking-wide bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 bg-clip-text text-transparent">
-            botdev789
+            Lighthouse
           </span>
         </div>
 

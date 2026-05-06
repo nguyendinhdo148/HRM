@@ -3,8 +3,6 @@ import mongoose from "mongoose";
 import { Conversation } from "../models/conversation.js";
 import { Message } from "../models/message.js";
 import { User } from "../models/user.js";
-import { Workspace } from "../models/workspace.js";
-import { Project } from "../models/project.js";
 import { Notification } from "../models/notification.js";
 import { v2 as cloudinary } from "cloudinary";
 // Get or create direct conversation

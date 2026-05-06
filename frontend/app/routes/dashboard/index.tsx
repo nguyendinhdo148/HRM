@@ -11,7 +11,6 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from "@/components/ui/table";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import CreateWorkspace from "@/components/workspace/create-workspace";
 
 const Dashboard = () => {
   const [isCreatingWorkspace, setIsCreatingWorkspace] = useState(false);
@@ -341,7 +340,6 @@ const Dashboard = () => {
         </div>
       </Card>
 
-      <CreateWorkspace isCreatingWorkspace={isCreatingWorkspace} setIsCreatingWorkspace={setIsCreatingWorkspace} />
     </div>
   );
 };
