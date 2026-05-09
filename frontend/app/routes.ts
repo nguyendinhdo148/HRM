@@ -17,30 +17,21 @@ export default [
 
   layout("routes/dashboard/dashboard-layout.tsx", [
     route("dashboard", "routes/dashboard/index.tsx"),
-    route("backlog", "routes/dashboard/backlog.tsx"),
-    route("employee", "routes/dashboard/employee/index.tsx"),
-   
-   
-    route(
-      "workspaces/:workspaceId/projects/:projectId/tasks/:taskId",
-      "routes/dashboard/task/task-details.tsx",
-    ),
-
-    route("attendance", "routes/dashboard/AttendanceBoard.tsx"),  
-    route("daily-report/:reportId", "routes/dashboard/DailyReport.tsx"),
-    route("members", "routes/dashboard/members.tsx"),
     
-    // <-- THÊM ROUTE CHO HOA HỒNG RƯỢU TẠI ĐÂY -->
-    route("wine-commission", "routes/dashboard/WineCommission.tsx"),
-
-    // <-- THÊM ROUTE CHO QUẢN LÝ HỦY MÓN TẠI ĐÂY -->
-    route("cancel-report", "routes/dashboard/cancel-report.tsx"),
-
-    // <-- THÊM ROUTE CHO GUI RƯỢU (BAR ROLE) -->
-    route("gui-ruou", "routes/dashboard/bar/guiruou.tsx"),
-
+    // ✅ Bảng lương
+    route("PayrollBoard", "routes/dashboard/PayrollBoard.tsx"),
+    route("PayrollManager", "routes/dashboard/PayrollManager.tsx"),
+    // ✅ THÊM ROUTE CHO BẢNG TÍNH BẢO HIỂM TẠI ĐÂY
+    route("insuranceBoard", "routes/dashboard/InsuranceBoard.tsx"),
+    route("taxBoard", "routes/dashboard/TaxBoard.tsx"),
+    route("overtimePayBoard", "routes/dashboard/OvertimePayBoard.tsx"),
+    route("employee", "routes/dashboard/employee/index.tsx"),
     route("achieved", "routes/dashboard/achieved.tsx"),
+    
+    route("attendance", "routes/dashboard/AttendanceBoard.tsx"),  
+    route("gui-ruou", "routes/dashboard/bar/guiruou.tsx"),
     route("settings", "routes/dashboard/settings.tsx"),
+    route("payroll/slip/:id", "routes/dashboard/PayslipDetail.tsx"),
   ]),
 
 ] satisfies RouteConfig;

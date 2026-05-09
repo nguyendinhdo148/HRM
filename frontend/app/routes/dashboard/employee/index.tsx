@@ -16,7 +16,7 @@ import { Loader } from "@/components/loader";
 import { NoDataFound } from "@/components/no-data-found";
 
 // Cấu hình Base URL API
-const API_BASE_URL = "http://localhost:5000/api-v1/hrm";
+const API_BASE_URL = `${import.meta.env.VITE_API_URL}/hrm`;
 
 const getAuthHeaders = () => ({
   "Content-Type": "application/json",

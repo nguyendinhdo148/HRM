@@ -24,19 +24,47 @@ const attendanceSchema = new mongoose.Schema(
       description: "Tạm ứng trong tháng (VNĐ)"
     },
     
-    // Lưu trữ dữ liệu chấm công theo ngày. 
-    // Key là ngày (vd: "1", "2", "31"), Value là ký hiệu (vd: "x", "0,5", "", "p")
+    // ==========================================
+    // 1. CHẤM CÔNG CHUẨN (HÀNH CHÍNH)
+    // ==========================================
     records: {
       type: Map,
       of: String,
       default: {}
     },
 
-    // Thống kê tự động tính (do Mongoose pre-save đảm nhiệm)
+    // ==========================================
+    // 2. CHẤM CÔNG LÀM THÊM GIỜ (OVERTIME)
+    // ==========================================
+    overtimeRecords: {
+      type: Map,
+      of: String,
+      default: {}
+    },
+
+    // ==========================================
+    // 3. ĐI MUỘN / VỀ SỚM / THIẾU GIỜ
+    // ==========================================
+    shortfallRecords: {
+      type: Map,
+      of: Number,
+      default: {}
+    },
+
+    // ==========================================
+    // 4. TỔNG HỢP THỐNG KÊ (AUTO-CALCULATED)
+    // ==========================================
     summary: {
-      totalFullDays: { type: Number, default: 0 }, // Số ngày làm việc cả ngày [x]
-      totalHalfDays: { type: Number, default: 0 }, // Số ngày làm việc nửa ngày [0,5]
-      totalPaidDays: { type: Number, default: 0 }  // Tổng số công làm việc = Full + (Half * 0.5)
+      totalFullDays: { type: Number, default: 0 }, 
+      totalHalfDays: { type: Number, default: 0 }, 
+      totalPaidDays: { type: Number, default: 0 }, 
+
+      totalOTNormal: { type: Number, default: 0 },  // Ngày thường (X) hoặc nhập số giờ
+      totalOTWeekend: { type: Number, default: 0 }, // Ngày nghỉ (N)
+      totalOTHoliday: { type: Number, default: 0 }, // Lễ tết (T)
+      totalOT: { type: Number, default: 0 },        // Tổng cộng
+
+      totalShortfallHours: { type: Number, default: 0 } // Tổng giờ đi muộn/về sớm
     }
   },
   { timestamps: true }
@@ -46,28 +74,59 @@ const attendanceSchema = new mongoose.Schema(
 attendanceSchema.index({ employee: 1, month: 1, year: 1 }, { unique: true });
 
 // ==========================================
-// HOOK: TỰ ĐỘNG TÍNH TỔNG SỐ CÔNG TRƯỚC KHI LƯU
+// HOOK: TỰ ĐỘNG TÍNH TOÁN TỔNG HỢP TRƯỚC KHI LƯU
 // ==========================================
 attendanceSchema.pre("save", function (next) {
+  // 1. Tính công chuẩn
   let fullDays = 0;
   let halfDays = 0;
 
   if (this.records) {
-    this.records.forEach((val, key) => {
-      // Chuẩn hóa chuỗi (chữ thường, đổi dấu phẩy thành dấu chấm)
-      const value = val?.toString().trim().toLowerCase().replace(",", ".");
+    this.records.forEach((val) => {
+      const value = val?.toString().trim().toUpperCase().replace(",", ".");
+      if (value === "X") fullDays += 1;
+      else if (value === "0.5") halfDays += 1;
+    });
+  }
+
+  // 2. Tính làm thêm giờ (Hỗ trợ cả Chữ và Số)
+  let otNormal = 0;
+  let otWeekend = 0;
+  let otHoliday = 0;
+
+  if (this.overtimeRecords) {
+    this.overtimeRecords.forEach((val) => {
+      const value = val?.toString().trim().toUpperCase();
       
-      if (value === "x") {
-        fullDays += 1;
-      } else if (value === "0.5") {
-        halfDays += 1;
+      if (value === "X") otNormal += 1;
+      else if (value === "N") otWeekend += 1;
+      else if (value === "T") otHoliday += 1;
+      // Nếu HR nhập số (ví dụ: 2, 4.5 tiếng) thì cộng vào OT Thường
+      else if (!isNaN(Number(value)) && Number(value) > 0) {
+        otNormal += Number(value); 
       }
     });
   }
 
+  // 3. Tính giờ thiếu
+  let shortHours = 0;
+  if (this.shortfallRecords) {
+    this.shortfallRecords.forEach((val) => {
+      shortHours += Number(val) || 0;
+    });
+  }
+
+  // 4. Gán vào summary
   this.summary.totalFullDays = fullDays;
   this.summary.totalHalfDays = halfDays;
   this.summary.totalPaidDays = fullDays + (halfDays * 0.5);
+
+  this.summary.totalOTNormal = otNormal;
+  this.summary.totalOTWeekend = otWeekend;
+  this.summary.totalOTHoliday = otHoliday;
+  this.summary.totalOT = otNormal + otWeekend + otHoliday;
+
+  this.summary.totalShortfallHours = shortHours;
 
   next();
 });

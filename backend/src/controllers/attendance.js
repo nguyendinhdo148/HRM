@@ -47,7 +47,11 @@ export const initializeMonthAttendance = async (req, res) => {
     // 1. Kiểm tra xem tháng này đã tạo chưa
     const existingMonth = await AttendanceMonth.findOne({ month, year });
     if (existingMonth) {
-      return res.status(400).json({ message: `Bảng chấm công tháng ${month}/${year} đã tồn tại!` });
+      if (existingMonth.status === "closed") {
+        return res.status(400).json({ message: "Kỳ chấm công này đã bị khóa, không thể chạy lại đồng bộ!" });
+      }
+      await Attendance.deleteMany({ month, year });
+      await AttendanceMonth.findByIdAndDelete(existingMonth._id);
     }
 
     // 2. Lấy danh sách nhân viên ĐANG HOẠT ĐỘNG
@@ -56,9 +60,12 @@ export const initializeMonthAttendance = async (req, res) => {
       return res.status(400).json({ message: "Không có nhân viên nào đang hoạt động để tạo bảng công!" });
     }
 
-    // 3. Setup ngày đi làm mặc định (Full công chữ 'x')
+    // 3. Setup ngày đi làm mặc định (Full công hành chính chữ 'x', OT/Thiếu giờ để trống)
     const daysInMonth = getDaysInMonth(month, year);
     const defaultRecords = {};
+    const defaultOTRecords = {};
+    const defaultShortfallRecords = {};
+
     for (let day = 1; day <= daysInMonth; day++) {
       defaultRecords[day.toString()] = "x";
     }
@@ -78,12 +85,14 @@ export const initializeMonthAttendance = async (req, res) => {
       year,
       advancePayment: 0,
       records: defaultRecords,
+      overtimeRecords: defaultOTRecords,         // ✅ Thêm OT
+      shortfallRecords: defaultShortfallRecords, // ✅ Thêm đi muộn/về sớm
     }));
 
     // 6. Insert tất cả vào DB
     const createdAttendances = await Attendance.insertMany(attendanceDocs);
     
-    // Lưu lại từng doc để kích hoạt Hook `pre("save")` tính toán tổng số công
+    // Lưu lại từng doc để kích hoạt Hook `pre("save")` tính toán tổng số công (bao gồm cả OT và Shortfall)
     for (const doc of createdAttendances) {
       const attendance = await Attendance.findById(doc._id);
       await attendance.save(); 
@@ -105,7 +114,8 @@ export const initializeMonthAttendance = async (req, res) => {
 export const updateAttendanceBulk = async (req, res) => {
   try {
     const { recordId } = req.params;
-    const { advancePayment, records } = req.body;
+    // ✅ Nhận thêm overtimeRecords và shortfallRecords từ request body
+    const { advancePayment, records, overtimeRecords, shortfallRecords } = req.body;
 
     const attendance = await Attendance.findById(recordId);
     if (!attendance) return res.status(404).json({ message: "Không tìm thấy dữ liệu nhân viên này" });
@@ -116,12 +126,20 @@ export const updateAttendanceBulk = async (req, res) => {
       return res.status(403).json({ message: "Kỳ chấm công này đã bị khóa, không thể sửa chữa!" });
     }
 
-    // Cập nhật và lưu (Hook sẽ tự tính lại số lượng x và 0.5)
+    // Cập nhật các trường dữ liệu
     attendance.advancePayment = advancePayment !== undefined ? advancePayment : attendance.advancePayment;
     if (records) {
       attendance.records = records;
     }
+    // ✅ Cập nhật OT và Shortfall
+    if (overtimeRecords) {
+      attendance.overtimeRecords = overtimeRecords;
+    }
+    if (shortfallRecords) {
+      attendance.shortfallRecords = shortfallRecords;
+    }
 
+    // Gọi save() -> Hook pre('save') trong Model sẽ tự động quét qua MAP records, overtimeRecords, shortfallRecords để tính lại TỔNG cho phần SUMMARY
     await attendance.save();
 
     res.status(200).json({ message: "Cập nhật thành công", data: attendance });

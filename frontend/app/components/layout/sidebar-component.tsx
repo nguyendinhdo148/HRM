@@ -39,13 +39,13 @@ export const SidebarComponent = ({
     { title: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
     { title: "Nhân sự", href: "/employee", icon: Users },
     { title: "Chấm công", href: "/attendance", icon: ListCheck },
-    { title: "Đã post & Chưa post", href: "/backlog", icon: FolderTree },
-    { title: "Chia Tips", href: "/members", icon: Users },
-    { title: "Hoa Hồng Rượu", href: "/wine-commission", icon: GlassWater },
+    { title: "Bảng tính lương", href: "/payrollBoard", icon: FolderTree },
+    { title: "BHXH", href: "/insuranceBoard", icon: Users },
+    { title: "TNCN", href: "/taxBoard", icon: GlassWater },
     
     // <-- THÊM DÒNG QUẢN LÝ HỦY MÓN VÀO MENU -->
-    { title: "Hệ Thống Hủy Món", href: "/cancel-report", icon: FileWarning },
-    
+    { title: "Lương làm thêm giờ", href: "/overtimePayBoard", icon: FileWarning },
+    { title: "Bảng lương", href: "/PayrollManager", icon: FolderTree },
     // <-- THÊM DÒNG GUI RƯỢU CHO BAR ROLE -->
     { title: "GUI Rượu", href: "/gui-ruou", icon: Wine, roles: ["bar", "admin"] },
     

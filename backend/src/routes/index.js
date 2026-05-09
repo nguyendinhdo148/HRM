@@ -3,21 +3,16 @@ import authRoutes from "./auth.js";
 import userRoutes from "./user.js";
 import chatRoutes from "./chat.js"; 
 import notificationRoutes from "./notification.js";
-import monthlyReportRoutes from "./monthlyReport.js"; 
-import dailyRevenueRoutes from "./dailyRevenue.js"; 
-import invoiceMonthRoutes from "./invoiceMonth.js";
-import invoiceRoutes from "./invoice.js"; 
-import tipRoutes from "./tip.js"; 
+import insuranceRoutes from "./insurance.js";
 import hrm from "./hrm.js";
-
+import payrollRoutes from "./payroll.js";
+import tax from "./tax.js";
 // ✅ 1. IMPORT ROUTE CHẤM CÔNG VÀO ĐÂY (Lưu ý đuôi file của bạn, có thể là attendance.js hoặc attendance.routes.js)
 import attendanceRoutes from "./attendance.js"; 
 
-// <-- IMPORT ROUTE HOA HỒNG RƯỢU -->
-import wineCommissionRoutes from "./wineCommission.js";
+// <-- IMPORT ROUTE LÀM THÊM GIỜ (OT) -->
+import overtimePayRoutes from "./overtimePay.js";
 
-// <-- IMPORT ROUTE QUẢN LÝ HỦY MÓN -->
-import cancelReportRoutes from "./cancelReport.js";
 
 // <-- IMPORT ROUTE GỬI RƯỢU (BOTTLE KEEP) -->
 import bottleKeepRoutes from "./bottleKeep.js";
@@ -28,20 +23,16 @@ router.use("/auth", authRoutes);
 router.use("/users", userRoutes);
 router.use("/chat", chatRoutes); 
 router.use("/notifications", notificationRoutes);
-router.use("/monthly-reports", monthlyReportRoutes); 
-router.use("/daily-revenues", dailyRevenueRoutes); 
-router.use("/invoice-months", invoiceMonthRoutes);
-router.use("/invoices", invoiceRoutes); 
-router.use("/tips", tipRoutes);
 router.use("/hrm", hrm);
-
+router.use("/payroll", payrollRoutes);
+router.use("/insurance", insuranceRoutes);
+router.use("/tax", tax);
 // ✅ 2. GẮN ENDPOINT "/attendance" CHO CHẤM CÔNG
 router.use("/attendance", attendanceRoutes);
 
+// <-- GẮN API LÀM THÊM GIỜ (OT) VÀO ĐÂY -->
+router.use("/overtime-pay", overtimePayRoutes);
 
-// <-- GẮN VÀO API -->
-router.use("/wine-commission", wineCommissionRoutes);
-router.use("/cancel-reports", cancelReportRoutes);
 
 // <-- GẮN API GỬI RƯỢU VÀO ĐÂY -->
 router.use("/bottle-keep", bottleKeepRoutes);
