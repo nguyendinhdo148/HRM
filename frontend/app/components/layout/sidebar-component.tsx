@@ -11,7 +11,6 @@ import {
   LogOut,
   Settings,
   Users,
-  Wrench,
   FolderTree,
   MessageCircle,
   GlassWater,
@@ -85,24 +84,25 @@ export const SidebarComponent = ({
         >
           {!isCollapsed ? (
             <>
-              {/* Logo */}
-              <div
-                className="shrink-0 w-9 h-9 rounded-xl 
-                bg-linear-to-tr from-indigo-500 to-purple-600 
-                flex items-center justify-center shadow-md"
-              >
-                <Wrench className="size-5 text-white" />
-              </div>
+              {/* Logo thay cho icon */}
+              <img 
+                src="/logo.png" 
+                alt="Lighthouse Logo" 
+                className="shrink-0 w-10 h-10 object-contain rounded-md" 
+              />
 
-              <span className="text-lg font-bold bg-linear-to-r from-indigo-500 via-purple-500 to-pink-500 bg-clip-text text-transparent tracking-wide">
-                Lighthouse
-              </span>
+              <span className="text-lg font-bold text-amber-600 tracking-wide">
+  Lighthouse
+</span>
             </>
           ) : (
             <div className="flex justify-center w-full">
-              <div className="size-9 rounded-lg bg-primary/10 flex items-center justify-center">
-                <Wrench className="size-5 text-primary" />
-              </div>
+              {/* Logo thay cho icon khi thu gọn Sidebar */}
+              <img 
+                src="/logo.png" 
+                alt="Lighthouse Logo" 
+                className="w-10 h-10 object-contain rounded-md" 
+              />
             </div>
           )}
         </Link>
