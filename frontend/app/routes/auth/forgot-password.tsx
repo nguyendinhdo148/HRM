@@ -66,19 +66,20 @@ const ForgotPassword = () => {
           </Link>
 
           {/* Logo + Brand */}
-          <div className="flex items-center justify-center gap-3">
-            <div className="w-12 h-12 rounded-xl bg-gradient-to-tr from-indigo-500 to-purple-600 flex items-center justify-center shadow-md">
-              <Wrench className="w-6 h-6 text-white" />
-            </div>
+          {/* Logo + Brand */}
+<div className="flex items-center justify-center gap-3">
+  {/* Logo */}
+  <img
+    src="/logo.png"
+    alt="Lighthouse Logo"
+    className="w-12 h-12 object-contain rounded-xl shadow-md"
+  />
 
-            <span
-              className="text-xl font-bold tracking-wide 
-              bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 
-              bg-clip-text text-transparent"
-            >
-              Lighthouse
-            </span>
-          </div>
+  {/* Brand */}
+  <span className="text-2xl font-bold tracking-wide text-amber-600">
+    Lighthouse
+  </span>
+</div>
 
           {/* Title */}
           <div className="text-center space-y-1">

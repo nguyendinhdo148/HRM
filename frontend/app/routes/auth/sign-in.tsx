@@ -68,20 +68,25 @@ const SignIn = () => {
 
       <Card className="relative w-full max-w-md shadow-2xl border border-border/50 backdrop-blur-sm">
         {/* Logo + Brand */}
-        <div className="flex items-center justify-center gap-3 mt-6">
-          <div className="size-10 rounded-xl bg-gradient-to-tr from-indigo-500 to-purple-600 flex items-center justify-center shadow-md">
-            <Wrench className="w-6 h-6 text-white" />
-          </div>
+        {/* Logo + Brand */}
+<div className="flex items-center justify-center gap-3 mt-6">
+  {/* Logo */}
+  <img
+    src="/logo.png"
+    alt="Lighthouse Logo"
+    className="w-12 h-12 object-contain rounded-xl shadow-md"
+  />
 
-          <span className="text-2xl font-bold tracking-wide bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 bg-clip-text text-transparent">
-            Lighthouse
-          </span>
-        </div>
+  {/* Brand name */}
+  <span className="text-3xl font-bold tracking-wide text-amber-600">
+    Lighthouse
+  </span>
+</div>
 
         <CardHeader className="text-center space-y-2">
-          <CardTitle className="text-2xl font-bold">Welcome back</CardTitle>
+          <CardTitle className="text-2xl font-bold">Chào mừng trở lại</CardTitle>
           <CardDescription>
-            Sign in to continue to your workspace
+            Đăng nhập để tiếp tục quản lý nhân sự hiệu quả với Lighthouse
           </CardDescription>
         </CardHeader>
 
@@ -121,7 +126,7 @@ const SignIn = () => {
                         to="/forgot-password"
                         className="text-sm text-primary hover:underline"
                       >
-                        Forgot password?
+                        Quên mật khẩu ?
                       </Link>
                     </div>
                     <FormControl>
