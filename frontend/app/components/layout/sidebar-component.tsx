@@ -53,8 +53,8 @@ export const SidebarComponent = ({
 
   // Filter nav items based on role
   const navItems = allNavItems.filter((item) => {
-    // Everyone can see Dashboard, Messenger, and Settings
-    if (["Dashboard", "Messenger", "Settings"].includes(item.title)) {
+    // Everyone can see Nhân sự, Messenger, and Settings
+    if (["Nhân sự", "Messenger", "Settings"].includes(item.title)) {
       return true;
     }
     // If item has specific roles requirement, check against those
@@ -78,7 +78,7 @@ export const SidebarComponent = ({
     >
       <div className="group relative flex items-center px-3 py-4 border-b border-border">
         <Link
-          to="/dashboard"
+          to="/employee"
           className="flex items-center gap-3 flex-1 overflow-hidden"
         >
           {!isCollapsed ? (

@@ -52,8 +52,8 @@ const DashboardLayout = () => {
   );
 
   if (isCashierOnlyRoute && !hasRole(["cashier", "admin"])) {
-    // Redirect to dashboard if not authorized
-    return <Navigate to="/dashboard" />;
+    // Redirect to employee if not authorized
+    return <Navigate to="/employee" />;
   }
 
   const handleWorkspaceSelected = (workspace: Workspace) => {

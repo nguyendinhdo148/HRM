@@ -48,7 +48,7 @@ const SignIn = () => {
       onSuccess: (data) => {
         login(data);
         toast.success("Login successful");
-        navigate("/dashboard");
+        navigate("/employee");
       },
       onError: (error: any) => {
         const errorMessage =
