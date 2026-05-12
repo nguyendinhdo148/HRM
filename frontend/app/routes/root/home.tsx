@@ -12,17 +12,19 @@ export function meta({}: Route.MetaArgs) {
 
 const HomePage = () => {
   return (
-    <div className="w-full min-h-screen flex flex-col bg-gradient-to-br from-slate-50 to-slate-100">
-      {/* ================= NAVBAR ================= */}
+<div className="w-full min-h-screen flex flex-col bg-gradient-to-br from-slate-50 to-slate-100">      {/* ================= NAVBAR ================= */}
       <header className="flex items-center justify-between px-6 py-4 max-w-7xl mx-auto w-full">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-500 to-cyan-600 flex items-center justify-center shadow-md">
-            <Building2 className="w-5 h-5 text-white" />
-          </div>
-          <span className="text-2xl font-bold bg-gradient-to-r from-blue-600 via-cyan-500 to-teal-500 bg-clip-text text-transparent tracking-wide">
-            Lighthouse HRM
-          </span>
-        </div>
+  <img
+    src="/logo.png"
+    alt="Lighthouse Logo"
+    className="w-11 h-11 object-contain rounded-xl shadow-md"
+  />
+
+  <span className="text-2xl font-bold tracking-wide text-amber-600">
+    Lighthouse HRM
+  </span>
+</div>
 
         <div className="flex gap-3">
           <Link to="/sign-in">
@@ -40,8 +42,7 @@ const HomePage = () => {
       <section className="flex flex-col items-center text-center px-6 mt-16">
         <h1 className="text-4xl md:text-6xl font-bold text-gray-900 max-w-3xl leading-tight">
           Quản lý đội ngũ nhân sự <br />
-          <span className="bg-gradient-to-r from-blue-500 to-cyan-600 bg-clip-text text-transparent">
-            hiệu quả & chuyên nghiệp
+<span className="bg-gradient-to-r from-blue-500 to-cyan-600 bg-clip-text text-transparent">            hiệu quả & chuyên nghiệp
           </span>
         </h1>
 
@@ -58,11 +59,11 @@ const HomePage = () => {
 
           <Link to="/sign-in">
             <Button
-              variant="outline"
-              className="px-6 py-5 text-base rounded-xl border-blue-200 text-blue-700 hover:bg-blue-50"
-            >
-              Đăng nhập hệ thống
-            </Button>
+  variant="outline"
+  className="px-6 py-5 text-base rounded-xl border-amber-200 text-amber-700 hover:bg-amber-50"
+>
+  Đăng nhập hệ thống
+</Button>
           </Link>
         </div>
       </section>
