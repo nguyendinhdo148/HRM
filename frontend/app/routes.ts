@@ -16,7 +16,6 @@ export default [
   ]),
 
   layout("routes/dashboard/dashboard-layout.tsx", [
-    route("dashboard", "routes/dashboard/index.tsx"),
     
     // ✅ Bảng lương
     route("PayrollBoard", "routes/dashboard/PayrollBoard.tsx"),

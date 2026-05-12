@@ -5,39 +5,17 @@ const employeeSchema = new mongoose.Schema(
     // ==========================================
     // 1. THÔNG TIN ĐỊNH DANH (IDENTIFICATION)
     // ==========================================
-    employeeCode: { 
-      type: String, 
-      required: true, 
-      unique: true, 
-      trim: true,
-      description: "CMT - Mã NV"
-    },
-    fullName: { 
-      type: String, 
-      required: true, 
-      trim: true,
-      description: "Họ và tên"
-    },
-
-    // ✅ THÊM EMAIL
-    email: {
-      type: String,
-      required: true,
-      trim: true,
-      lowercase: true,
-      match: [/^\S+@\S+\.\S+$/, "Email không hợp lệ"]
-    },
+    employeeCode: { type: String, required: true, unique: true, trim: true, description: "Mã nhân viên nội bộ" },
+    idCardNumber: { type: String, required: true, unique: true, trim: true, description: "Số CCCD/CMND" }, // ✅ ĐÃ TÁCH RIÊNG
+    fullName: { type: String, required: true, trim: true, description: "Họ và tên" },
+    email: { type: String, required: true, trim: true, lowercase: true, match: [/^\S+@\S+\.\S+$/, "Email không hợp lệ"] },
 
     // ==========================================
     // 2. THÔNG TIN CÁ NHÂN
     // ==========================================
     personalInfo: {
       dateOfBirth: { type: Date },
-      gender: { 
-        type: String, 
-        enum: ["Nam", "Nữ", "Khác"],
-        default: "Khác"
-      },
+      gender: { type: String, enum: ["Nam", "Nữ", "Khác"], default: "Khác" },
       idCardIssueDate: { type: Date },
       idCardIssuePlace: { type: String, trim: true },
       nationality: { type: String, default: "Việt Nam", trim: true },
@@ -47,7 +25,7 @@ const employeeSchema = new mongoose.Schema(
     },
 
     // ==========================================
-    // 3. WORK
+    // 3. WORK (THÔNG TIN CÔNG VIỆC)
     // ==========================================
     workInfo: {
       department: { type: String, trim: true },
@@ -58,14 +36,22 @@ const employeeSchema = new mongoose.Schema(
       workingTime: { type: String, trim: true },
       equipmentProvided: { type: String, trim: true },
       transportation: { type: String, trim: true },
+      
+      joinDate: { type: Date, required: true, description: "Ngày chính thức đi làm" },
+      resignationDate: { type: Date, description: "Ngày nghỉ việc (nếu có)" },
     },
 
     // ==========================================
-    // 4. CONTRACT
+    // 4. CONTRACT (THÔNG TIN HỢP ĐỒNG)
     // ==========================================
     contractInfo: {
       contractNumber: { type: String, trim: true },
-      contractType: { type: String, trim: true },
+      contractType: { 
+        type: String, 
+        enum: ["PROBATION", "FIXED_TERM", "INDEFINITE", "FREELANCE", "INTERNSHIP"],
+        required: true 
+      },
+      contractDuration: { type: String, trim: true, description: "Thời hạn HĐ" },
       signDate: { type: Date },
       endDate: { type: Date },
       probationStartDate: { type: Date },
@@ -74,7 +60,7 @@ const employeeSchema = new mongoose.Schema(
     },
 
     // ==========================================
-    // 5. SALARY
+    // 5. SALARY (LƯƠNG & PHÚC LỢI)
     // ==========================================
     salaryAndBenefits: {
       taxCode: { type: String, trim: true },
@@ -98,7 +84,7 @@ const employeeSchema = new mongoose.Schema(
     },
 
     // ==========================================
-    // 6. STATUS
+    // 6. STATUS (TRẠNG THÁI HỒ SƠ)
     // ==========================================
     status: {
       type: String,
@@ -106,11 +92,67 @@ const employeeSchema = new mongoose.Schema(
       default: "active",
     }
   },
-  { timestamps: true }
+  { 
+    timestamps: true,
+    toJSON: { virtuals: true },
+    toObject: { virtuals: true }
+  }
 );
 
+// --- VIRTUALS ---
+
+// 1. Tính thâm niên
+employeeSchema.virtual("workingDuration").get(function () {
+  if (!this.workInfo?.joinDate) return null;
+  const start = new Date(this.workInfo.joinDate);
+  const end = this.workInfo.resignationDate ? new Date(this.workInfo.resignationDate) : new Date();
+
+  if (start > end) return "Chưa bắt đầu làm việc";
+
+  let years = end.getFullYear() - start.getFullYear();
+  let months = end.getMonth() - start.getMonth();
+  let days = end.getDate() - start.getDate();
+
+  if (days < 0) {
+    months--;
+    const prevMonth = new Date(end.getFullYear(), end.getMonth(), 0);
+    days += prevMonth.getDate();
+  }
+  if (months < 0) {
+    years--;
+    months += 12;
+  }
+
+  return {
+    years,
+    months,
+    days,
+    totalDays: Math.floor((end - start) / (1000 * 60 * 60 * 24)),
+    formatted: `${years} năm, ${months} tháng, ${days} ngày`
+  };
+});
+
+// 2. Trạng thái hợp đồng Realtime
+employeeSchema.virtual("currentContractStatus").get(function () {
+  const { contractType, endDate, probationEndDate } = this.contractInfo;
+  if (contractType === "INDEFINITE") return "KHONG_THOI_HAN";
+
+  const targetDate = contractType === "PROBATION" ? probationEndDate : endDate;
+  if (!targetDate) return "CHUA_XAC_DINH";
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const end = new Date(targetDate);
+  end.setHours(0, 0, 0, 0);
+
+  if (end < today) return "HET_HAN";
+  return "CON_HAN";
+});
+
+// Indexes (Thêm index cho idCardNumber để tìm kiếm nhanh)
 employeeSchema.index({ employeeCode: 1 });
-employeeSchema.index({ email: 1 }); // ✅ thêm index email
+employeeSchema.index({ idCardNumber: 1 }); // ✅ Index cho CCCD
+employeeSchema.index({ email: 1 });
 employeeSchema.index({ "workInfo.department": 1 });
 
 export const Employee = mongoose.model("Employee", employeeSchema);

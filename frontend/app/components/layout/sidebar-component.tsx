@@ -35,7 +35,6 @@ export const SidebarComponent = ({
   const [isCollapsed, setIsCollapsed] = useState(false);
 
   const allNavItems = [
-    { title: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
     { title: "Nhân sự", href: "/employee", icon: Users },
     { title: "Chấm công", href: "/attendance", icon: ListCheck },
     { title: "Bảng tính lương", href: "/payrollBoard", icon: FolderTree },
