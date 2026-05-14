@@ -124,7 +124,6 @@ export const ImportExcelModal = ({ isOpen, onClose, onSuccess, departmentsList }
 
     // Tạo 2 bộ nhớ tạm để check trùng lặp ngay trong lúc đọc file
     const seenCodes = new Set<string>();
-    const seenEmails = new Set<string>();
 
     const parseDateVN = (rawVal: any, formattedVal: string) => {
       if (!rawVal && !formattedVal) return null;
@@ -224,13 +223,10 @@ export const ImportExcelModal = ({ isOpen, onClose, onSuccess, departmentsList }
       if (!newEmployee.phoneNumber) errors["phoneNumber"] = "Bắt buộc";
 
       if (!newEmployee.email) {
-        errors["email"] = "Bắt buộc";
-      } else if (!/^\S+@\S+\.\S+$/.test(newEmployee.email)) {
-        errors["email"] = "Email sai định dạng";
-      } else {
-        if (seenEmails.has(newEmployee.email)) errors["email"] = "Trùng Email trong file";
-        seenEmails.add(newEmployee.email);
-      }
+  errors["email"] = "Bắt buộc";
+} else if (!/^\S+@\S+\.\S+$/.test(newEmployee.email)) {
+  errors["email"] = "Email sai định dạng";
+}
 
       if (!newEmployee.workInfo.joinDate) errors["workInfo.joinDate"] = "Bắt buộc";
       
