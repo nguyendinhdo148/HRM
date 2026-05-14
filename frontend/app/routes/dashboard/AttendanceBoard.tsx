@@ -1,6 +1,10 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import * as XLSX from "xlsx";
-import { CalendarDays, RefreshCcw, CalendarClock, Search, TrendingUp, Users, Filter, X, Trash2, Lock, Unlock, FileSpreadsheet, Clock, TimerOff, Save } from "lucide-react";
+import { 
+  CalendarDays, RefreshCcw, CalendarClock, Search, TrendingUp, Users, Filter, 
+  X, Trash2, Lock, Unlock, FileSpreadsheet, Clock, TimerOff, Save,
+  ChevronLeft, ChevronRight
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
@@ -29,6 +33,9 @@ export default function AttendanceBoard() {
   const currentDate = new Date();
   const [newMonth, setNewMonth] = useState(currentDate.getMonth() + 1);
   const [newYear, setNewYear] = useState(currentDate.getFullYear());
+
+  // === STATE QUẢN LÝ THU GỌN SIDEBAR ===
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
   const fetchMonthsList = async () => {
     setIsLoading(true);
@@ -126,12 +133,10 @@ export default function AttendanceBoard() {
     if (val === "X") nextVal = "0.5"; else if (val === "0.5" || val === "0,5") nextVal = "OFF"; else if (val === "OFF") nextVal = ""; else nextVal = "X";
     
     setEditingRecords((prev) => {
-      // Dùng JSON parse/stringify để Deep Clone tránh mutate object lồng nhau
       const currentEdit = prev[recordId] ? JSON.parse(JSON.stringify(prev[recordId])) : JSON.parse(JSON.stringify(attendances.find((a) => a._id === recordId)));
       if (!currentEdit.records) currentEdit.records = {};
       currentEdit.records[day] = nextVal;
 
-      // Logic: Nếu chuyển sang OFF hoặc Trống, tự động reset KPI Show của ngày đó về 0
       if (nextVal !== "X" && nextVal !== "0.5") {
         if (currentEdit.kpiRecords && currentEdit.kpiRecords[day]) {
           currentEdit.kpiRecords[day] = { minishow: 0, bigshow: 0 };
@@ -201,7 +206,7 @@ export default function AttendanceBoard() {
           records: updatedData.records, 
           overtimeRecords: updatedData.overtimeRecords, 
           shortfallRecords: updatedData.shortfallRecords,
-          kpiRecords: updatedData.kpiRecords // Đẩy KPI show xuống DB
+          kpiRecords: updatedData.kpiRecords 
         }),
       });
       if (res.ok) await fetchAttendanceData(selectedMonthDoc.month, selectedMonthDoc.year);
@@ -224,7 +229,7 @@ export default function AttendanceBoard() {
             records: updatedData.records,
             overtimeRecords: updatedData.overtimeRecords,
             shortfallRecords: updatedData.shortfallRecords,
-            kpiRecords: updatedData.kpiRecords // Đẩy KPI show xuống DB
+            kpiRecords: updatedData.kpiRecords 
           }),
         });
       });
@@ -275,7 +280,6 @@ export default function AttendanceBoard() {
       await new Promise((resolve) => setTimeout(resolve, 300));
       const wb = XLSX.utils.book_new();
 
-      // Sheet Hành Chính + Show
       const attendanceData = [[`BẢNG CHẤM CÔNG & SHOW THÁNG ${selectedMonthDoc.month}/${selectedMonthDoc.year}`], [], [`Phòng ban: ${selectedDept === "ALL" ? "Tất cả" : selectedDept}`, ``, ``, ``, ``, `Ngày xuất: ${new Date().toLocaleDateString("vi-VN")}`], []];
       const header1 = ["STT", "Mã NV", "Họ và tên", "Phòng ban", "Tạm ứng"]; 
       daysArray.forEach(d => header1.push(`${d}`)); 
@@ -311,7 +315,6 @@ export default function AttendanceBoard() {
         attendanceData.push(row);
       });
 
-      // Sheet OT
       const otData = [[`BẢNG LÀM THÊM GIỜ & ĐI MUỘN THÁNG ${selectedMonthDoc.month}/${selectedMonthDoc.year}`], [], [`Phòng ban: ${selectedDept === "ALL" ? "Tất cả" : selectedDept}`, ``, ``, `Ngày xuất: ${new Date().toLocaleDateString("vi-VN")}`], []];
       const otHeader1 = ["STT", "Mã NV", "Họ và tên", "Phòng ban"]; daysArray.forEach(d => otHeader1.push(`${d}`)); otHeader1.push("Thường [X]", "Nghỉ [N]", "Lễ [T]", "Tổng OT", "Tổng Giờ Thiếu"); otData.push(otHeader1);
       const otHeader2 = ["", "", "", ""]; daysArray.forEach(d => otHeader2.push(getDayOfWeek(selectedMonthDoc.year, selectedMonthDoc.month, d).name)); otHeader2.push("", "", "", "", ""); otData.push(otHeader2);
@@ -338,24 +341,46 @@ export default function AttendanceBoard() {
   if (isLoading && monthsList.length === 0) return <Loader />;
 
   return (
-    <div className="w-full flex flex-col xl:flex-row gap-5 p-5 bg-gradient-to-br from-slate-50 to-blue-50/30 min-h-screen">
-      <Sidebar 
-        monthsList={monthsList} selectedMonthDoc={selectedMonthDoc} setSelectedMonthDoc={setSelectedMonthDoc}
-        newMonth={newMonth} setNewMonth={setNewMonth} newYear={newYear} setNewYear={setNewYear} handleInitializeMonth={handleInitializeMonth} 
-      />
+    <div className="flex w-full h-screen bg-gradient-to-br from-slate-50 to-blue-50/30 overflow-hidden font-sans">
+      
+      {/* SIDEBAR */}
+      <aside 
+        className={`relative bg-white border-r border-slate-200 h-full flex-shrink-0 z-20 shadow-sm
+        ${isSidebarOpen ? 'w-[320px]' : 'w-0'}`}
+      >
+        <div 
+          className={`w-[320px] h-full p-5 overflow-y-auto no-scrollbar
+          ${isSidebarOpen ? 'block' : 'hidden'}`}
+        >
+          <Sidebar 
+            monthsList={monthsList} selectedMonthDoc={selectedMonthDoc} setSelectedMonthDoc={setSelectedMonthDoc}
+            newMonth={newMonth} setNewMonth={setNewMonth} newYear={newYear} setNewYear={setNewYear} handleInitializeMonth={handleInitializeMonth} 
+          />
+        </div>
 
-      <div className="flex-1 min-w-0 space-y-4">
+        {/* Nút Toggle thu/phóng nhỏ gọn, không viền đổ bóng rườm rà */}
+        <button
+          onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+          className="absolute -right-6 top-8 z-50 flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 hover:text-slate-800 shadow-sm cursor-pointer"
+          title={isSidebarOpen ? "Thu gọn menu" : "Mở rộng menu"}
+        >
+          {isSidebarOpen ? <ChevronLeft size={18} /> : <ChevronRight size={18} />}
+        </button>
+      </aside>
+
+      {/* MAIN CONTENT */}
+      <main className="flex-1 flex flex-col h-full w-full overflow-y-auto p-4 sm:p-6 min-w-0">
         {selectedMonthDoc ? (
           <Tabs defaultValue="board">
             <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 mb-4">
               <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center shadow-lg shadow-blue-200">
+                <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center shadow-md shadow-blue-200">
                   <CalendarDays className="w-6 h-6 text-white" />
                 </div>
                 <div>
                   <h1 className="text-2xl font-black text-slate-800">Kỳ Chấm Công {selectedMonthDoc.month}/{selectedMonthDoc.year}</h1>
                   <div className="flex items-center gap-2 mt-1">
-                    <Badge variant={selectedMonthDoc.status === "closed" ? "secondary" : "default"} className={`text-xs font-semibold ${selectedMonthDoc.status === "closed" ? "bg-slate-200 text-slate-600" : "bg-amber-100 text-amber-800 animate-pulse"}`}>
+                    <Badge variant={selectedMonthDoc.status === "closed" ? "secondary" : "default"} className={`text-xs font-semibold ${selectedMonthDoc.status === "closed" ? "bg-slate-200 text-slate-600" : "bg-amber-100 text-amber-800"}`}>
                       {selectedMonthDoc.status === "closed" ? "Đã khóa" : "Đang mở"}
                     </Badge>
                     <span className="text-sm text-slate-400">•</span>
@@ -371,7 +396,7 @@ export default function AttendanceBoard() {
               </TabsList>
             </div>
 
-            <div className="bg-white p-3 rounded-2xl border border-slate-200/80 shadow-sm flex flex-wrap gap-3 items-center">
+            <div className="bg-white p-3 rounded-2xl border border-slate-200/80 shadow-sm flex flex-wrap gap-3 items-center mb-4">
               <div className="flex items-center gap-2 bg-slate-50 rounded-xl px-3 py-2 border border-slate-100">
                 <Filter className="w-4 h-4 text-slate-400" />
                 <select className="bg-transparent text-sm font-medium text-slate-700 outline-none min-w-[180px]" value={selectedDept} onChange={(e) => setSelectedDept(e.target.value)}>
@@ -393,7 +418,7 @@ export default function AttendanceBoard() {
                     size="sm" 
                     onClick={handleSaveAll} 
                     disabled={isSavingAll}
-                    className="bg-blue-600 hover:bg-blue-700 text-white rounded-xl shadow-md font-bold animate-pulse"
+                    className="bg-blue-600 hover:bg-blue-700 text-white rounded-xl shadow-md font-bold"
                   >
                     {isSavingAll ? <RefreshCcw className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
                     Lưu tất cả ({Object.keys(editingRecords).length})
@@ -419,18 +444,25 @@ export default function AttendanceBoard() {
             </TabsContent>
           </Tabs>
         ) : (
-          <div className="h-[700px] flex flex-col items-center justify-center text-slate-300 bg-white/80 backdrop-blur-sm rounded-3xl border-2 border-dashed border-slate-200">
+          <div className="h-[700px] flex flex-col items-center justify-center text-slate-300 bg-white/80 rounded-3xl border-2 border-dashed border-slate-200">
             <CalendarClock className="w-16 h-16 text-blue-300 mb-6" />
             <p className="font-bold text-xl text-slate-400 mb-2">Chưa chọn kỳ công</p>
           </div>
         )}
-      </div>
+      </main>
 
+      {/* STYLE BỔ SUNG: Ẩn thanh cuộn của sidebar nhưng vẫn cho scroll */}
       <style>{`
         .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
         .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar {
+          -ms-overflow-style: none;  /* IE and Edge */
+          scrollbar-width: none;  /* Firefox */
+        }
       `}</style>
     </div>
   );
