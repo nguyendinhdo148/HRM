@@ -11,15 +11,20 @@ export const getTaxMonths = async (req, res) => {
       { $project: { _id: 0, month: "$_id.month", year: "$_id.year" } }
     ]);
     res.status(200).json(months);
-  } catch (error) { res.status(500).json({ message: "Lỗi lấy danh sách kỳ Thuế" }); }
+  } catch (error) { 
+    res.status(500).json({ message: "Lỗi lấy danh sách kỳ Thuế" }); 
+  }
 };
 
 export const getTaxByMonth = async (req, res) => {
   try {
     const { month, year } = req.query;
-    const records = await TaxRecord.find({ month: Number(month), year: Number(year) }).sort({ "employeeSnapshot.employeeCode": 1 });
+    const records = await TaxRecord.find({ month: Number(month), year: Number(year) })
+      .sort({ "employeeSnapshot.employeeCode": 1 });
     res.status(200).json(records);
-  } catch (error) { res.status(500).json({ message: "Lỗi lấy dữ liệu Thuế" }); }
+  } catch (error) { 
+    res.status(500).json({ message: "Lỗi lấy dữ liệu Thuế" }); 
+  }
 };
 
 // LIÊN KẾT CHÉO CÁC MODEL KHỞI TẠO BẢNG THUẾ
@@ -38,23 +43,40 @@ export const initializeTaxMonth = async (req, res) => {
     const payrolls = await PayrollRecord.find({ month, year });
     const insurances = await InsuranceRecord.find({ month, year });
 
-    // ... bên trong hàm initializeTaxMonth
-const taxDocs = activeEmployees.map((emp) => {
-  const payroll = payrolls.find(p => p.employee?.toString() === emp._id.toString());
-  const insurance = insurances.find(i => i.employee?.toString() === emp._id.toString());
+    const taxDocs = activeEmployees.map((emp) => {
+      const payroll = payrolls.find(p => p.employee?.toString() === emp._id.toString());
+      const insurance = insurances.find(i => i.employee?.toString() === emp._id.toString());
+      const payrollAllowances = payroll?.incomes?.allowances || {};
+      const allowanceTotal = [
+        payrollAllowances.meal,
+        payrollAllowances.transport,
+        payrollAllowances.phone,
+        payrollAllowances.clothing,
+        payrollAllowances.housing
+      ].reduce((sum, amount) => sum + (Number(amount) || 0), 0);
 
-  return {
-    month, year, employee: emp._id,
-    employeeSnapshot: {
-      employeeCode: emp.employeeCode,
-      fullName: emp.fullName,
-      position: emp.workInfo?.position || "Chưa có" // ✅ Sửa ở đây
-    },
-    taxableIncome: payroll ? payroll.incomes.totalGross : (emp.salaryAndBenefits?.baseSalary || 0),
-    dependents: emp.personalInfo?.dependents || 0,
-    deductions: { insurance: insurance ? insurance.employeePays.total : 0 }
-  };
-});
+      return {
+        month,
+        year,
+        employee: emp._id,
+        employeeSnapshot: {
+          employeeCode: emp.employeeCode,
+          fullName: emp.fullName,
+          position: emp.workInfo?.position || "Chưa có"
+        },
+        taxableIncome: payroll ? payroll.incomes.totalGross : (emp.salaryAndBenefits?.baseSalary || 0),
+        allowances: {
+          meal: payrollAllowances.meal || 0,
+          transport: payrollAllowances.transport || 0,
+          phone: payrollAllowances.phone || 0,
+          clothing: payrollAllowances.clothing || 0,
+          housing: payrollAllowances.housing || 0,
+          total: allowanceTotal
+        },
+        dependents: emp.personalInfo?.dependents || 0,
+        deductions: { insurance: insurance ? insurance.employeePays.total : 0 }
+      };
+    });
 
     const createdRecords = await TaxRecord.insertMany(taxDocs);
     for (const doc of createdRecords) {
@@ -63,7 +85,9 @@ const taxDocs = activeEmployees.map((emp) => {
     }
 
     res.status(201).json({ message: `Tạo Bảng Thuế TNCN thành công cho ${activeEmployees.length} nhân sự.` });
-  } catch (error) { res.status(500).json({ message: "Lỗi khởi tạo Bảng Thuế" }); }
+  } catch (error) { 
+    res.status(500).json({ message: "Lỗi khởi tạo Bảng Thuế" }); 
+  }
 };
 
 export const updateTaxRecord = async (req, res) => {
@@ -79,7 +103,9 @@ export const updateTaxRecord = async (req, res) => {
 
     await record.save();
     res.status(200).json({ message: "Cập nhật thành công" });
-  } catch (error) { res.status(500).json({ message: "Lỗi cập nhật Thuế" }); }
+  } catch (error) { 
+    res.status(500).json({ message: "Lỗi cập nhật Thuế" }); 
+  }
 };
 
 export const deleteTaxMonth = async (req, res) => {
@@ -87,5 +113,7 @@ export const deleteTaxMonth = async (req, res) => {
     const { month, year } = req.query;
     await TaxRecord.deleteMany({ month: Number(month), year: Number(year) });
     res.status(200).json({ message: "Đã xóa toàn bộ Bảng Thuế TNCN" });
-  } catch (error) { res.status(500).json({ message: "Lỗi xóa bảng Thuế" }); }
+  } catch (error) { 
+    res.status(500).json({ message: "Lỗi xóa bảng Thuế" }); 
+  }
 };

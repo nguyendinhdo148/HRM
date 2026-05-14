@@ -57,28 +57,27 @@ export const initializeInsuranceMonth = async (req, res) => {
     }
 
     // 3. Map dữ liệu để chuẩn bị insert
-    // ... bên trong hàm initializeInsuranceMonth
-const insuranceDocs = activeEmployees.map((emp) => {
-  const insSalary = emp.salaryAndBenefits?.insuranceSalary || emp.salaryAndBenefits?.baseSalary || 0;
+    const insuranceDocs = activeEmployees.map((emp) => {
+      const insSalary = emp.salaryAndBenefits?.insuranceSalary || emp.salaryAndBenefits?.baseSalary || 0;
 
-  return {
-    month,
-    year,
-    employee: emp._id,
-    employeeSnapshot: {
-      employeeCode: emp.employeeCode,
-      fullName: emp.fullName,
-      position: emp.workInfo?.position || "Chưa có", // ✅ Sửa thành workInfo.position
-      department: emp.workInfo?.department || "N/A"
-    },
-    insuranceSalary: insSalary,
-  };
-});
+      return {
+        month,
+        year,
+        employee: emp._id,
+        employeeSnapshot: {
+          employeeCode: emp.employeeCode,
+          fullName: emp.fullName,
+          position: emp.workInfo?.position || "Chưa có", // ✅ Sửa thành workInfo.position
+          department: emp.workInfo?.department || "N/A"
+        },
+        insuranceSalary: insSalary,
+      };
+    });
 
     // 4. Insert vào DB
     const createdRecords = await InsuranceRecord.insertMany(insuranceDocs);
 
-    // 5. Chạy Hook save() để Mongoose tự động nhân chia tỷ lệ 23.5% và 10.5% (Như đã viết ở Model)
+    // 5. Chạy Hook save() để Mongoose tự động nhân chia tỷ lệ 21.5% (Đã bỏ KPCĐ) và 10.5% (Như đã viết ở Model)
     for (const doc of createdRecords) {
       const record = await InsuranceRecord.findById(doc._id);
       await record.save(); 

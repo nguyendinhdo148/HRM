@@ -8,21 +8,9 @@ const attendanceSchema = new mongoose.Schema(
       required: true,
       description: "Liên kết đến Nhân viên"
     },
-    month: { 
-      type: Number, 
-      required: true, 
-      min: 1, 
-      max: 12 
-    },
-    year: { 
-      type: Number, 
-      required: true 
-    },
-    advancePayment: { 
-      type: Number, 
-      default: 0,
-      description: "Tạm ứng trong tháng (VNĐ)"
-    },
+    month: { type: Number, required: true, min: 1, max: 12 },
+    year: { type: Number, required: true },
+    advancePayment: { type: Number, default: 0, description: "Tạm ứng trong tháng (VNĐ)" },
     
     // ==========================================
     // 1. CHẤM CÔNG CHUẨN (HÀNH CHÍNH)
@@ -52,35 +40,49 @@ const attendanceSchema = new mongoose.Schema(
     },
 
     // ==========================================
-    // 4. TỔNG HỢP THỐNG KÊ (AUTO-CALCULATED)
+    // 4. KPI SHOW (MINI / BIG SHOW THEO NGÀY)
+    // ==========================================
+    kpiRecords: {
+      type: Map,
+      of: new mongoose.Schema({
+        minishow: { type: Number, default: 0 },
+        bigshow: { type: Number, default: 0 }
+      }, { _id: false }),
+      default: {},
+      description: "Lưu số show theo từng ngày. Key là ngày (VD: '15')"
+    },
+
+    // ==========================================
+    // 5. TỔNG HỢP THỐNG KÊ (AUTO-CALCULATED)
     // ==========================================
     summary: {
       totalFullDays: { type: Number, default: 0 }, 
       totalHalfDays: { type: Number, default: 0 }, 
       totalPaidDays: { type: Number, default: 0 }, 
 
-      totalOTNormal: { type: Number, default: 0 },  // Ngày thường (X) hoặc nhập số giờ
-      totalOTWeekend: { type: Number, default: 0 }, // Ngày nghỉ (N)
-      totalOTHoliday: { type: Number, default: 0 }, // Lễ tết (T)
-      totalOT: { type: Number, default: 0 },        // Tổng cộng
+      totalOTNormal: { type: Number, default: 0 },  
+      totalOTWeekend: { type: Number, default: 0 }, 
+      totalOTHoliday: { type: Number, default: 0 }, 
+      totalOT: { type: Number, default: 0 },        
 
-      totalShortfallHours: { type: Number, default: 0 } // Tổng giờ đi muộn/về sớm
+      totalShortfallHours: { type: Number, default: 0 }, 
+
+      // Bổ sung tổng KPI
+      totalMinishow: { type: Number, default: 0 },
+      totalBigshow: { type: Number, default: 0 }
     }
   },
   { timestamps: true }
 );
 
-// Đảm bảo 1 nhân viên chỉ có 1 bảng chấm công trong 1 tháng/năm
 attendanceSchema.index({ employee: 1, month: 1, year: 1 }, { unique: true });
 
 // ==========================================
-// HOOK: TỰ ĐỘNG TÍNH TOÁN TỔNG HỢP TRƯỚC KHI LƯU
+// HOOK: TỰ ĐỘNG TÍNH TOÁN TRƯỚC KHI LƯU
 // ==========================================
 attendanceSchema.pre("save", function (next) {
   // 1. Tính công chuẩn
-  let fullDays = 0;
-  let halfDays = 0;
-
+  let fullDays = 0, halfDays = 0;
   if (this.records) {
     this.records.forEach((val) => {
       const value = val?.toString().trim().toUpperCase().replace(",", ".");
@@ -89,34 +91,34 @@ attendanceSchema.pre("save", function (next) {
     });
   }
 
-  // 2. Tính làm thêm giờ (Hỗ trợ cả Chữ và Số)
-  let otNormal = 0;
-  let otWeekend = 0;
-  let otHoliday = 0;
-
+  // 2. Tính làm thêm giờ
+  let otNormal = 0, otWeekend = 0, otHoliday = 0;
   if (this.overtimeRecords) {
     this.overtimeRecords.forEach((val) => {
       const value = val?.toString().trim().toUpperCase();
-      
       if (value === "X") otNormal += 1;
       else if (value === "N") otWeekend += 1;
       else if (value === "T") otHoliday += 1;
-      // Nếu HR nhập số (ví dụ: 2, 4.5 tiếng) thì cộng vào OT Thường
-      else if (!isNaN(Number(value)) && Number(value) > 0) {
-        otNormal += Number(value); 
-      }
+      else if (!isNaN(Number(value)) && Number(value) > 0) otNormal += Number(value); 
     });
   }
 
   // 3. Tính giờ thiếu
   let shortHours = 0;
   if (this.shortfallRecords) {
-    this.shortfallRecords.forEach((val) => {
-      shortHours += Number(val) || 0;
+    this.shortfallRecords.forEach((val) => { shortHours += Number(val) || 0; });
+  }
+
+  // 4. Tính tổng Show
+  let tMinishow = 0, tBigshow = 0;
+  if (this.kpiRecords) {
+    this.kpiRecords.forEach((val) => {
+      tMinishow += Number(val.minishow) || 0;
+      tBigshow += Number(val.bigshow) || 0;
     });
   }
 
-  // 4. Gán vào summary
+  // 5. Gán vào summary
   this.summary.totalFullDays = fullDays;
   this.summary.totalHalfDays = halfDays;
   this.summary.totalPaidDays = fullDays + (halfDays * 0.5);
@@ -127,6 +129,8 @@ attendanceSchema.pre("save", function (next) {
   this.summary.totalOT = otNormal + otWeekend + otHoliday;
 
   this.summary.totalShortfallHours = shortHours;
+  this.summary.totalMinishow = tMinishow;
+  this.summary.totalBigshow = tBigshow;
 
   next();
 });

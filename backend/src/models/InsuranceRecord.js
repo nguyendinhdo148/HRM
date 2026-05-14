@@ -18,8 +18,7 @@ const insuranceRecordSchema = new mongoose.Schema(
       bhxh: { type: Number, default: 0 }, 
       bhyt: { type: Number, default: 0 }, 
       bhtn: { type: Number, default: 0 }, 
-      kpcd: { type: Number, default: 0 }, 
-      total: { type: Number, default: 0 } 
+      // ❌ Đã xóa KPCĐ và Tổng CP Doanh Nghiệp theo Yêu cầu 7, 8
     },
 
     employeePays: {
@@ -37,13 +36,12 @@ insuranceRecordSchema.pre("save", function (next) {
   let salary = this.insuranceSalary || 0;
 
   // ==============================================
-  // 1. DOANH NGHIỆP ĐÓNG (Bảo hiểm 21.5% + KPCĐ 2%)
+  // 1. DOANH NGHIỆP ĐÓNG (Chỉ tính Bảo hiểm 21.5%)
   // ==============================================
   this.companyPays.bhxh = Math.round(salary * 0.18);   
   this.companyPays.bhyt = Math.round(salary * 0.03);   
   this.companyPays.bhtn = Math.round(salary * 0.005);  
-  this.companyPays.kpcd = Math.round(salary * 0.02);   
-  this.companyPays.total = this.companyPays.bhxh + this.companyPays.bhyt + this.companyPays.bhtn + this.companyPays.kpcd;
+  // ❌ Đã xóa logic tính KPCĐ và tính Tổng CP Doanh Nghiệp
 
   // ==============================================
   // 2. NGƯỜI LAO ĐỘNG ĐÓNG (10.5%)

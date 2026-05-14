@@ -108,12 +108,13 @@ export default function InsuranceBoard() {
 
       const tableData = [
         [`BẢNG TÍNH BẢO HIỂM THÁNG ${selectedMonth.month}/${selectedMonth.year}`], [],
-        [`Ngày xuất: ${new Date().toLocaleDateString("vi-VN")}`, "", "", "", "", "", "", "", "", "", "", "", ""], []
+        [`Ngày xuất: ${new Date().toLocaleDateString("vi-VN")}`, "", "", "", "", "", "", "", "", "", "", ""], []
       ];
 
+      // Đã cập nhật loại bỏ cột KPCĐ và Tổng DN
       const header1 = [
         "STT", "Mã NV", "Tên", "Chức vụ", "Lương đóng BH", 
-        "BHXH (18%)", "BHYT (3%)", "BHTN (0.5%)", "KPCĐ (2%)", "Tổng BH tính vào CP (DN)",
+        "BHXH (18%)", "BHYT (3%)", "BHTN (0.5%)",
         "BHXH (8%)", "BHYT (1.5%)", "BHTN (1%)", "Tiền BH trừ vào lương (NLĐ)"
       ];
       tableData.push(header1);
@@ -128,8 +129,6 @@ export default function InsuranceBoard() {
           r.companyPays?.bhxh || 0,
           r.companyPays?.bhyt || 0,
           r.companyPays?.bhtn || 0,
-          r.companyPays?.kpcd || 0,
-          r.companyPays?.total || 0,
           r.employeePays?.bhxh || 0,
           r.employeePays?.bhyt || 0,
           r.employeePays?.bhtn || 0,
@@ -138,12 +137,14 @@ export default function InsuranceBoard() {
       });
 
       const ws = XLSX.utils.aoa_to_sheet(tableData);
+      
+      // Cập nhật lại số lượng cột
       ws["!cols"] = [
         { wch: 5 }, { wch: 10 }, { wch: 25 }, { wch: 20 }, { wch: 18 },
-        { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 25 },
+        { wch: 15 }, { wch: 15 }, { wch: 15 }, 
         { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 25 }
       ];
-      ws["!merges"] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 13 } }];
+      ws["!merges"] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 11 } }]; // Gộp cột Tiêu đề (Cột 0 -> 11)
 
       applyStyle(ws, "A1", { font: { bold: true, sz: 16, color: { rgb: "1E3A8A" } }, alignment: { horizontal: "center", vertical: "center" }});
       
@@ -178,7 +179,6 @@ export default function InsuranceBoard() {
         </div>
         
         <div className="flex flex-wrap items-center gap-3">
-          {/* Lọc Tháng / Năm */}
           {monthsList.length > 0 && (
             <div className="flex bg-slate-100 p-1.5 rounded-lg border mr-2">
               <select 
@@ -196,7 +196,6 @@ export default function InsuranceBoard() {
             </div>
           )}
 
-          {/* Vùng Khởi tạo tháng mới */}
           <div className="flex items-center gap-1 border-l pl-4 border-slate-200">
             <select className="border rounded-md px-2 py-1.5 text-sm outline-none" value={newMonth} onChange={e => setNewMonth(Number(e.target.value))}>
               {[...Array(12)].map((_, i) => <option key={i+1} value={i+1}>Tháng {i+1}</option>)}
@@ -212,7 +211,6 @@ export default function InsuranceBoard() {
             Xuất Excel
           </Button>
           
-          {/* Nút Xóa */}
           {selectedMonth && (
             <Button size="sm" variant="destructive" onClick={handleDeleteMonth} className="ml-1 shadow-sm">
               <Trash2 className="w-4 h-4" />
@@ -237,9 +235,7 @@ export default function InsuranceBoard() {
               <tr><td className="border p-2 text-left font-bold text-slate-700">1. BHXH (Hưu trí, Tử tuất, TNLĐ)</td><td className="border p-2 text-blue-600 font-bold">18,0%</td><td className="border p-2">8,0%</td><td className="border p-2 text-[#1e40af] font-bold">26,0%</td></tr>
               <tr><td className="border p-2 text-left font-bold text-slate-700">2. BHYT</td><td className="border p-2">3,0%</td><td className="border p-2">1,5%</td><td className="border p-2 text-[#1e40af] font-bold">4,5%</td></tr>
               <tr><td className="border p-2 text-left font-bold text-slate-700">3. BHTN</td><td className="border p-2 text-blue-600 font-bold">0,5%</td><td className="border p-2">1,0%</td><td className="border p-2 text-[#1e40af] font-bold">1,5%</td></tr>
-              <tr className="bg-slate-50 font-black text-rose-700"><td className="border p-2 text-left text-slate-800">Cộng Bảo Hiểm (32%)</td><td className="border p-2">21,5%</td><td className="border p-2">10,5%</td><td className="border p-2">32,0%</td></tr>
-              <tr><td className="border p-2 text-left font-bold text-slate-700">4. KPCĐ (Kinh phí công đoàn)</td><td className="border p-2">2,0%</td><td className="border p-2">-</td><td className="border p-2 font-bold">2,0%</td></tr>
-              <tr className="bg-[#eff6ff] font-black text-[#1e3a8a]"><td className="border p-2 text-left">TỔNG TOÀN BỘ CHI PHÍ</td><td className="border p-2">23,5%</td><td className="border p-2">10,5%</td><td className="border p-2">34,0%</td></tr>
+              <tr className="bg-[#eff6ff] font-black text-[#1e3a8a]"><td className="border p-2 text-left">TỔNG TOÀN BỘ CHI PHÍ</td><td className="border p-2">21,5%</td><td className="border p-2">10,5%</td><td className="border p-2">32,0%</td></tr>
             </tbody>
           </table>
         </div>
@@ -251,7 +247,7 @@ export default function InsuranceBoard() {
           {isDataLoading ? (
             <div className="h-64 flex items-center justify-center"><Loader /></div>
           ) : (
-            <table className="w-full text-[11px] border-collapse min-w-[1400px]">
+            <table className="w-full text-[11px] border-collapse min-w-[1200px]">
               <thead>
                 <tr className="bg-[#0f172a] text-white">
                   <th rowSpan={2} className="border border-slate-700 p-3 text-center min-w-[50px]">STT</th>
@@ -260,8 +256,8 @@ export default function InsuranceBoard() {
                   <th rowSpan={2} className="border border-slate-700 p-3 text-left min-w-[150px]">Chức vụ</th>
                   <th rowSpan={2} className="border border-slate-700 p-3 text-right min-w-[120px]">Lương đóng BH</th>
                   
-                  <th colSpan={4} className="border border-slate-700 p-2 text-center bg-[#1e3a8a]">BHXH, BHYT, BHTN tính vào chi phí DN</th>
-                  <th rowSpan={2} className="border border-slate-700 p-3 text-center bg-[#1e40af] font-bold">Tổng CP Doanh Nghiệp</th>
+                  {/* Bỏ cột KPCĐ và cột Tổng CP Doanh nghiệp -> colSpan còn 3 */}
+                  <th colSpan={3} className="border border-slate-700 p-2 text-center bg-[#1e3a8a]">BHXH, BHYT, BHTN tính vào chi phí DN</th>
                   
                   <th colSpan={3} className="border border-slate-700 p-2 text-center bg-[#b91c1c]">Các khoản giảm trừ (NLĐ)</th>
                   <th rowSpan={2} className="border border-slate-700 p-3 text-center bg-[#9f1239] font-bold">Tiền BH trừ vào lương</th>
@@ -270,7 +266,6 @@ export default function InsuranceBoard() {
                   <th className="border border-slate-700 p-2 text-center text-blue-200">BHXH (18%)</th>
                   <th className="border border-slate-700 p-2 text-center text-blue-200">BHYT (3%)</th>
                   <th className="border border-slate-700 p-2 text-center text-blue-200">BHTN (0.5%)</th>
-                  <th className="border border-slate-700 p-2 text-center text-blue-200">KPCĐ (2%)</th>
                   
                   <th className="border border-slate-700 p-2 text-center text-rose-200">BHXH (8%)</th>
                   <th className="border border-slate-700 p-2 text-center text-rose-200">BHYT (1.5%)</th>
@@ -279,7 +274,7 @@ export default function InsuranceBoard() {
               </thead>
               <tbody className="bg-white">
                 {records.length === 0 ? (
-                  <tr><td colSpan={14} className="text-center p-10 text-slate-400 font-medium">Chưa có dữ liệu bảo hiểm tháng này. Vui lòng nhấn Tạo Bảng.</td></tr>
+                  <tr><td colSpan={12} className="text-center p-10 text-slate-400 font-medium">Chưa có dữ liệu bảo hiểm tháng này. Vui lòng nhấn Tạo Bảng.</td></tr>
                 ) : records.map((r, idx) => (
                   <tr key={r._id} className="hover:bg-slate-50 border-b">
                     <td className="p-2 border-r text-center">{idx + 1}</td>
@@ -294,8 +289,6 @@ export default function InsuranceBoard() {
                     <td className="p-2 border-r text-right text-blue-800">{formatMoney(r.companyPays?.bhxh)}</td>
                     <td className="p-2 border-r text-right text-blue-800">{formatMoney(r.companyPays?.bhyt)}</td>
                     <td className="p-2 border-r text-right text-blue-800">{formatMoney(r.companyPays?.bhtn)}</td>
-                    <td className="p-2 border-r text-right text-blue-800">{formatMoney(r.companyPays?.kpcd)}</td>
-                    <td className="p-2 border-r text-right font-black text-blue-700 bg-blue-50/50">{formatMoney(r.companyPays?.total)}</td>
 
                     {/* NLĐ TRẢ */}
                     <td className="p-2 border-r text-right text-rose-700">{formatMoney(r.employeePays?.bhxh)}</td>

@@ -35,15 +35,15 @@ export const SidebarComponent = ({
   const [isCollapsed, setIsCollapsed] = useState(false);
 
   const allNavItems = [
-    { title: "Nhân sự", href: "/employee", icon: Users },
-    { title: "Chấm công", href: "/attendance", icon: ListCheck },
-    { title: "Bảng tính lương", href: "/payrollBoard", icon: FolderTree },
-    { title: "BHXH", href: "/insuranceBoard", icon: Users },
-    { title: "TNCN", href: "/taxBoard", icon: GlassWater },
+    { title: "Nhân sự (1)", href: "/employee", icon: Users },
+    { title: "Chấm công (2)", href: "/attendance", icon: ListCheck },
+    { title: "BHXH (3)", href: "/insuranceBoard", icon: Users },
+   { title: "Lương làm thêm giờ (4 nếu có)", href: "/overtimePayBoard", icon: FileWarning },
+    { title: "Bảng tính lương (5)", href: "/payrollBoard", icon: FolderTree },
+    { title: "TNCN (6, quay lại 5 update)", href: "/taxBoard", icon: GlassWater },
     
     // <-- THÊM DÒNG QUẢN LÝ HỦY MÓN VÀO MENU -->
-    { title: "Lương làm thêm giờ", href: "/overtimePayBoard", icon: FileWarning },
-    { title: "Bảng lương", href: "/PayrollManager", icon: FolderTree },
+    { title: "Bảng lương (auto update)", href: "/PayrollManager", icon: FolderTree },
     // <-- THÊM DÒNG GUI RƯỢU CHO BAR ROLE -->
     { title: "GUI Rượu", href: "/gui-ruou", icon: Wine, roles: ["bar", "admin"] },
     
