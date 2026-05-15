@@ -9,11 +9,11 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { NoDataFound } from "@/components/no-data-found";
 import { CONTRACT_TYPES, EMPLOYEE_STATUS_UI, CONTRACT_STATUSES, formatDateForDisplay } from "./utils";
 
-export const DepartmentsTab = ({ departments, handleOpenDeptModal, handleDeleteDept, handleViewEmployeesInDept, getEmployeeCount }: any) => (
+export const DepartmentsTab = ({ departments, handleOpenDeptModal, handleDeleteDept, isDeptDeleting, handleViewEmployeesInDept, getEmployeeCount }: any) => (
   <TabsContent value="departments" className="space-y-6">
     <div className="flex justify-between items-center bg-white p-4 rounded-xl border shadow-sm">
       <h3 className="text-lg font-semibold">Danh sách Phòng ban</h3>
-      <Button onClick={() => handleOpenDeptModal(null)} className="bg-blue-600 hover:bg-blue-700"><PlusCircle className="size-4 mr-2" /> Thêm phòng ban</Button>
+      <Button onClick={() => handleOpenDeptModal(null)} className="bg-blue-600 hover:bg-blue-700" disabled={isDeptDeleting}><PlusCircle className="size-4 mr-2" /> Thêm phòng ban</Button>
     </div>
     <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
       {departments.map((dept: any) => (
@@ -21,10 +21,10 @@ export const DepartmentsTab = ({ departments, handleOpenDeptModal, handleDeleteD
           <CardHeader className="pb-3">
             <div className="absolute top-4 right-4">
               <DropdownMenu>
-                <DropdownMenuTrigger asChild><Button variant="ghost" className="h-8 w-8 p-0"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
+                <DropdownMenuTrigger asChild><Button variant="ghost" className="h-8 w-8 p-0" disabled={isDeptDeleting}><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
-                  <DropdownMenuItem onClick={() => handleOpenDeptModal(dept)} className="cursor-pointer text-blue-600"><Pencil className="mr-2 h-4 w-4" /> Sửa</DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => handleDeleteDept(dept._id)} className="cursor-pointer text-red-600"><Trash2 className="mr-2 h-4 w-4" /> Xóa</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleOpenDeptModal(dept)} className="cursor-pointer text-blue-600" disabled={isDeptDeleting}><Pencil className="mr-2 h-4 w-4" /> Sửa</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleDeleteDept(dept._id)} className="cursor-pointer text-red-600" disabled={isDeptDeleting}><Trash2 className="mr-2 h-4 w-4" /> Xóa</DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>

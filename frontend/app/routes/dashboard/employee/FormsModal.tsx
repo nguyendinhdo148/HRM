@@ -262,8 +262,6 @@ export const EmployeeModal = ({ isOpen, onClose, selectedEmp, empForm, setEmpFor
               
               <h4 className="font-semibold text-slate-800 border-b pb-2 mt-8">Chính sách Thưởng</h4>
               <div className="grid grid-cols-3 gap-4">
-                <div><label className="block text-sm font-medium mb-1">Thưởng khác (Lễ tết)</label><input type="number" className="w-full border rounded-md p-2" value={empForm.salaryAndBenefits.bonuses.general} onChange={(e) => setEmpForm({...empForm, salaryAndBenefits: {...empForm.salaryAndBenefits, bonuses: {...empForm.salaryAndBenefits.bonuses, general: Number(e.target.value)}}})}/></div>
-                <div><label className="block text-sm font-medium mb-1">Thưởng Năng lực</label><input type="number" className="w-full border rounded-md p-2" value={empForm.salaryAndBenefits.bonuses.performance} onChange={(e) => setEmpForm({...empForm, salaryAndBenefits: {...empForm.salaryAndBenefits, bonuses: {...empForm.salaryAndBenefits.bonuses, performance: Number(e.target.value)}}})}/></div>
                 <div className="bg-teal-50 p-2 rounded border border-teal-200">
                   <label className="block text-sm font-bold text-teal-800 mb-1">Mức thưởng Trách nhiệm</label>
                   <input type="number" className="w-full border border-teal-300 rounded-md p-2" value={empForm.salaryAndBenefits.bonuses.responsibility} onChange={(e) => setEmpForm({...empForm, salaryAndBenefits: {...empForm.salaryAndBenefits, bonuses: {...empForm.salaryAndBenefits.bonuses, responsibility: Number(e.target.value)}}})}/>

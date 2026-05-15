@@ -3,19 +3,20 @@ import { useAuth } from "@/provider/auth-context";
 import { useChatUnreadCount } from "@/hooks/use-chat";
 import type { Workspace } from "@/types";
 import {
-  CheckCircle2,
   ChevronsLeft,
   ChevronsRight,
-  LayoutDashboard,
-  ListCheck,
-  LogOut,
   Settings,
   Users,
-  FolderTree,
   MessageCircle,
-  GlassWater,
-  FileWarning,
-  Wine, // <-- THÊM ICON NÀY CHO TRANG GUI RƯỢU
+  Wine,
+  CalendarCheck,      // Icon cho Chấm công
+  Timer,              // Icon cho Tăng ca
+  Calculator,         // Icon cho Tính lương Gross
+  ShieldCheck,        // Icon cho Bảo hiểm (An toàn/Bảo vệ)
+  Landmark,           // Icon cho Thuế (Cơ quan nhà nước)
+  HandCoins,          // Icon cho Thực lĩnh Net (Nhận tiền)
+  FileSpreadsheet,    // Icon cho Tổng hợp kỳ lương
+  LogOut
 } from "lucide-react";
 import { useState } from "react";
 import { Link } from "react-router";
@@ -34,27 +35,28 @@ export const SidebarComponent = ({
   const { totalUnreadCount } = useChatUnreadCount();
   const [isCollapsed, setIsCollapsed] = useState(false);
 
+  // Đã tối ưu lại tên và Icon cho chuyên nghiệp, bám sát luồng tính lương
   const allNavItems = [
-    { title: "Nhân sự (1)", href: "/employee", icon: Users },
-    { title: "Chấm công (2)", href: "/attendance", icon: ListCheck },
-    { title: "BHXH (3)", href: "/insuranceBoard", icon: Users },
-   { title: "Lương làm thêm giờ (4 nếu có)", href: "/overtimePayBoard", icon: FileWarning },
-    { title: "Bảng tính lương (5)", href: "/payrollBoard", icon: FolderTree },
-    { title: "TNCN (6, quay lại 5 update)", href: "/taxBoard", icon: GlassWater },
+    { title: "Hồ sơ Nhân sự", href: "/employee", icon: Users },
+    { title: "Quản lý Chấm công", href: "/attendance", icon: CalendarCheck },
+    { title: "Quản lý Tăng ca", href: "/overtimePayBoard", icon: Timer },
+    { title: "Bảng lương Gross", href: "/payrollBoard", icon: Calculator },
+    { title: "Khấu trừ Bảo hiểm", href: "/insuranceBoard", icon: ShieldCheck },
+    { title: "Khấu trừ Thuế (TNCN)", href: "/taxBoard", icon: Landmark },
+    { title: "Bảng Thực lĩnh (Net)", href: "/payrollBoardNet", icon: HandCoins },
+    { title: "Tổng hợp Kỳ lương", href: "/PayrollManager", icon: FileSpreadsheet },
     
-    // <-- THÊM DÒNG QUẢN LÝ HỦY MÓN VÀO MENU -->
-    { title: "Bảng lương (auto update)", href: "/PayrollManager", icon: FolderTree },
-    // <-- THÊM DÒNG GUI RƯỢU CHO BAR ROLE -->
-    { title: "GUI Rượu", href: "/gui-ruou", icon: Wine, roles: ["bar", "admin"] },
+    // <-- CHỨC NĂNG RIÊNG CHO QUÁN -->
+    { title: "Quản lý Gửi Rượu", href: "/gui-ruou", icon: Wine, roles: ["bar", "admin"] },
     
-    { title: "Messenger", href: "/achieved", icon: MessageCircle },
-    { title: "Settings", href: "/settings", icon: Settings },
+    { title: "Tin nhắn nội bộ", href: "/achieved", icon: MessageCircle },
+    { title: "Cài đặt hệ thống", href: "/settings", icon: Settings },
   ];
 
   // Filter nav items based on role
   const navItems = allNavItems.filter((item) => {
-    // Everyone can see Nhân sự, Messenger, and Settings
-    if (["Nhân sự", "Messenger", "Settings"].includes(item.title)) {
+    // CẬP NHẬT LẠI TÊN Ở ĐÂY ĐỂ TRÙNG KHỚP VỚI MẢNG BÊN TRÊN
+    if (["Hồ sơ Nhân sự", "Tin nhắn nội bộ", "Cài đặt hệ thống"].includes(item.title)) {
       return true;
     }
     // If item has specific roles requirement, check against those
@@ -91,8 +93,8 @@ export const SidebarComponent = ({
               />
 
               <span className="text-lg font-bold text-amber-600 tracking-wide">
-  Lighthouse
-</span>
+                Lighthouse
+              </span>
             </>
           ) : (
             <div className="flex justify-center w-full">

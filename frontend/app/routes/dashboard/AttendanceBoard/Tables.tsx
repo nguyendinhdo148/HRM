@@ -19,6 +19,13 @@ interface SharedProps {
   handleSaveRow: (id: string) => void;
 }
 
+// Hàm UX: CHỈ tự động cuộn ra giữa khi nhấn phím TAB
+const scrollOnTab = (e: React.KeyboardEvent<HTMLElement>) => {
+  if (e.key === "Tab") {
+    e.currentTarget.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
+  }
+};
+
 // ======================== 1. BẢNG HÀNH CHÍNH & SHOW ========================
 export const BoardTable: React.FC<SharedProps & { 
   toggleAttendance: any, 
@@ -44,7 +51,7 @@ export const BoardTable: React.FC<SharedProps & {
         <NoDataFound title="Không tìm thấy nhân sự" description="Thử thay đổi bộ lọc hoặc từ khóa tìm kiếm" buttonText="Xóa bộ lọc" buttonAction={() => { setSearchQuery(""); setSelectedDept("ALL"); }} />
       ) : (
         <Card className="border-slate-200 shadow-md overflow-hidden rounded-2xl w-full">
-          <div className="overflow-auto custom-scrollbar relative w-full" style={{ maxHeight: "calc(100vh - 220px)" }}>
+          <div className="overflow-auto relative w-full [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar]:h-2.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-slate-300 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-slate-400 transition-all" style={{ maxHeight: "calc(100vh - 280px)" }}>
             <table className="w-full text-sm border-collapse min-w-[2000px]">
               <thead className="sticky top-0 z-30">
                 <tr className="bg-slate-900 text-white">
@@ -90,6 +97,19 @@ export const BoardTable: React.FC<SharedProps & {
                   const isEditing = !!editingRecords[att._id];
                   const isClosed = selectedMonthDoc.status === "closed";
 
+                  let calcFull = 0, calcHalf = 0, calcMini = 0, calcBig = 0;
+                  daysArray.forEach(d => {
+                    const rawVal = rowData.records?.[d];
+                    const val = (!rawVal || rawVal === "Chạm" || rawVal === "x") ? "X" : rawVal;
+                    
+                    if (val === "X") calcFull++;
+                    else if (val === "0.5") calcHalf++;
+                    
+                    calcMini += Number(rowData.kpiRecords?.[d]?.minishow) || 0;
+                    calcBig += Number(rowData.kpiRecords?.[d]?.bigshow) || 0;
+                  });
+                  const calcPaid = calcFull + (calcHalf * 0.5);
+
                   return (
                     <tr key={att._id} className={`group transition-colors duration-150 ${idx % 2 === 0 ? "bg-white hover:bg-blue-50" : "bg-slate-50 hover:bg-blue-50"}`}>
                       <td className={`p-3 border-r border-slate-200/60 sticky left-0 z-20 shadow-[1px_0_5px_-2px_rgba(0,0,0,0.1)] transition-colors ${idx % 2 === 0 ? "bg-white group-hover:bg-blue-50" : "bg-slate-50 group-hover:bg-blue-50"}`}>
@@ -107,12 +127,13 @@ export const BoardTable: React.FC<SharedProps & {
                             className="w-full text-right font-semibold text-emerald-700 bg-transparent outline-none p-2.5 text-sm placeholder-slate-300"
                             value={formatNumberWithDot(rowData.advancePayment)}
                             onChange={(e) => handleAdvanceChange(att._id, e.target.value)}
-                            placeholder="0"
+                            placeholder=""
                           />
                         </div>
                       </td>
                       {daysArray.map((d) => {
-                        const val = rowData.records?.[d] || "";
+                        const rawVal = rowData.records?.[d];
+                        const val = (!rawVal || rawVal === "Chạm" || rawVal === "x") ? "X" : rawVal;
                         const dayInfo = getDayOfWeek(selectedMonthDoc.year, selectedMonthDoc.month, d);
                         
                         let cellStyle = "text-slate-400 font-normal", bgStyle = "bg-white hover:bg-slate-100 border-slate-200";
@@ -128,10 +149,11 @@ export const BoardTable: React.FC<SharedProps & {
                               <button 
                                 disabled={isClosed} 
                                 onClick={() => toggleAttendance(att._id, d.toString(), val)} 
-                                title="Đổi trạng thái: X → 0.5 → OFF → Trống" 
+                                onKeyUp={scrollOnTab} // Sửa thành onKeyUp
+                                title="Đổi trạng thái: X → 0.5 → OFF" 
                                 className={`w-full h-9 flex items-center justify-center text-sm transition-all duration-200 rounded-md border ${cellStyle} ${bgStyle} ${isClosed ? "cursor-not-allowed opacity-60" : "cursor-pointer hover:shadow-sm active:scale-95"}`}
                               >
-                                {val || <span className="text-slate-300 text-xs">Chạm</span>}
+                                {val}
                               </button>
                               
                               <div className="grid grid-cols-2 gap-1.5">
@@ -139,20 +161,22 @@ export const BoardTable: React.FC<SharedProps & {
                                   type="text"
                                   maxLength={2}
                                   title="Mini Show"
-                                  className="w-full h-8 text-xs font-semibold text-center border rounded-md outline-none transition-all duration-200 border-slate-200 hover:border-cyan-400 focus:bg-cyan-50 focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20 text-cyan-700 placeholder:text-slate-300 bg-white"
-                                  placeholder="Mini"
+                                  className="w-full h-8 text-xs font-semibold text-center border rounded-md outline-none transition-all duration-200 border-slate-200 hover:border-cyan-400 focus:bg-cyan-50 focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20 text-cyan-700 bg-white"
+                                  placeholder=""
                                   value={rowData.kpiRecords?.[d]?.minishow || ""}
                                   onChange={(e) => handleKpiChange(att._id, d.toString(), 'minishow', e.target.value)}
+                                  onKeyUp={scrollOnTab} // Sửa thành onKeyUp
                                   disabled={isClosed}
                                 />
                                 <input
                                   type="text"
                                   maxLength={2}
                                   title="Big Show"
-                                  className="w-full h-8 text-xs font-semibold text-center border rounded-md outline-none transition-all duration-200 border-slate-200 hover:border-purple-400 focus:bg-purple-50 focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20 text-purple-700 placeholder:text-slate-300 bg-white"
-                                  placeholder="Big"
+                                  className="w-full h-8 text-xs font-semibold text-center border rounded-md outline-none transition-all duration-200 border-slate-200 hover:border-purple-400 focus:bg-purple-50 focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20 text-purple-700 bg-white"
+                                  placeholder=""
                                   value={rowData.kpiRecords?.[d]?.bigshow || ""}
                                   onChange={(e) => handleKpiChange(att._id, d.toString(), 'bigshow', e.target.value)}
+                                  onKeyUp={scrollOnTab} // Sửa thành onKeyUp
                                   disabled={isClosed}
                                 />
                               </div>
@@ -160,11 +184,12 @@ export const BoardTable: React.FC<SharedProps & {
                           </td>
                         );
                       })}
-                      <td className="p-3 border-r border-slate-200/60 text-center font-bold text-blue-700 bg-blue-50/50 text-sm">{att.summary?.totalFullDays || 0}</td>
-                      <td className="p-3 border-r border-slate-200/60 text-center font-bold text-amber-600 bg-amber-50/50 text-sm">{att.summary?.totalHalfDays || 0}</td>
-                      <td className="p-3 border-r border-slate-200/60 text-center font-black text-amber-700 bg-amber-100/50 text-sm">{att.summary?.totalPaidDays || 0}</td>
-                      <td className="p-3 border-r border-slate-200/60 text-center font-bold text-cyan-700 bg-cyan-50/50 text-sm">{att.summary?.totalMinishow || 0}</td>
-                      <td className="p-3 border-r border-slate-200/60 text-center font-bold text-purple-700 bg-purple-50/50 text-sm">{att.summary?.totalBigshow || 0}</td>
+                      <td className="p-3 border-r border-slate-200/60 text-center font-bold text-blue-700 bg-blue-50/50 text-sm">{calcFull}</td>
+                      <td className="p-3 border-r border-slate-200/60 text-center font-bold text-amber-600 bg-amber-50/50 text-sm">{calcHalf}</td>
+                      <td className="p-3 border-r border-slate-200/60 text-center font-black text-amber-700 bg-amber-100/50 text-sm">{calcPaid}</td>
+                      <td className="p-3 border-r border-slate-200/60 text-center font-bold text-cyan-700 bg-cyan-50/50 text-sm">{calcMini}</td>
+                      <td className="p-3 border-r border-slate-200/60 text-center font-bold text-purple-700 bg-purple-50/50 text-sm">{calcBig}</td>
+                      
                       <td className={`p-2 sticky right-0 z-20 shadow-[-1px_0_5px_-2px_rgba(0,0,0,0.1)] transition-colors ${idx % 2 === 0 ? "bg-white group-hover:bg-blue-50" : "bg-slate-50 group-hover:bg-blue-50"}`}>
                         {isEditing && !isClosed ? (
                           <Button size="sm" onClick={() => handleSaveRow(att._id)} className="w-full h-10 text-sm bg-blue-600 hover:bg-blue-700 rounded-lg font-bold shadow-md hover:shadow-lg transition-all">
@@ -209,7 +234,7 @@ export const OvertimeTable: React.FC<SharedProps & { toggleOvertime: any }> = ({
         <NoDataFound title="Không tìm thấy nhân sự" description="Thử thay đổi bộ lọc hoặc từ khóa tìm kiếm" buttonText="Xóa bộ lọc" buttonAction={() => { setSearchQuery(""); setSelectedDept("ALL"); }} />
       ) : (
         <Card className="border-slate-200 shadow-md overflow-hidden rounded-2xl w-full">
-          <div className="overflow-auto custom-scrollbar relative w-full" style={{ maxHeight: "calc(100vh - 220px)" }}>
+          <div className="overflow-auto relative w-full [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar]:h-2.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-slate-300 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-slate-400 transition-all" style={{ maxHeight: "calc(100vh - 280px)" }}>
             <table className="w-full text-sm border-collapse min-w-[1600px]">
               <thead className="sticky top-0 z-30">
                 <tr className="bg-teal-900 text-white">
@@ -251,6 +276,15 @@ export const OvertimeTable: React.FC<SharedProps & { toggleOvertime: any }> = ({
                   const isEditing = !!editingRecords[att._id];
                   const isClosed = selectedMonthDoc.status === "closed";
 
+                  let calcOTN = 0, calcOTW = 0, calcOTH = 0;
+                  daysArray.forEach(d => {
+                    const val = rowData.overtimeRecords?.[d];
+                    if (val === "X") calcOTN++;
+                    else if (val === "N") calcOTW++;
+                    else if (val === "T") calcOTH++;
+                  });
+                  const calcTotalOT = calcOTN + calcOTW + calcOTH;
+
                   return (
                     <tr key={`ot-${att._id}`} className={`group transition-colors duration-150 ${idx % 2 === 0 ? "bg-white hover:bg-teal-50" : "bg-slate-50 hover:bg-teal-50"}`}>
                       <td className={`p-3 border-r border-slate-200/60 sticky left-0 z-20 shadow-[1px_0_5px_-2px_rgba(0,0,0,0.1)] transition-colors ${idx % 2 === 0 ? "bg-white group-hover:bg-teal-50" : "bg-slate-50 group-hover:bg-teal-50"}`}>
@@ -276,18 +310,20 @@ export const OvertimeTable: React.FC<SharedProps & { toggleOvertime: any }> = ({
                             <button 
                               disabled={isClosed} 
                               onClick={() => toggleOvertime(att._id, d.toString(), val)} 
+                              onKeyUp={scrollOnTab} // Sửa thành onKeyUp
                               title="Đổi loại OT: X (Thường) → N (Nghỉ) → T (Lễ) → Trống" 
                               className={`w-full h-10 flex items-center justify-center text-sm transition-all duration-200 rounded-md border border-transparent ${cellStyle} ${bgStyle} ${isClosed ? "cursor-not-allowed opacity-60" : "cursor-pointer active:scale-95"}`}
                             >
-                              {val || <span className="text-slate-200 text-lg leading-none">+</span>}
+                              {val}
                             </button>
                           </td>
                         );
                       })}
-                      <td className="p-3 border-r border-slate-200/60 text-center font-bold text-blue-700 text-sm bg-blue-50/30">{att.summary?.totalOTNormal || 0}</td>
-                      <td className="p-3 border-r border-slate-200/60 text-center font-bold text-amber-600 text-sm bg-amber-50/30">{att.summary?.totalOTWeekend || 0}</td>
-                      <td className="p-3 border-r border-slate-200/60 text-center font-bold text-purple-700 text-sm bg-purple-50/30">{att.summary?.totalOTHoliday || 0}</td>
-                      <td className="p-3 border-r border-slate-200/60 text-center font-black text-emerald-800 bg-emerald-100/50 text-sm">{att.summary?.totalOT || 0}</td>
+                      <td className="p-3 border-r border-slate-200/60 text-center font-bold text-blue-700 text-sm bg-blue-50/30">{calcOTN}</td>
+                      <td className="p-3 border-r border-slate-200/60 text-center font-bold text-amber-600 text-sm bg-amber-50/30">{calcOTW}</td>
+                      <td className="p-3 border-r border-slate-200/60 text-center font-bold text-purple-700 text-sm bg-purple-50/30">{calcOTH}</td>
+                      <td className="p-3 border-r border-slate-200/60 text-center font-black text-emerald-800 bg-emerald-100/50 text-sm">{calcTotalOT}</td>
+                      
                       <td className={`p-2 sticky right-0 z-20 shadow-[-1px_0_5px_-2px_rgba(0,0,0,0.1)] transition-colors ${idx % 2 === 0 ? "bg-white group-hover:bg-teal-50" : "bg-slate-50 group-hover:bg-teal-50"}`}>
                         {isEditing && !isClosed ? (
                           <Button size="sm" onClick={() => handleSaveRow(att._id)} className="w-full h-10 text-sm bg-teal-600 hover:bg-teal-700 rounded-lg font-bold shadow-md hover:shadow-lg transition-all">
@@ -332,7 +368,7 @@ export const ShortfallTable: React.FC<SharedProps & { handleShortfallDailyChange
         <NoDataFound title="Không tìm thấy nhân sự" description="Thử thay đổi bộ lọc hoặc từ khóa tìm kiếm" buttonText="Xóa bộ lọc" buttonAction={() => { setSearchQuery(""); setSelectedDept("ALL"); }} />
       ) : (
         <Card className="border-slate-200 shadow-md overflow-hidden rounded-2xl w-full">
-          <div className="overflow-auto custom-scrollbar relative w-full" style={{ maxHeight: "calc(100vh - 220px)" }}>
+          <div className="overflow-auto relative w-full [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar]:h-2.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-slate-300 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-slate-400 transition-all" style={{ maxHeight: "calc(100vh - 280px)" }}>
             <table className="w-full text-sm border-collapse min-w-[1600px]">
               <thead className="sticky top-0 z-30">
                 <tr className="bg-rose-950 text-white">
@@ -370,6 +406,11 @@ export const ShortfallTable: React.FC<SharedProps & { handleShortfallDailyChange
                   const isEditing = !!editingRecords[att._id];
                   const isClosed = selectedMonthDoc.status === "closed";
 
+                  let calcShortfall = 0;
+                  daysArray.forEach(d => {
+                    calcShortfall += Number(rowData.shortfallRecords?.[d]) || 0;
+                  });
+
                   return (
                     <tr key={`sf-${att._id}`} className={`group transition-colors duration-150 ${idx % 2 === 0 ? "bg-white hover:bg-rose-50" : "bg-slate-50 hover:bg-rose-50"}`}>
                       <td className={`p-3 border-r border-slate-200/60 sticky left-0 z-20 shadow-[1px_0_5px_-2px_rgba(0,0,0,0.1)] transition-colors ${idx % 2 === 0 ? "bg-white group-hover:bg-rose-50" : "bg-slate-50 group-hover:bg-rose-50"}`}>
@@ -389,12 +430,15 @@ export const ShortfallTable: React.FC<SharedProps & { handleShortfallDailyChange
                               className="w-full h-10 text-center text-sm font-bold text-rose-600 bg-transparent outline-none rounded-md placeholder-slate-300 focus:bg-rose-50 focus:ring-2 focus:ring-rose-200 transition-all"
                               value={rowData.shortfallRecords?.[d] || ""}
                               onChange={(e) => handleShortfallDailyChange(att._id, d.toString(), e.target.value)}
-                              placeholder="-"
+                              onKeyUp={scrollOnTab} // Sửa thành onKeyUp
+                              placeholder=""
                             />
                           </td>
                         );
                       })}
-                      <td className="p-3 border-l border-r border-slate-200/60 text-center font-black text-rose-700 bg-rose-50/80 text-sm">{att.summary?.totalShortfallHours || 0}</td>
+                      
+                      <td className="p-3 border-l border-r border-slate-200/60 text-center font-black text-rose-700 bg-rose-50/80 text-sm">{calcShortfall}</td>
+                      
                       <td className={`p-2 sticky right-0 z-20 shadow-[-1px_0_5px_-2px_rgba(0,0,0,0.1)] transition-colors ${idx % 2 === 0 ? "bg-white group-hover:bg-rose-50" : "bg-slate-50 group-hover:bg-rose-50"}`}>
                         {isEditing && !isClosed ? (
                           <Button size="sm" onClick={() => handleSaveRow(att._id)} className="w-full h-10 text-sm bg-rose-600 hover:bg-rose-700 rounded-lg font-bold shadow-md hover:shadow-lg transition-all">

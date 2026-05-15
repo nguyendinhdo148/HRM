@@ -1,5 +1,8 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { Building2, Users, Briefcase, Filter, X, Search, Upload, UserPlus, Download, RefreshCcw } from "lucide-react";
+import { 
+  Building2, Users, Briefcase, Filter, X, Search, Upload, UserPlus, 
+  Download, RefreshCcw, ArrowDownAZ, ArrowUpZA, ArrowUpDown 
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
@@ -17,13 +20,15 @@ export default function HRMDashboard() {
   const [departments, setDepartments] = useState<any[]>([]);
   const [employees, setEmployees] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [isExporting, setIsExporting] = useState(false); // State cho nút Xuất Excel
+  const [isExporting, setIsExporting] = useState(false);
   const [activeTab, setActiveTab] = useState("departments");
 
   const [searchQuery, setSearchQuery] = useState("");
   const [deptFilter, setDeptFilter] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [typeFilter, setTypeFilter] = useState<string>("all");
+  // STATE MỚI: Sắp xếp theo mã nhân viên
+  const [sortCodeOrder, setSortCodeOrder] = useState<"asc" | "desc">("asc");
 
   const [isDeptModalOpen, setIsDeptModalOpen] = useState(false);
   const [selectedDept, setSelectedDept] = useState<any>(null);
@@ -78,8 +83,10 @@ export default function HRMDashboard() {
     }
   }, [empForm.contractInfo.contractType, empForm.contractInfo.signDate, durationValue, durationUnit]);
 
+  // CẬP NHẬT LOGIC LỌC VÀ SẮP XẾP
   const processedEmployees = useMemo(() => {
-    return employees.filter((emp) => {
+    // 1. Lọc dữ liệu
+    const filtered = employees.filter((emp) => {
       const matchesSearch = searchQuery === "" || 
         emp.fullName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
         emp.employeeCode?.toLowerCase().includes(searchQuery.toLowerCase());
@@ -89,7 +96,20 @@ export default function HRMDashboard() {
 
       return matchesSearch && matchesDept && matchesStatus && matchesType;
     });
-  }, [employees, searchQuery, deptFilter, statusFilter, typeFilter]);
+
+    // 2. Sắp xếp dữ liệu theo Mã NV
+    return filtered.sort((a, b) => {
+      const codeA = a.employeeCode || "";
+      const codeB = b.employeeCode || "";
+      
+      // Sử dụng numeric: true để sắp xếp đúng số (VD: NV02 đứng trước NV10)
+      if (sortCodeOrder === "asc") {
+        return codeA.localeCompare(codeB, undefined, { numeric: true, sensitivity: 'base' });
+      } else {
+        return codeB.localeCompare(codeA, undefined, { numeric: true, sensitivity: 'base' });
+      }
+    });
+  }, [employees, searchQuery, deptFilter, statusFilter, typeFilter, sortCodeOrder]);
 
   const handleSaveDepartment = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -167,9 +187,6 @@ export default function HRMDashboard() {
     try { const res = await fetch(`${API_BASE_URL}/employees/${id}`, { method: "DELETE", headers: getAuthHeaders() }); if (res.ok) fetchData(); } catch (error) { console.error(error); }
   };
 
-  // ==========================================
-  // XUẤT EXCEL DANH SÁCH NHÂN VIÊN
-  // ==========================================
   const handleExportExcel = async () => {
     if (processedEmployees.length === 0) {
       alert("Không có dữ liệu để xuất!");
@@ -178,15 +195,10 @@ export default function HRMDashboard() {
     setIsExporting(true);
 
     try {
-      // Đợi hiệu ứng loading UI
       await new Promise(resolve => setTimeout(resolve, 300));
-      
       const wb = XLSX.utils.book_new();
-      
-      // 1. Tạo Dòng Header (Cột STT + 40 cột chuẩn từ ALL_FIELDS)
       const headers = ["STT", ...ALL_FIELDS.map(c => c.label)];
 
-      // 2. Chuyển đổi dữ liệu JSON thành mảng 2 chiều Array of Arrays
       const dataRows = processedEmployees.map((emp, index) => {
         const rowData = ALL_FIELDS.map((field) => {
           const keys = field.path.split('.');
@@ -196,18 +208,11 @@ export default function HRMDashboard() {
             else val = "";
           }
 
-          // Format ngày tháng ra DD/MM/YYYY chuẩn Việt Nam
-          if (field.type === "date" && val) {
-            return formatDateForDisplay(val);
-          }
-          
-          // Format Enum Data (active -> Chính thức, PROBATION -> Thử việc)
+          if (field.type === "date" && val) return formatDateForDisplay(val);
           if (field.type === "select") {
             if (field.id === "status") return EMPLOYEE_STATUSES.find(s => s.value === val)?.label || val;
             if (field.id === "contractType") return CONTRACT_TYPES.find(c => c.value === val)?.label || val;
           }
-
-          // Format số điện thoại, CCCD, Ngân hàng sang định dạng Text để không bị Excel băm thành E+13
           if ((field.id === "bankAccountNumber" || field.id === "idCardNumber" || field.id === "phoneNumber" || field.id === "employeeCode" || field.id === "taxCode" || field.id === "socialInsuranceNumber") && val) {
             return val.toString();
           }
@@ -220,20 +225,15 @@ export default function HRMDashboard() {
 
       const wsData = [
         [`DANH SÁCH NHÂN SỰ - Ngày xuất: ${new Date().toLocaleDateString("vi-VN")}`],
-        [], // Dòng trống
+        [], 
         headers,
         ...dataRows
       ];
 
       const ws = XLSX.utils.aoa_to_sheet(wsData);
-
-      // Căn chỉnh độ rộng cột tự động
       ws["!cols"] = [{ wch: 5 }, ...ALL_FIELDS.map(() => ({ wch: 20 }))];
-
-      // Gộp dòng Tiêu đề bảng
       ws["!merges"] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: headers.length - 1 } }];
 
-      // Highlight in đậm Header
       for (let c = 0; c < headers.length; c++) {
         const cellRef = XLSX.utils.encode_cell({ r: 2, c });
         if (ws[cellRef]) {
@@ -243,7 +243,6 @@ export default function HRMDashboard() {
 
       XLSX.utils.book_append_sheet(wb, ws, "Danh_Sach_Nhan_Su");
       XLSX.writeFile(wb, `Danh_Sach_Nhan_Su_${new Date().toISOString().slice(0, 10)}.xlsx`);
-      
     } catch (error) {
       console.error("Lỗi xuất Excel:", error);
       alert("Có lỗi xảy ra khi xuất file Excel!");
@@ -252,7 +251,14 @@ export default function HRMDashboard() {
     }
   };
 
-  if (isLoading) return <Loader />;
+  // NẾU ĐANG TẢI DỮ LIỆU TỪ BAN ĐẦU -> HIỂN THỊ LOADER
+  if (isLoading) {
+    return (
+      <div className="flex h-screen w-full items-center justify-center bg-slate-50/50">
+        <Loader className="w-8 h-8 text-blue-600" />
+      </div>
+    );
+  }
 
   return (
     <div className="w-full max-w-7xl mx-auto space-y-8 pb-10 relative">
@@ -288,9 +294,19 @@ export default function HRMDashboard() {
                 <Input placeholder="Tìm tên, mã NV..." className="pl-9 bg-slate-50 border-slate-200" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
               </div>
 
+              {/* NÚT SẮP XẾP THEO MÃ NV */}
+              <Button 
+                variant="outline" 
+                onClick={() => setSortCodeOrder(prev => prev === "asc" ? "desc" : "asc")}
+                className="bg-slate-50 border-slate-200 font-medium text-slate-700 w-full sm:w-auto"
+              >
+                <ArrowUpDown className="w-4 h-4 mr-2 text-slate-500" />
+                Mã NV: {sortCodeOrder === "asc" ? "Tăng dần" : "Giảm dần"}
+              </Button>
+
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="outline" className="bg-slate-50 border-slate-200">
+                  <Button variant="outline" className="bg-slate-50 border-slate-200 w-full sm:w-auto">
                     <Filter className="w-4 h-4 mr-2 text-slate-500" />
                     {statusFilter === "all" ? "Tất cả trạng thái" : EMPLOYEE_STATUSES.find(s => s.value === statusFilter)?.label}
                   </Button>
@@ -303,7 +319,7 @@ export default function HRMDashboard() {
 
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="outline" className="bg-slate-50 border-slate-200">
+                  <Button variant="outline" className="bg-slate-50 border-slate-200 w-full sm:w-auto">
                     <Briefcase className="w-4 h-4 mr-2 text-slate-500" />
                     {typeFilter === "all" ? "Mọi loại HĐ" : CONTRACT_TYPES.find(t => t.value === typeFilter)?.label}
                   </Button>
@@ -316,14 +332,14 @@ export default function HRMDashboard() {
 
               {activeTab === "employees" && (
                 <>
-                  <Button variant="outline" onClick={handleExportExcel} disabled={isExporting} className="border-blue-600 text-blue-600 hover:bg-blue-50 ml-2 hidden sm:flex">
+                  <Button variant="outline" onClick={handleExportExcel} disabled={isExporting} className="border-blue-600 text-blue-600 hover:bg-blue-50 ml-0 lg:ml-2 w-full sm:w-auto flex">
                     {isExporting ? <RefreshCcw className="w-4 h-4 mr-2 animate-spin" /> : <Download className="w-4 h-4 mr-2" />} 
                     Xuất Excel
                   </Button>
-                  <Button variant="outline" onClick={() => setIsImportModalOpen(true)} className="border-teal-600 text-teal-600 hover:bg-teal-50 ml-2 hidden sm:flex">
+                  <Button variant="outline" onClick={() => setIsImportModalOpen(true)} className="border-teal-600 text-teal-600 hover:bg-teal-50 ml-0 lg:ml-2 w-full sm:w-auto flex">
                     <Upload className="size-4 mr-2" /> Nhập Excel
                   </Button>
-                  <Button onClick={() => handleOpenEmpModal(null)} className="bg-teal-600 hover:bg-teal-700 ml-2">
+                  <Button onClick={() => handleOpenEmpModal(null)} className="bg-teal-600 hover:bg-teal-700 ml-0 lg:ml-2 w-full sm:w-auto">
                     <UserPlus className="size-4 mr-2" /> Thêm mới
                   </Button>
                 </>
@@ -332,6 +348,7 @@ export default function HRMDashboard() {
           </div>
         )}
 
+        {/* CÁC TAB HIỂN THỊ */}
         <DepartmentsTab 
           departments={departments} 
           handleOpenDeptModal={(dept: any) => { setSelectedDept(dept); setIsDeptModalOpen(true); }} 
@@ -339,6 +356,8 @@ export default function HRMDashboard() {
           handleViewEmployeesInDept={(name: string) => { setDeptFilter(name); setActiveTab("employees"); }} 
           getEmployeeCount={(name: string) => employees.filter(emp => emp.workInfo?.department === name).length}
         />
+        
+        {/* NẾU KHÔNG CÓ DỮ LIỆU ĐỂ HIỂN THỊ TRONG TAB EMPLOYEES/CONTRACTS */}
         <EmployeesTab 
           processedEmployees={processedEmployees} 
           handleOpenEmpModal={handleOpenEmpModal} 

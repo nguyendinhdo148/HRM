@@ -19,18 +19,22 @@ export default [
     
     // ✅ Bảng lương
     route("PayrollBoard", "routes/dashboard/PayrollBoard.tsx"),
+    route("PayrollBoardNet", "routes/dashboard/PayrollNetBoard.tsx"), // ✅ ĐÃ THÊM ROUTE LƯƠNG NET TẠI ĐÂY
     route("PayrollManager", "routes/dashboard/PayrollManager.tsx"),
-    // ✅ THÊM ROUTE CHO BẢNG TÍNH BẢO HIỂM TẠI ĐÂY
+    
+    // ✅ Bảng tính Bảo Hiểm & Thuế
     route("insuranceBoard", "routes/dashboard/InsuranceBoard.tsx"),
     route("taxBoard", "routes/dashboard/TaxBoard.tsx"),
     route("overtimePayBoard", "routes/dashboard/OvertimePayBoard.tsx"),
+    
+    // ✅ Quản lý nhân sự & khác
     route("employee", "routes/dashboard/employee/index.tsx"),
     route("achieved", "routes/dashboard/achieved.tsx"),
-    
     route("attendance", "routes/dashboard/AttendanceBoard.tsx"),  
     route("gui-ruou", "routes/dashboard/bar/guiruou.tsx"),
     route("settings", "routes/dashboard/settings.tsx"),
     route("payroll/slip/:id", "routes/dashboard/PayslipDetail.tsx"),
+    
   ]),
 
 ] satisfies RouteConfig;
