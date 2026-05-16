@@ -60,7 +60,7 @@ export const initializeMonthAttendance = async (req, res) => {
       return res.status(400).json({ message: "Không có nhân viên nào đang hoạt động để tạo bảng công!" });
     }
 
-    // 3. Setup mặc định (Full công hành chính chữ 'x', rỗng OT/Shortfall/KPI)
+    // 3. Setup mặc định (Mặc định để trắng "", rỗng OT/Shortfall/KPI)
     const daysInMonth = getDaysInMonth(month, year);
     const defaultRecords = {};
     const defaultOTRecords = {};
@@ -68,7 +68,8 @@ export const initializeMonthAttendance = async (req, res) => {
     const defaultKpiRecords = {}; // Setup KPI mặc định
 
     for (let day = 1; day <= daysInMonth; day++) {
-      defaultRecords[day.toString()] = "x";
+      // ĐÃ SỬA: Để trống "" thay vì "x" như trước đây
+      defaultRecords[day.toString()] = "";
     }
 
     // 4. Lưu vào bảng AttendanceMonth trước

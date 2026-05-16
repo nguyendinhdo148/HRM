@@ -1,9 +1,8 @@
 import React, { useState, useEffect } from "react";
-import { Calculator, Download, PlayCircle, Trash2, Info, RefreshCcw } from "lucide-react";
+import { Calculator, Download, PlayCircle, Trash2, Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Loader } from "@/components/loader";
-// import * as XLSX from "xlsx"; // Giữ lại nếu bạn có dùng
 
 const API_BASE_URL = `${import.meta.env.VITE_API_URL}/tax`;
 
@@ -18,7 +17,6 @@ export default function TaxBoard() {
   const [monthsList, setMonthsList] = useState<any[]>([]);
   const [selectedMonth, setSelectedMonth] = useState<any>(null);
   const [records, setRecords] = useState<any[]>([]);
-  const [editingRecords, setEditingRecords] = useState<{ [id: string]: any }>({});
   
   const [isLoading, setIsLoading] = useState(false);
   const [isDataLoading, setIsDataLoading] = useState(false);
@@ -26,6 +24,10 @@ export default function TaxBoard() {
   const currentDate = new Date();
   const [newMonth, setNewMonth] = useState(currentDate.getMonth() + 1);
   const [newYear, setNewYear] = useState(currentDate.getFullYear());
+
+  const monthsListSorted = React.useMemo(() => {
+    return [...monthsList].sort((a, b) => b.year - a.year || b.month - a.month);
+  }, [monthsList]);
 
   const fetchMonthsList = async () => {
     setIsLoading(true);
@@ -46,20 +48,8 @@ export default function TaxBoard() {
       if (res.ok) {
         const data = await res.json();
         setRecords(data);
-        setEditingRecords({});
       }
     } catch (error) { console.error(error); } finally { setIsDataLoading(false); }
-  };
-
-  // Cập nhật ngầm (Không hiển thị loader làm giật màn hình khi auto-save)
-  const fetchTaxDataSilently = async (m: number, y: number) => {
-    try {
-      const res = await fetch(`${API_BASE_URL}?month=${m}&year=${y}`, { headers: getAuthHeaders() });
-      if (res.ok) {
-        const data = await res.json();
-        setRecords(data);
-      }
-    } catch (error) { console.error(error); }
   };
 
   const handleInitMonth = async () => {
@@ -91,57 +81,12 @@ export default function TaxBoard() {
     } catch (error) { console.error(error); }
   };
 
-  const handleInputChange = (id: string, field: "dependents" | "taxableIncome", val: string) => {
-    const num = Number(val.replace(/\D/g, ""));
-    setEditingRecords(prev => ({
-      ...prev,
-      [id]: { ...(prev[id] || records.find(r => r._id === id)), [field]: num }
-    }));
-  };
-
-  // Logic lưu dữ liệu (Chạy ngầm)
-  const handleSaveRow = async (id: string, dataToSave: any) => {
-    try {
-      const res = await fetch(`${API_BASE_URL}/${id}`, {
-        method: "PUT", headers: getAuthHeaders(),
-        body: JSON.stringify({ dependents: dataToSave.dependents, taxableIncome: dataToSave.taxableIncome })
-      });
-      if (res.ok) {
-        // Cập nhật lại số liệu thuế từ server
-        fetchTaxDataSilently(selectedMonth.month, selectedMonth.year);
-        // Xóa trạng thái đang chỉnh sửa của dòng này
-        setEditingRecords(prev => {
-          const next = { ...prev };
-          delete next[id];
-          return next;
-        });
-      }
-    } catch (error) { console.error(error); }
-  };
-
-  // -------------------------------------------------------------
-  // HOOK AUTO-SAVE: Tự động lưu sau khi ngưng gõ phím 800ms
-  // -------------------------------------------------------------
-  useEffect(() => {
-    const editKeys = Object.keys(editingRecords);
-    if (editKeys.length === 0) return;
-
-    const timer = setTimeout(() => {
-      editKeys.forEach(id => {
-        handleSaveRow(id, editingRecords[id]);
-      });
-    }, 800);
-
-    return () => clearTimeout(timer);
-  }, [editingRecords]);
-  // -------------------------------------------------------------
-
   const handleExportExcel = () => { alert("Đang tải..."); };
 
   useEffect(() => { fetchMonthsList(); }, []);
   useEffect(() => { if (selectedMonth) fetchTaxData(selectedMonth.month, selectedMonth.year); }, [selectedMonth]);
 
-  if (isLoading && monthsList.length === 0) return <Loader />;
+  if (isLoading && monthsListSorted.length === 0) return <Loader />;
 
   return (
     <div className="w-full flex flex-col gap-6 p-5 min-h-screen bg-slate-50">
@@ -156,10 +101,10 @@ export default function TaxBoard() {
         </div>
         
         <div className="flex items-center gap-3">
-          {monthsList.length > 0 && (
+          {monthsListSorted.length > 0 && (
             <div className="flex bg-slate-100 p-1.5 rounded-lg border mr-4">
               <select className="bg-transparent font-bold outline-none px-2 text-[#1e40af]" value={selectedMonth ? `${selectedMonth.month}-${selectedMonth.year}` : ""} onChange={e => { const [m, y] = e.target.value.split('-'); setSelectedMonth({ month: Number(m), year: Number(y) }); }}>
-                {monthsList.map(m => <option key={`${m.month}-${m.year}`} value={`${m.month}-${m.year}`}>Kỳ {m.month}/{m.year}</option>)}
+                {monthsListSorted.map(m => <option key={`${m.month}-${m.year}`} value={`${m.month}-${m.year}`}>Kỳ {m.month}/{m.year}</option>)}
               </select>
             </div>
           )}
@@ -190,75 +135,58 @@ export default function TaxBoard() {
           {isDataLoading ? (
             <div className="h-64 flex items-center justify-center"><Loader /></div>
           ) : (
-            <table className="w-full text-xs border-collapse min-w-[1400px]">
+            <table className="w-full text-xs border-collapse min-w-[1300px]">
               <thead>
                 <tr className="bg-[#0f172a] text-white">
                   <th className="border border-slate-700 p-3 text-center">STT</th>
                   <th className="border border-slate-700 p-3 text-center">Mã NV</th>
                   <th className="border border-slate-700 p-3 text-left">Họ và tên</th>
                   <th className="border border-slate-700 p-3 text-left">Chức vụ</th>
-                  <th className="border border-slate-700 p-3 text-right text-emerald-300">Thu nhập chịu thuế<br/><span className="text-[9px] font-normal">(Nhập)</span></th>
+                  <th className="border border-slate-700 p-3 text-right text-emerald-300">Thu nhập chịu thuế</th>
                   <th className="border border-slate-700 p-3 text-right text-emerald-300">Tiền ăn</th>
                   <th className="border border-slate-700 p-3 text-right">Giảm trừ bản thân</th>
-                  <th className="border border-slate-700 p-3 text-center text-emerald-300">Số NPT<br/><span className="text-[9px] font-normal">(Nhập)</span></th>
+                  <th className="border border-slate-700 p-3 text-center">Số NPT</th>
                   <th className="border border-slate-700 p-3 text-right">Giảm trừ NPT</th>
                   <th className="border border-slate-700 p-3 text-right">BH trừ vào lương</th>
                   <th className="border border-slate-700 p-3 text-right">Tổng giảm trừ</th>
                   <th className="border border-slate-700 p-3 text-right bg-blue-900/50">Thu nhập tính thuế</th>
                   <th className="border border-slate-700 p-3 text-right bg-rose-900/50 font-bold">Thuế TNCN</th>
-                  <th className="border border-slate-700 p-3 text-center bg-blue-900 w-24">Trạng thái</th>
                 </tr>
                 <tr className="bg-slate-800 text-slate-400 text-[10px] font-mono">
-                  <th className="border border-slate-700 p-1">A</th><th className="border border-slate-700 p-1">B</th><th className="border border-slate-700 p-1">C</th><th className="border border-slate-700 p-1">D</th><th className="border border-slate-700 p-1">E</th><th className="border border-slate-700 p-1">F</th><th className="border border-slate-700 p-1">G</th><th className="border border-slate-700 p-1">H</th><th className="border border-slate-700 p-1">I</th><th className="border border-slate-700 p-1">J</th><th className="border border-slate-700 p-1">K</th><th className="border border-slate-700 p-1">L</th><th className="border border-slate-700 p-1">M</th><th className="border border-slate-700 p-1">-</th>
+                  <th className="border border-slate-700 p-1">A</th><th className="border border-slate-700 p-1">B</th><th className="border border-slate-700 p-1">C</th><th className="border border-slate-700 p-1">D</th><th className="border border-slate-700 p-1">E</th><th className="border border-slate-700 p-1">F</th><th className="border border-slate-700 p-1">G</th><th className="border border-slate-700 p-1">H</th><th className="border border-slate-700 p-1">I</th><th className="border border-slate-700 p-1">J</th><th className="border border-slate-700 p-1">K</th><th className="border border-slate-700 p-1">L</th><th className="border border-slate-700 p-1">M</th>
                 </tr>
               </thead>
               <tbody className="bg-white">
                 {records.length === 0 ? (
-                  <tr><td colSpan={14} className="text-center p-10 text-slate-400">Chưa có dữ liệu</td></tr>
-                ) : records.map((r, idx) => {
-                  const edit = editingRecords[r._id] || r;
-                  const isEditing = !!editingRecords[r._id];
+                  <tr><td colSpan={13} className="text-center p-10 text-slate-400">Chưa có dữ liệu</td></tr>
+                ) : records.map((r, idx) => (
+                  <tr key={r._id} className="hover:bg-slate-50 border-b">
+                    <td className="p-2 border-r text-center">{idx + 1}</td>
+                    <td className="p-2 border-r text-center font-medium">{r.employeeSnapshot?.employeeCode}</td>
+                    <td className="p-2 border-r font-bold text-slate-800">{r.employeeSnapshot?.fullName}</td>
+                    <td className="p-2 border-r text-slate-600">{r.employeeSnapshot?.position}</td>
+                    
+                    {/* E: Thu nhập chịu thuế (Bây giờ là read-only vì Backend tự kéo) */}
+                    <td className="p-2 border-r text-right font-bold text-slate-800 bg-emerald-50/30">
+                      {formatMoney(r.taxableIncome)}
+                    </td>
 
-                  return (
-                    <tr key={r._id} className="hover:bg-slate-50 border-b">
-                      <td className="p-2 border-r text-center">{idx + 1}</td>
-                      <td className="p-2 border-r text-center font-medium">{r.employeeSnapshot?.employeeCode}</td>
-                      <td className="p-2 border-r font-bold text-slate-800">{r.employeeSnapshot?.fullName}</td>
-                      <td className="p-2 border-r text-slate-600">{r.employeeSnapshot?.position}</td>
-                      
-                      {/* E: Thu nhập chịu thuế */}
-                      <td className="p-1 border-r bg-emerald-50/30">
-                        <input type="text" className="w-full text-right font-bold text-slate-800 bg-transparent outline-none p-1.5 focus:bg-white border rounded border-transparent focus:border-emerald-300" value={formatMoney(edit.taxableIncome)} onChange={e => handleInputChange(r._id, "taxableIncome", e.target.value)} />
-                      </td>
+                    <td className="p-2 border-r text-right font-bold text-emerald-700 bg-emerald-50/20">{formatMoney(r.allowances?.meal)}</td>
+                    <td className="p-2 border-r text-right font-medium text-slate-600">{formatMoney(r.deductions?.personal)}</td>
+                    
+                    {/* G: Số người phụ thuộc (Tự động chia từ tiền giảm trừ) */}
+                    <td className="p-2 border-r text-center font-bold text-slate-700">
+                      {(r.deductions?.dependent || 0) / 6200000}
+                    </td>
 
-                      <td className="p-2 border-r text-right font-bold text-emerald-700 bg-emerald-50/20">{formatMoney(r.allowances?.meal)}</td>
-                      <td className="p-2 border-r text-right font-medium text-slate-600">{formatMoney(r.deductions?.personal)}</td>
-                      
-                      {/* G: Số người phụ thuộc */}
-                      <td className="p-1 border-r bg-emerald-50/30">
-                        <input type="text" className="w-full text-center font-bold text-slate-800 bg-transparent outline-none p-1.5 focus:bg-white border rounded border-transparent focus:border-emerald-300" value={edit.dependents} onChange={e => handleInputChange(r._id, "dependents", e.target.value)} />
-                      </td>
-
-                      <td className="p-2 border-r text-right font-medium text-slate-600">{formatMoney(r.deductions?.dependent)}</td>
-                      <td className="p-2 border-r text-right font-medium text-slate-600">{formatMoney(r.deductions?.insurance)}</td>
-                      <td className="p-2 border-r text-right font-medium text-slate-600">{formatMoney(r.deductions?.total)}</td>
-                      
-                      <td className="p-2 border-r text-right font-bold text-blue-700 bg-blue-50/30">{r.assessableIncome > 0 ? formatMoney(r.assessableIncome) : "-"}</td>
-                      <td className="p-2 border-r text-right font-black text-rose-600 bg-rose-50/50">{r.taxAmount > 0 ? formatMoney(r.taxAmount) : "-"}</td>
-                      
-                      {/* Trạng thái Auto-save */}
-                      <td className="p-1.5 text-center bg-slate-50">
-                        {isEditing ? (
-                          <span className="text-[10px] text-blue-600 font-bold animate-pulse inline-flex items-center gap-1">
-                            <RefreshCcw className="w-3 h-3 animate-spin"/> Đang lưu
-                          </span>
-                        ) : (
-                          <span className="text-[10px] text-emerald-600 font-bold">Đã lưu</span>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })}
+                    <td className="p-2 border-r text-right font-medium text-slate-600">{formatMoney(r.deductions?.dependent)}</td>
+                    <td className="p-2 border-r text-right font-medium text-slate-600">{formatMoney(r.deductions?.insurance)}</td>
+                    <td className="p-2 border-r text-right font-bold text-slate-700">{formatMoney(r.deductions?.total)}</td>
+                    
+                    <td className="p-2 border-r text-right font-bold text-blue-700 bg-blue-50/30">{r.assessableIncome > 0 ? formatMoney(r.assessableIncome) : "-"}</td>
+                    <td className="p-2 border-r text-right font-black text-rose-600 bg-rose-50/50">{r.taxAmount > 0 ? formatMoney(r.taxAmount) : "-"}</td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           )}

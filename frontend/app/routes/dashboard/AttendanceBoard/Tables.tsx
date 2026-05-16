@@ -100,7 +100,8 @@ export const BoardTable: React.FC<SharedProps & {
                   let calcFull = 0, calcHalf = 0, calcMini = 0, calcBig = 0;
                   daysArray.forEach(d => {
                     const rawVal = rowData.records?.[d];
-                    const val = (!rawVal || rawVal === "Chạm" || rawVal === "x") ? "X" : rawVal;
+                    // Đã sửa: Không ép chuỗi rỗng thành "X" nữa
+                    const val = (rawVal === undefined || rawVal === null) ? "" : (rawVal === "x" || rawVal === "Chạm" ? "X" : rawVal);
                     
                     if (val === "X") calcFull++;
                     else if (val === "0.5") calcHalf++;
@@ -133,7 +134,8 @@ export const BoardTable: React.FC<SharedProps & {
                       </td>
                       {daysArray.map((d) => {
                         const rawVal = rowData.records?.[d];
-                        const val = (!rawVal || rawVal === "Chạm" || rawVal === "x") ? "X" : rawVal;
+                        // Đã sửa: Không ép chuỗi rỗng thành "X" nữa
+                        const val = (rawVal === undefined || rawVal === null) ? "" : (rawVal === "x" || rawVal === "Chạm" ? "X" : rawVal);
                         const dayInfo = getDayOfWeek(selectedMonthDoc.year, selectedMonthDoc.month, d);
                         
                         let cellStyle = "text-slate-400 font-normal", bgStyle = "bg-white hover:bg-slate-100 border-slate-200";
@@ -149,8 +151,8 @@ export const BoardTable: React.FC<SharedProps & {
                               <button 
                                 disabled={isClosed} 
                                 onClick={() => toggleAttendance(att._id, d.toString(), val)} 
-                                onKeyUp={scrollOnTab} // Sửa thành onKeyUp
-                                title="Đổi trạng thái: X → 0.5 → OFF" 
+                                onKeyUp={scrollOnTab}
+                                title="Đổi trạng thái: Rỗng → X → 0.5 → OFF" 
                                 className={`w-full h-9 flex items-center justify-center text-sm transition-all duration-200 rounded-md border ${cellStyle} ${bgStyle} ${isClosed ? "cursor-not-allowed opacity-60" : "cursor-pointer hover:shadow-sm active:scale-95"}`}
                               >
                                 {val}
@@ -165,7 +167,7 @@ export const BoardTable: React.FC<SharedProps & {
                                   placeholder=""
                                   value={rowData.kpiRecords?.[d]?.minishow || ""}
                                   onChange={(e) => handleKpiChange(att._id, d.toString(), 'minishow', e.target.value)}
-                                  onKeyUp={scrollOnTab} // Sửa thành onKeyUp
+                                  onKeyUp={scrollOnTab}
                                   disabled={isClosed}
                                 />
                                 <input
@@ -176,7 +178,7 @@ export const BoardTable: React.FC<SharedProps & {
                                   placeholder=""
                                   value={rowData.kpiRecords?.[d]?.bigshow || ""}
                                   onChange={(e) => handleKpiChange(att._id, d.toString(), 'bigshow', e.target.value)}
-                                  onKeyUp={scrollOnTab} // Sửa thành onKeyUp
+                                  onKeyUp={scrollOnTab}
                                   disabled={isClosed}
                                 />
                               </div>
@@ -310,7 +312,7 @@ export const OvertimeTable: React.FC<SharedProps & { toggleOvertime: any }> = ({
                             <button 
                               disabled={isClosed} 
                               onClick={() => toggleOvertime(att._id, d.toString(), val)} 
-                              onKeyUp={scrollOnTab} // Sửa thành onKeyUp
+                              onKeyUp={scrollOnTab}
                               title="Đổi loại OT: X (Thường) → N (Nghỉ) → T (Lễ) → Trống" 
                               className={`w-full h-10 flex items-center justify-center text-sm transition-all duration-200 rounded-md border border-transparent ${cellStyle} ${bgStyle} ${isClosed ? "cursor-not-allowed opacity-60" : "cursor-pointer active:scale-95"}`}
                             >
@@ -430,7 +432,7 @@ export const ShortfallTable: React.FC<SharedProps & { handleShortfallDailyChange
                               className="w-full h-10 text-center text-sm font-bold text-rose-600 bg-transparent outline-none rounded-md placeholder-slate-300 focus:bg-rose-50 focus:ring-2 focus:ring-rose-200 transition-all"
                               value={rowData.shortfallRecords?.[d] || ""}
                               onChange={(e) => handleShortfallDailyChange(att._id, d.toString(), e.target.value)}
-                              onKeyUp={scrollOnTab} // Sửa thành onKeyUp
+                              onKeyUp={scrollOnTab}
                               placeholder=""
                             />
                           </td>
@@ -460,4 +462,4 @@ export const ShortfallTable: React.FC<SharedProps & { handleShortfallDailyChange
       )}
     </TabsContent>
   );
-};
+};  

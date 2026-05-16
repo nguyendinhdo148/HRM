@@ -48,6 +48,7 @@ const employeeSchema = new mongoose.Schema(
 
     salaryAndBenefits: {
       taxCode: { type: String, trim: true },
+      dependents: { type: Number, default: 0, description: "Số người phụ thuộc" }, // <--- ĐÃ CHUYỂN SANG ĐÂY
       socialInsuranceNumber: { type: String, trim: true },
       insuranceSalary: { type: Number, default: 0 },
       baseSalary: { type: Number, default: 0 },

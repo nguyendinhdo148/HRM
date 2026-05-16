@@ -83,7 +83,6 @@ export const EmployeeModal = ({ isOpen, onClose, selectedEmp, empForm, setEmpFor
           <button type="button" onClick={() => setEmpFormTab("salary")} className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors flex items-center gap-2 ${empFormTab === "salary" ? "border-blue-600 text-blue-600" : "border-transparent text-gray-500 hover:text-gray-700"}`}><DollarSign className="w-4 h-4" /> 3. Lương & Bảo hiểm</button>
         </div>
 
-        {/* THAY onSubmit thành hàm handleFormSubmit chặn logic 3 tab */}
         <form id="employee-form" onSubmit={handleFormSubmit} className="p-6 overflow-y-auto flex-1">
           
           {/* ============================================================== */}
@@ -117,7 +116,6 @@ export const EmployeeModal = ({ isOpen, onClose, selectedEmp, empForm, setEmpFor
                 </div>
               </div>
 
-              {/* ĐÃ DỜI Ô NGÀY NGHỈ VỀ TAB 1 - HIỂN THỊ KHI CHỌN TRẠNG THÁI "ĐÃ NGHỈ VIỆC" */}
               {empForm.status === "resigned" && (
                 <div className="p-4 bg-rose-50 border border-rose-200 rounded-lg animate-in slide-in-from-top-2">
                   <label className="block text-sm font-bold text-rose-800">Ngày Nghỉ Việc (* Bắt buộc)</label>
@@ -245,8 +243,9 @@ export const EmployeeModal = ({ isOpen, onClose, selectedEmp, empForm, setEmpFor
                 <div><label className="block text-sm font-medium mb-1">Lương tham gia BH (VNĐ)</label><input type="number" className="w-full border rounded-md p-2" value={empForm.salaryAndBenefits.insuranceSalary} onChange={(e) => setEmpForm({...empForm, salaryAndBenefits: {...empForm.salaryAndBenefits, insuranceSalary: Number(e.target.value)}})}/></div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-3 gap-4">
                 <div><label className="block text-sm font-medium mb-1">Mã số thuế</label><input type="text" className="w-full border rounded-md p-2" value={empForm.salaryAndBenefits.taxCode} onChange={(e) => setEmpForm({...empForm, salaryAndBenefits: {...empForm.salaryAndBenefits, taxCode: e.target.value}})}/></div>
+                <div><label className="block text-sm font-medium mb-1">Số người phụ thuộc</label><input type="number" min="0" className="w-full border rounded-md p-2" value={empForm.salaryAndBenefits.dependents || ''} onChange={(e) => setEmpForm({...empForm, salaryAndBenefits: {...empForm.salaryAndBenefits, dependents: Number(e.target.value)}})}/></div>
                 <div><label className="block text-sm font-medium mb-1">Sổ BHXH</label><input type="text" className="w-full border rounded-md p-2" value={empForm.salaryAndBenefits.socialInsuranceNumber} onChange={(e) => setEmpForm({...empForm, salaryAndBenefits: {...empForm.salaryAndBenefits, socialInsuranceNumber: e.target.value}})}/></div>
               </div>
               

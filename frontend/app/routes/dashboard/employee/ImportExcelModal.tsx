@@ -6,6 +6,32 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { API_BASE_URL, getAuthHeaders, ALL_FIELDS, initialEmpForm, EMPLOYEE_STATUSES, CONTRACT_TYPES, GENDER_OPTIONS, PAYMENT_METHODS } from "./utils";
 import * as XLSX from "xlsx";
 
+// Xây dựng mảng cấu hình Cột riêng cho Excel (Lọc bỏ Thưởng năng lực, Lễ Tết và Thêm NPT)
+const EXCEL_FIELDS = (() => {
+  let fields = ALL_FIELDS.filter(f => 
+    f.path !== "salaryAndBenefits.bonuses.performance" && 
+    f.path !== "salaryAndBenefits.bonuses.general"
+  );
+  
+  const taxCodeIndex = fields.findIndex(f => f.id === "taxCode" || f.path === "salaryAndBenefits.taxCode");
+  
+  const dependentsField = {
+    id: "dependents",
+    label: "Số người phụ thuộc",
+    path: "salaryAndBenefits.dependents",
+    type: "number"
+  };
+
+  // Chèn cột "Số người phụ thuộc" vào ngay sau cột Mã số thuế (nếu tìm thấy)
+  if (taxCodeIndex !== -1) {
+    fields.splice(taxCodeIndex + 1, 0, dependentsField);
+  } else {
+    fields.push(dependentsField);
+  }
+  
+  return fields;
+})();
+
 export const ImportExcelModal = ({ isOpen, onClose, onSuccess, departmentsList }: any) => {
   const [isImporting, setIsImporting] = useState(false);
   const [fileName, setFileName] = useState<string | null>(null);
@@ -19,10 +45,10 @@ export const ImportExcelModal = ({ isOpen, onClose, onSuccess, departmentsList }
   // ==============================================================
   const handleDownloadTemplate = () => {
     const wb = XLSX.utils.book_new();
-    const headers = ALL_FIELDS.map(c => c.label);
+    const headers = EXCEL_FIELDS.map(c => c.label);
     
     // Tạo dòng hướng dẫn chi tiết
-    const instructions = ALL_FIELDS.map(c => {
+    const instructions = EXCEL_FIELDS.map(c => {
       if (c.id === "bankAccountNumber" || c.id === "idCardNumber" || c.id === "phoneNumber") {
         return "Nhập số (Nên thêm dấu ' trước số)";
       }
@@ -32,10 +58,10 @@ export const ImportExcelModal = ({ isOpen, onClose, onSuccess, departmentsList }
       
       if (c.type === "select") {
         let optionsList: string[] = [];
-        if (c.isDepartment) {
+        if ((c as any).isDepartment) {
           optionsList = departmentsList.map((d: any) => d.name);
-        } else if (c.options) {
-          optionsList = (c.options as any[]).map(o => o.label);
+        } else if ((c as any).options) {
+          optionsList = ((c as any).options as any[]).map(o => o.label);
         }
         
         if (optionsList.length > 0) {
@@ -158,7 +184,7 @@ export const ImportExcelModal = ({ isOpen, onClose, onSuccess, departmentsList }
       const newEmployee = JSON.parse(JSON.stringify(initialEmpForm));
       const errors: Record<string, string> = {}; 
 
-      ALL_FIELDS.forEach((colDef, idx) => {
+      EXCEL_FIELDS.forEach((colDef, idx) => {
         let val = String(rowCols[idx] || "").trim();
         let rawVal = actualRawRows[rowIndex]?.[idx];
 
@@ -169,6 +195,7 @@ export const ImportExcelModal = ({ isOpen, onClose, onSuccess, departmentsList }
         const keys = colDef.path.split('.');
         let currentObj = newEmployee;
         for (let i = 0; i < keys.length - 1; i++) {
+          if (!currentObj[keys[i]]) currentObj[keys[i]] = {}; // Đảm bảo node luôn tồn tại
           currentObj = currentObj[keys[i]];
         }
         const lastKey = keys[keys.length - 1];
@@ -191,7 +218,7 @@ export const ImportExcelModal = ({ isOpen, onClose, onSuccess, departmentsList }
               currentObj[lastKey] = getEnumValueFromLabel(val, GENDER_OPTIONS, "Nam");
             } else if (colDef.id === 'paymentMethod') {
               currentObj[lastKey] = getEnumValueFromLabel(val, PAYMENT_METHODS, "Chuyển khoản");
-            } else if (colDef.isDepartment) {
+            } else if ((colDef as any).isDepartment) {
               currentObj[lastKey] = val; 
             }
         } else if (val === "") {
@@ -223,10 +250,10 @@ export const ImportExcelModal = ({ isOpen, onClose, onSuccess, departmentsList }
       if (!newEmployee.phoneNumber) errors["phoneNumber"] = "Bắt buộc";
 
       if (!newEmployee.email) {
-  errors["email"] = "Bắt buộc";
-} else if (!/^\S+@\S+\.\S+$/.test(newEmployee.email)) {
-  errors["email"] = "Email sai định dạng";
-}
+        errors["email"] = "Bắt buộc";
+      } else if (!/^\S+@\S+\.\S+$/.test(newEmployee.email)) {
+        errors["email"] = "Email sai định dạng";
+      }
 
       if (!newEmployee.workInfo.joinDate) errors["workInfo.joinDate"] = "Bắt buộc";
       
@@ -327,7 +354,7 @@ export const ImportExcelModal = ({ isOpen, onClose, onSuccess, departmentsList }
         <div className="flex justify-between items-center p-6 border-b shrink-0 bg-slate-50">
           <div>
             <h3 className="text-xl font-bold flex items-center gap-2 text-slate-800"><Settings2 className="w-5 h-5 text-blue-600"/> Nhập Hồ Sơ Nhân Sự (Excel)</h3>
-            <p className="text-sm text-slate-500 mt-1">Hệ thống áp dụng format Chuẩn 40 trường thông tin.</p>
+            <p className="text-sm text-slate-500 mt-1">Hệ thống áp dụng format Chuẩn {EXCEL_FIELDS.length} trường thông tin.</p>
           </div>
           <button type="button" onClick={handleClose} className="text-gray-400 hover:text-gray-800"><X className="w-6 h-6"/></button>
         </div>
@@ -339,7 +366,7 @@ export const ImportExcelModal = ({ isOpen, onClose, onSuccess, departmentsList }
                 <h4 className="font-bold text-blue-800 mb-2">Bước 1: Tải file mẫu chuẩn</h4>
                 <p className="text-sm text-blue-600 mb-4">Bạn vui lòng tải file Template này về máy, làm theo dòng hướng dẫn để điền dữ liệu. Sau đó tải file đã điền lên hệ thống.</p>
                 <Button onClick={handleDownloadTemplate} className="bg-blue-600 hover:bg-blue-700 shadow-md">
-                  <Download className="w-4 h-4 mr-2"/> Tải File Mẫu Excel ({ALL_FIELDS.length} cột)
+                  <Download className="w-4 h-4 mr-2"/> Tải File Mẫu Excel ({EXCEL_FIELDS.length} cột)
                 </Button>
               </div>
 
@@ -373,7 +400,7 @@ export const ImportExcelModal = ({ isOpen, onClose, onSuccess, departmentsList }
                   <TableHeader className="bg-slate-100 sticky top-0 z-10 shadow-sm">
                     <TableRow>
                       <TableHead className="w-[50px] border-r border-slate-200">STT</TableHead>
-                      {ALL_FIELDS.map(col => (
+                      {EXCEL_FIELDS.map(col => (
                         <TableHead key={col.id} className="border-r border-slate-200 whitespace-nowrap font-bold text-slate-700">{col.label}</TableHead>
                       ))}
                     </TableRow>
@@ -384,11 +411,14 @@ export const ImportExcelModal = ({ isOpen, onClose, onSuccess, departmentsList }
                         <TableCell className="border-r border-slate-200 font-medium text-center bg-slate-50">
                           {row.isSuccess ? <Check className="w-5 h-5 text-emerald-600 mx-auto" /> : index + 1}
                         </TableCell>
-                        {ALL_FIELDS.map(col => {
+                        {EXCEL_FIELDS.map(col => {
                           const hasError = row.errors[col.path];
                           const keys = col.path.split('.');
                           let val = row.data;
-                          for(let k of keys) val = val[k];
+                          // Dùng try-catch ẩn hoặc optional chaining đảm bảo không chết UI nếu obj bị thiếu node
+                          for(let k of keys) {
+                            val = val?.[k];
+                          }
                           
                           return (
                             <TableCell key={col.id} className={`border-r p-0 border-slate-200 ${hasError ? 'bg-rose-50' : ''} ${row.isSuccess ? 'bg-emerald-50 opacity-60' : ''}`}>
@@ -402,9 +432,9 @@ export const ImportExcelModal = ({ isOpen, onClose, onSuccess, departmentsList }
                                   `}
                                 >
                                   <option value="">-- Chọn --</option>
-                                  {col.isDepartment 
+                                  {(col as any).isDepartment 
                                     ? departmentsList.map((d:any) => <option key={d._id} value={d.name}>{d.name}</option>)
-                                    : (col.options as any[]).map(o => <option key={o.value} value={o.value}>{o.label}</option>)
+                                    : ((col as any).options as any[]).map(o => <option key={o.value} value={o.value}>{o.label}</option>)
                                   }
                                 </select>
                               ) : (

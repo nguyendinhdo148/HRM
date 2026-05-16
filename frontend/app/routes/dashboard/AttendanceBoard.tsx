@@ -34,7 +34,6 @@ export default function AttendanceBoard() {
   const [newMonth, setNewMonth] = useState(currentDate.getMonth() + 1);
   const [newYear, setNewYear] = useState(currentDate.getFullYear());
 
-  // === STATE QUẢN LÝ THU GỌN SIDEBAR ===
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
   const fetchMonthsList = async () => {
@@ -124,13 +123,19 @@ export default function AttendanceBoard() {
   }, [filteredAttendances]);
 
   // ==========================================
-  // ACTIONS TỪ BẢNG
+  // ACTIONS TỪ BẢNG ĐÃ SỬA LẠI LOGIC
   // ==========================================
   const toggleAttendance = useCallback((recordId: string, day: string, currentVal: string) => {
     if (selectedMonthDoc?.status === "closed") return;
     const val = currentVal?.toString().toUpperCase() || "";
     let nextVal = "";
-    if (val === "X") nextVal = "0.5"; else if (val === "0.5" || val === "0,5") nextVal = "OFF"; else if (val === "OFF") nextVal = ""; else nextVal = "X";
+    
+    // Đã đổi thành 4 trạng thái: Rỗng -> X -> 0.5 -> OFF -> Rỗng
+    if (val === "" || val === undefined) nextVal = "X";
+    else if (val === "X") nextVal = "0.5";
+    else if (val === "0.5" || val === "0,5") nextVal = "OFF";
+    else if (val === "OFF") nextVal = "";
+    else nextVal = "X"; 
     
     setEditingRecords((prev) => {
       const currentEdit = prev[recordId] ? JSON.parse(JSON.stringify(prev[recordId])) : JSON.parse(JSON.stringify(attendances.find((a) => a._id === recordId)));
@@ -157,6 +162,17 @@ export default function AttendanceBoard() {
       if (!currentEdit.kpiRecords[day]) currentEdit.kpiRecords[day] = { minishow: 0, bigshow: 0 };
       
       currentEdit.kpiRecords[day][type] = numValue;
+
+      // Logic mới: Điền KPI tự nhảy X
+      if (numValue > 0) {
+        if (!currentEdit.records) currentEdit.records = {};
+        const currentRecordVal = currentEdit.records[day]?.toString().toUpperCase() || "";
+        
+        if (currentRecordVal === "" || currentRecordVal === "OFF") {
+          currentEdit.records[day] = "X";
+        }
+      }
+
       return { ...prev, [recordId]: currentEdit };
     });
   }, [selectedMonthDoc, attendances]);
