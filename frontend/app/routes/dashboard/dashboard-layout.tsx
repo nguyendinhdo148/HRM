@@ -46,13 +46,27 @@ const DashboardLayout = () => {
     "/cancel-report",
   ];
 
-  // Check if current path requires cashier role
-  const isCashierOnlyRoute = cashierOnlyRoutes.some(route => 
-    location.pathname.startsWith(route)
+  const userAllowedRoutes = [
+    "/employee",
+    "/attendance",
+    "/overtimePayBoard",
+    "/achieved",
+    "/settings",
+  ];
+
+  const isCashierOnlyRoute = cashierOnlyRoutes.some(route =>
+    location.pathname.startsWith(route),
   );
 
+  const isUserNotAllowedRoute =
+    hasRole(["user"]) &&
+    !userAllowedRoutes.some(route => location.pathname.startsWith(route));
+
   if (isCashierOnlyRoute && !hasRole(["cashier", "admin"])) {
-    // Redirect to employee if not authorized
+    return <Navigate to="/employee" />;
+  }
+
+  if (isUserNotAllowedRoute) {
     return <Navigate to="/employee" />;
   }
 

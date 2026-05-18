@@ -6,6 +6,24 @@ import { InsuranceRecord } from "../models/InsuranceRecord.js";
 import { TaxRecord } from "../models/TaxRecord.js";
 import { sendEmail, buildPayslipTemplate } from "../libs/send-email.js";
 
+// Tái tính toán khấu trừ và thực lĩnh dựa trên chính sách phúc lợi công ty
+const calculateNetWithCompanySupport = (record, taxTNCN, advancePayment, insuranceTotal) => {
+  const companyInsuranceSupport = 88000;
+  
+  // Nhân viên chỉ chịu phần bảo hiểm sau khi trừ đi 88k hỗ trợ từ công ty
+  const employeeInsuranceDeduction = Math.max(0, insuranceTotal - companyInsuranceSupport);
+  
+  // Thuế TNCN do công ty chi trả 100% nên cấu phần trừ vào lương nhân viên bằng 0
+  const employeeTaxDeduction = 0; 
+
+  record.deductions.advance = advancePayment;
+  record.deductions.taxTNCN = taxTNCN; // Lưu vết để kế toán theo dõi
+  record.deductions.totalDeductions = advancePayment + employeeInsuranceDeduction + employeeTaxDeduction;
+  
+  const totalGross = record.incomes.totalGross || 0;
+  record.netSalary = Math.max(0, totalGross - record.deductions.totalDeductions);
+};
+
 export const getPayrollMonths = async (req, res) => {
   try {
     const months = await PayrollRecord.aggregate([
@@ -21,42 +39,28 @@ export const getPayrollByMonth = async (req, res) => {
   try {
     const { month, year } = req.query;
 
-    // 1. Lấy dữ liệu lương hiện tại
     const records = await PayrollRecord.find({ month: Number(month), year: Number(year) })
       .populate({ path: "employee", select: "email status" })
       .sort({ "employeeSnapshot.employeeCode": 1 });
 
-    // 2. Lấy ĐỒNG THỜI dữ liệu THUẾ, CHẤM CÔNG (tạm ứng) và BẢO HIỂM mới nhất
     const [taxes, attendances, insurances] = await Promise.all([
       TaxRecord.find({ month: Number(month), year: Number(year) }),
       Attendance.find({ month: Number(month), year: Number(year) }),
-      InsuranceRecord.find({ month: Number(month), year: Number(year) }) // <-- Kéo thêm Bảo Hiểm
+      InsuranceRecord.find({ month: Number(month), year: Number(year) })
     ]);
 
-    // 3. Tự động "nhặt" số liệu sang bảng Lương
     for (let record of records) {
       if (!record.employee) continue;
       
       const empIdStr = record.employee._id.toString();
       let isChanged = false;
 
-      // --- NHẶT THUẾ ---
       const latestTax = taxes.find(t => t.employee?.toString() === empIdStr);
       const newTaxValue = latestTax ? latestTax.taxAmount : 0;
-      if (record.deductions.taxTNCN !== newTaxValue) {
-        record.deductions.taxTNCN = newTaxValue;
-        isChanged = true;
-      }
 
-      // --- NHẶT TẠM ỨNG ---
       const latestAtt = attendances.find(a => a.employee?.toString() === empIdStr);
       const newAdvanceValue = latestAtt ? (latestAtt.advancePayment || 0) : 0;
-      if (record.deductions.advance !== newAdvanceValue) {
-        record.deductions.advance = newAdvanceValue;
-        isChanged = true;
-      }
 
-      // --- NHẶT BẢO HIỂM ---
       const latestIns = insurances.find(i => i.employee?.toString() === empIdStr);
       const newBhxh = latestIns?.employeePays?.bhxh || 0;
       const newBhyt = latestIns?.employeePays?.bhyt || 0;
@@ -64,15 +68,22 @@ export const getPayrollByMonth = async (req, res) => {
       const newInsTotal = latestIns?.employeePays?.total || 0;
 
       const currentIns = record.deductions.insurance;
-      if (currentIns.bhxh !== newBhxh || currentIns.bhyt !== newBhyt || currentIns.bhtn !== newBhtn || currentIns.total !== newInsTotal) {
+      if (
+        record.deductions.taxTNCN !== newTaxValue ||
+        record.deductions.advance !== newAdvanceValue ||
+        currentIns.bhxh !== newBhxh || currentIns.bhyt !== newBhyt || 
+        currentIns.bhtn !== newBhtn || currentIns.total !== newInsTotal
+      ) {
         currentIns.bhxh = newBhxh;
         currentIns.bhyt = newBhyt;
         currentIns.bhtn = newBhtn;
         currentIns.total = newInsTotal;
+        
+        // Áp dụng luật khấu trừ phúc lợi khi đồng bộ lại dữ liệu liên quan
+        calculateNetWithCompanySupport(record, newTaxValue, newAdvanceValue, newInsTotal);
         isChanged = true;
       }
 
-      // 4. Nếu có bất kỳ thay đổi nào (Thuế, Tạm ứng, Bảo hiểm) thì mới Lưu lại để kích hoạt Hook trừ ra Net
       if (isChanged) {
         await record.save(); 
       }
@@ -84,6 +95,7 @@ export const getPayrollByMonth = async (req, res) => {
     res.status(500).json({ success: false, message: "Lỗi lấy dữ liệu bảng lương" }); 
   }
 };
+
 export const getPayrollRecordById = async (req, res, next) => {
   try {
     const { id } = req.params;
@@ -134,11 +146,11 @@ export const initializePayroll = async (req, res) => {
       const overtimePay = ot?.amounts?.totalMoney || 0;
       const totalGross = timeSalary + totalAllw + overtimePay + miniShowMoney + bigShowMoney + kpiBonus;
 
-      const bhxh = ins?.employeePays?.bhxh || 0;
       const taxTNCN = tax?.taxAmount || 0;
-      const totalDeductions = (att?.advancePayment || 0) + (ins?.employeePays?.total || 0) + taxTNCN;
+      const insTotal = ins?.employeePays?.total || 0;
+      const advancePayment = att?.advancePayment || 0;
 
-      return {
+      const recordDoc = {
         month, year, employee: emp._id,
         employeeSnapshot: { employeeCode: emp.employeeCode, fullName: emp.fullName, position: emp.workInfo?.position, department: emp.workInfo?.department },
         baseSalary, standardDays: stdDays, actualDays,
@@ -147,21 +159,23 @@ export const initializePayroll = async (req, res) => {
           allowances: { meal, transport, housing, phone: emp.salaryAndBenefits?.allowances?.phone || 0, clothing: emp.salaryAndBenefits?.allowances?.clothing || 0 },
           bonus: 0, totalGross
         },
-        // ===== ĐÂY LÀ ĐOẠN CẦN SỬA =====
         deductions: { 
-          advance: att?.advancePayment || 0, 
+          advance: advancePayment, 
           insurance: { 
             bhxh: ins?.employeePays?.bhxh || 0,
             bhyt: ins?.employeePays?.bhyt || 0,
             bhtn: ins?.employeePays?.bhtn || 0,
-            total: ins?.employeePays?.total || 0 
+            total: insTotal 
           }, 
-          taxTNCN, 
-          totalDeductions 
+          taxTNCN: taxTNCN,
+          totalDeductions: 0
         },
-        // ================================
-        netSalary: totalGross - totalDeductions < 0 ? 0 : totalGross - totalDeductions
+        netSalary: 0
       };
+
+      // Áp dụng hàm tính toán khấu trừ đặc thù bảo hiểm và thuế TNCN đài thọ
+      calculateNetWithCompanySupport(recordDoc, taxTNCN, advancePayment, insTotal);
+      return recordDoc;
     });
 
     await PayrollRecord.deleteMany({ month, year });
@@ -178,8 +192,17 @@ export const updatePayrollRecord = async (req, res) => {
     const record = await PayrollRecord.findById(recordId);
     if (!record) return res.status(404).json({ message: "Không tìm thấy bản ghi" });
 
-    // Khi cập nhật tiền thưởng, gán lại và gọi save() để kích hoạt hook tự động tính lại Net
-    if (bonus !== undefined) record.incomes.bonus = Number(bonus);
+    if (bonus !== undefined) {
+      record.incomes.bonus = Number(bonus);
+      const inc = record.incomes;
+      const allw = inc.allowances || {};
+      const totalAllw = (allw.meal||0) + (allw.transport||0) + (allw.phone||0) + (allw.clothing||0) + (allw.housing||0);
+      
+      inc.totalGross = inc.timeSalary + totalAllw + inc.overtime + inc.bonus + inc.miniShowMoney + inc.bigShowMoney + inc.kpiBonus;
+      
+      // Tính lại nét dựa trên tổng gross mới cập nhật
+      calculateNetWithCompanySupport(record, record.deductions.taxTNCN, record.deductions.advance, record.deductions.insurance.total);
+    }
 
     await record.save();
     res.status(200).json({ message: "Cập nhật thành công" });
@@ -210,7 +233,7 @@ export const sendPayslipEmail = async (req, res, next) => {
     if (!record) return res.status(404).json({ success: false, message: "Không tìm thấy bảng lương này." });
     if (!record.employee || !record.employee.email) return res.status(400).json({ success: false, message: "Nhân viên chưa có Email." });
 
-    const companyName = "FUGU Dining Lounge";
+    const companyName = "Tên công ty của bạn"; // Thay bằng tên công ty thực tế
     const htmlContent = buildPayslipTemplate(record, companyName);
     const subject = `[${companyName}] - Phiếu lương tháng ${record.month}/${record.year} - ${record.employeeSnapshot.fullName}`;
 

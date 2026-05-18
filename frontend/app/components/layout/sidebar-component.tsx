@@ -53,20 +53,39 @@ export const SidebarComponent = ({
     { title: "Cài đặt hệ thống", href: "/settings", icon: Settings },
   ];
 
+  const userAllowedRoutes = [
+    "/employee",
+    "/attendance",
+    "/overtimePayBoard",
+    "/achieved",
+    "/settings",
+  ];
+
   // Filter nav items based on role
   const navItems = allNavItems.filter((item) => {
-    // CẬP NHẬT LẠI TÊN Ở ĐÂY ĐỂ TRÙNG KHỚP VỚI MẢNG BÊN TRÊN
+    if (!user) {
+      return false;
+    }
+
+    if (user.role === "user") {
+      return userAllowedRoutes.includes(item.href);
+    }
+
+    // Handle commonly accessible items for other roles
     if (["Hồ sơ Nhân sự", "Tin nhắn nội bộ", "Cài đặt hệ thống"].includes(item.title)) {
       return true;
     }
+
     // If item has specific roles requirement, check against those
     if ((item as any).roles) {
       return hasRole((item as any).roles);
     }
+
     // Cashier and admin see all other items
     if (hasRole(["cashier", "admin"])) {
       return true;
     }
+
     // Bar sees only the common ones (already included above)
     return false;
   });

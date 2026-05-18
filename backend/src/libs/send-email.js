@@ -44,10 +44,6 @@ export const buildPayslipTemplate = (record, companyName = "CÔNG TY CỦA BẠN
       <div style="text-align: center; border-bottom: 2px dashed #000; padding-bottom: 10px; margin-bottom: 15px;">
         <h1 style="margin: 0; font-size: 24px; text-transform: uppercase;">PHIẾU LƯƠNG NHÂN VIÊN</h1>
       </div>
-      
-      <div style="text-align: right; margin-bottom: 20px;">
-        <span>Phiếu số: ${record.month}${record.year}</span>
-      </div>
 
       <div style="margin-bottom: 30px;">
         <div style="font-size: 16px; text-transform: uppercase;">${companyName}</div>
@@ -114,17 +110,17 @@ export const buildPayslipTemplate = (record, companyName = "CÔNG TY CỦA BẠN
 
         <!-- Các khoản giảm trừ (2) -->
         <tr>
-          <td style="padding: 5px 0; font-weight: bold; border-bottom: 1px solid #ddd;">Các khoản giảm trừ (2)</td>
+          <td style="padding: 5px 0; font-weight: bold; border-bottom: 1px solid #ddd;">Tổng các khoản giảm trừ (2)</td>
           <td style="padding: 5px 0; font-weight: bold; text-align: right; border-bottom: 1px solid #ddd;">
             ${formatMoney(ded.totalDeductions)}
           </td>
         </tr>
         <tr>
-          <td style="padding: 3px 0;">Bảo hiểm</td>
+          <td style="padding: 3px 0;">Bảo hiểm (công ty hỗ trợ 88.000VNĐ)</td>
           <td style="padding: 3px 0; text-align: right;">${formatMoney(ded.insurance.total)}</td>
         </tr>
         <tr>
-          <td style="padding: 3px 0;">Thuế TNCN</td>
+          <td style="padding: 3px 0;">Thuế TNCN (công ty hỗ trợ 100%)</td>
           <td style="padding: 3px 0; text-align: right;">${formatMoney(ded.taxTNCN)}</td>
         </tr>
         <tr>

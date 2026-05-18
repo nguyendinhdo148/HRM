@@ -2,17 +2,14 @@
 import React, { useState, useEffect, useMemo } from "react";
 import {
   Calculator, Save, PlayCircle, RefreshCcw, CheckCircle2, Search, FileDown, 
-  TrendingUp, Wallet, Filter, Banknote, Trash2, Lock, Unlock, Landmark, FileSpreadsheet, Loader2, Settings,
-  ChevronLeft, ChevronRight, Building2, PieChart
+  Wallet, Filter, Trash2, Lock, Unlock, Loader2, Settings,
+  ChevronLeft, ChevronRight
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Loader } from "@/components/loader";
-import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import XLSX from "xlsx-js-style";
 
 const API_BASE_URL = `${import.meta.env.VITE_API_URL}/payroll`;
 
@@ -33,7 +30,7 @@ const formatNumberWithDot = (val: string | number) => {
 const TabGrossPayrollTable = ({ filteredPayrolls, editingRecords, isClosed, handleInputChange, handleSaveRow }: any) => {
   return (
     <Card className="border-none shadow-sm rounded-2xl overflow-hidden animate-in fade-in-50">
-      <div className="overflow-auto max-h-[calc(100vh-240px)] pb-4 custom-scrollbar relative">
+      <div className="overflow-auto max-h-[calc(100vh-190px)] pb-4 custom-scrollbar relative">
         <table className="w-full text-[11px] border-collapse min-w-[2200px] bg-white">
           <thead className="bg-[#003366] text-white">
             <tr className="h-[48px]">
@@ -127,314 +124,6 @@ const TabGrossPayrollTable = ({ filteredPayrolls, editingRecords, isClosed, hand
   );
 };
 
-// ==========================================
-// THÀNH PHẦN STATS
-// ==========================================
-const TabPayrollStats = ({ stats, chartData }: any) => {
-  return (
-    <div className="space-y-6 mt-4 animate-in fade-in-50">
-      <div className="grid gap-4 md:grid-cols-4">
-        <Card className="border-l-4 border-l-blue-600 shadow-sm"><CardContent className="p-5"><div className="text-xs font-bold text-slate-400 uppercase mb-1">Nhân sự (Lọc)</div><div className="text-3xl font-black text-slate-800">{stats.count} <span className="text-sm">người</span></div></CardContent></Card>
-        <Card className="border-l-4 border-l-emerald-500 shadow-sm"><CardContent className="p-5"><div className="text-xs font-bold text-slate-400 uppercase mb-1">Tổng Gross</div><div className="text-2xl font-black text-emerald-600">{formatCurrency(stats.totalGross)}</div></CardContent></Card>
-        <Card className="border-l-4 border-l-rose-500 shadow-sm"><CardContent className="p-5"><div className="text-xs font-bold text-slate-400 uppercase mb-1">Quỹ BHXH (NLĐ)</div><div className="text-2xl font-black text-rose-600">{formatCurrency(stats.totalInsurance)}</div></CardContent></Card>
-        <Card className="border-l-4 border-l-amber-500 shadow-sm"><CardContent className="p-5"><div className="text-xs font-bold text-slate-400 uppercase mb-1">Tổng Thực Lĩnh</div><div className="text-2xl font-black text-amber-600">{formatCurrency(stats.totalNet)}</div></CardContent></Card>
-      </div>
-      <Card className="p-6 border shadow-sm">
-        <CardHeader className="px-0 pt-0 border-b mb-6 pb-4 flex flex-row items-center justify-between">
-          <div><CardTitle className="text-lg font-bold flex items-center gap-2"><Banknote className="w-5 h-5 text-emerald-600" /> Biểu Đồ Thực Lĩnh</CardTitle><CardDescription>Top 15 nhân sự có thu nhập cao nhất</CardDescription></div>
-        </CardHeader>
-        <div className="h-[350px] w-full">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={chartData} margin={{ top: 10, right: 10, left: 30, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-              <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: "#64748b", fontSize: 11, fontWeight: 700 }} dy={10} />
-              <YAxis axisLine={false} tickLine={false} tick={{ fill: "#64748b", fontSize: 11 }} tickFormatter={(v) => `${(v / 1000000).toFixed(0)}Tr`} />
-              <Tooltip cursor={{ fill: "#f8fafc" }} formatter={(val: number) => [formatCurrency(val), "Thực lĩnh"]} contentStyle={{ borderRadius: "12px", border: "none", boxShadow: "0 10px 15px -3px rgba(0,0,0,0.1)" }} />
-              <Bar dataKey="NetSalary" fill="#10b981" radius={[6, 6, 0, 0]} maxBarSize={45} animationDuration={1000} />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-      </Card>
-    </div>
-  );
-};
-
-// ==========================================
-// THÀNH PHẦN KÊ KHAI THUẾ (AUTO-FETCH & SMART FILTER)
-// ==========================================
-const TabTaxSummary = ({ monthsList }: { monthsList: any[] }) => {
-  // 1. Tính toán các năm CÓ DỮ LIỆU
-  const availableYears = useMemo(() => {
-    const years = Array.from(new Set(monthsList.map(m => m.year)));
-    return years.length > 0 ? years.sort((a, b) => b - a) : [new Date().getFullYear()];
-  }, [monthsList]);
-
-  const [year, setYear] = useState<number>(availableYears[0]);
-
-  // 2. Tính toán các Quý CÓ DỮ LIỆU dựa vào Năm đã chọn
-  const availablePeriods = useMemo(() => {
-    const monthsInYear = monthsList.filter(m => m.year === year).map(m => m.month);
-    const periods = [{ value: "ALL", label: "Cả năm" }];
-    
-    if (monthsInYear.some(m => [1, 2, 3].includes(m))) periods.push({ value: "Q1", label: "Quý 1" });
-    if (monthsInYear.some(m => [4, 5, 6].includes(m))) periods.push({ value: "Q2", label: "Quý 2" });
-    if (monthsInYear.some(m => [7, 8, 9].includes(m))) periods.push({ value: "Q3", label: "Quý 3" });
-    if (monthsInYear.some(m => [10, 11, 12].includes(m))) periods.push({ value: "Q4", label: "Quý 4" });
-    
-    return periods;
-  }, [monthsList, year]);
-
-  const [period, setPeriod] = useState<string>("ALL");
-  const [aggregatedData, setAggregatedData] = useState<any[]>([]);
-  const [isAggregating, setIsAggregating] = useState(false);
-
-  // Auto set Year nếu dữ liệu thay đổi
-  useEffect(() => {
-    if (availableYears.length > 0 && !availableYears.includes(year)) {
-      setYear(availableYears[0]);
-    }
-  }, [availableYears, year]);
-
-  // Auto set Period nếu dữ liệu thay đổi
-  useEffect(() => {
-    if (!availablePeriods.find(p => p.value === period)) {
-      setPeriod("ALL");
-    }
-  }, [availablePeriods, period]);
-
-  // TÍNH TOÁN TRỰC TIẾP LÚC GỌI AUTO-FETCH
-  const fetchAndAggregate = async () => {
-    setIsAggregating(true);
-    try {
-      let months = [];
-      if (period === "Q1") months = [1, 2, 3];
-      else if (period === "Q2") months = [4, 5, 6];
-      else if (period === "Q3") months = [7, 8, 9];
-      else if (period === "Q4") months = [10, 11, 12];
-      else months = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]; // ALL
-
-      const promises = months.map(m => 
-        fetch(`${API_BASE_URL}?month=${m}&year=${year}`, { headers: getAuthHeaders() }).then(res => res.json())
-      );
-      const results = await Promise.all(promises);
-
-      const map: { [code: string]: any } = {};
-      results.forEach(res => {
-        if (res.records) {
-          res.records.forEach((p: any) => {
-            const snap = p.employeeSnapshot;
-            if (!snap) return;
-            const code = snap.employeeCode;
-            
-            if (!map[code]) {
-              map[code] = {
-                employeeCode: code,
-                fullName: snap.fullName,
-                department: snap.department,
-                totalGross: 0,
-                totalInsurance: 0,
-                totalTax: 0,
-                totalNet: 0
-              };
-            }
-            map[code].totalGross += (p.incomes?.totalGross || 0);
-            map[code].totalInsurance += (p.deductions?.insurance?.total || 0);
-            map[code].totalTax += (p.deductions?.tax || 0);
-            map[code].totalNet += (p.netSalary || 0);
-          });
-        }
-      });
-      
-      setAggregatedData(Object.values(map).sort((a: any, b: any) => b.totalGross - a.totalGross));
-    } catch (error) {
-      console.error(error);
-    } finally {
-      setIsAggregating(false);
-    }
-  };
-
-  // HOOK TỰ ĐỘNG CÀO DỮ LIỆU MỖI KHI NĂM / KỲ THAY ĐỔI
-  useEffect(() => {
-    if (year && period) {
-      fetchAndAggregate();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [year, period]);
-
-  const totals = useMemo(() => {
-    return aggregatedData.reduce((acc, curr) => {
-      acc.gross += curr.totalGross;
-      acc.insurance += curr.totalInsurance;
-      acc.tax += curr.totalTax;
-      acc.net += curr.totalNet;
-      return acc;
-    }, { gross: 0, insurance: 0, tax: 0, net: 0 });
-  }, [aggregatedData]);
-
-  const handleExportTaxExcel = () => {
-    if (aggregatedData.length === 0) return alert("Không có dữ liệu để xuất");
-    
-    const wb = XLSX.utils.book_new();
-
-    const periodText = period === "ALL" ? `Năm ${year}` : `Quý ${period.replace('Q', '')} Năm ${year}`;
-    const titleRow = [`BẢNG KÊ TỔNG HỢP CHI PHÍ THU NHẬP - ${periodText.toUpperCase()}`];
-    const emptyRow = [""];
-    const headers = ["STT", "Mã NV", "Họ và tên", "Phòng ban", "Tổng Thu Nhập (Gross)", "Các Khoản Trừ (BHXH)", "Thuế TNCN Khấu Trừ", "Thực Lĩnh (Net)"];
-    
-    const dataRows = aggregatedData.map((d, i) => [
-      i + 1, d.employeeCode, d.fullName, d.department, d.totalGross, d.totalInsurance, d.totalTax, d.totalNet
-    ]);
-
-    const totalRow = ["", "", "TỔNG CỘNG", "", totals.gross, totals.insurance, totals.tax, totals.net];
-
-    const wsData = [titleRow, emptyRow, headers, ...dataRows, totalRow];
-    const ws = XLSX.utils.aoa_to_sheet(wsData);
-
-    ws["!merges"] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 7 } }]; 
-    
-    ws["A1"].s = {
-      font: { name: "Arial", sz: 14, bold: true, color: { rgb: "003366" } },
-      alignment: { horizontal: "center", vertical: "center" }
-    };
-
-    const headerRowIndex = 2;
-    for (let c = 0; c < headers.length; c++) {
-      const cellRef = XLSX.utils.encode_cell({ r: headerRowIndex, c });
-      if (!ws[cellRef]) continue;
-      ws[cellRef].s = {
-        fill: { fgColor: { rgb: "003366" } },
-        font: { name: "Arial", sz: 11, bold: true, color: { rgb: "FFFFFF" } },
-        alignment: { horizontal: "center", vertical: "center" },
-        border: {
-          top: { style: "thin", color: { rgb: "000000" } }, bottom: { style: "thin", color: { rgb: "000000" } },
-          left: { style: "thin", color: { rgb: "000000" } }, right: { style: "thin", color: { rgb: "000000" } }
-        }
-      };
-    }
-
-    for (let r = 3; r <= 3 + dataRows.length; r++) { 
-      const isTotalRow = r === 3 + dataRows.length;
-      for (let c = 0; c < headers.length; c++) {
-        const cellRef = XLSX.utils.encode_cell({ r, c });
-        if (!ws[cellRef]) ws[cellRef] = { v: "", t: "s" };
-        
-        ws[cellRef].s = {
-          font: { name: "Arial", sz: 11, bold: isTotalRow }, 
-          fill: isTotalRow ? { fgColor: { rgb: "FFF2CC" } } : undefined, 
-          border: {
-            top: { style: "thin", color: { rgb: "DDDDDD" } }, bottom: { style: "thin", color: { rgb: "DDDDDD" } },
-            left: { style: "thin", color: { rgb: "DDDDDD" } }, right: { style: "thin", color: { rgb: "DDDDDD" } }
-          },
-          alignment: { vertical: "center", horizontal: (c >= 4 ? "right" : (c === 0 ? "center" : "left")) }
-        };
-
-        if (c >= 4 && typeof ws[cellRef].v === 'number') {
-          ws[cellRef].z = "#,##0";
-        }
-      }
-    }
-
-    ws["!cols"] = [
-      { wch: 6 },  { wch: 12 }, { wch: 28 }, { wch: 15 }, 
-      { wch: 22 }, { wch: 22 }, { wch: 22 }, { wch: 22 },
-    ];
-
-    XLSX.utils.book_append_sheet(wb, ws, "Bao_Cao_Tong_Hop");
-    XLSX.writeFile(wb, `BaoCaoTongHop_${period}_${year}.xlsx`);
-  };
-
-  return (
-    <div className="space-y-5 animate-in fade-in-50 mt-4 w-full">
-      <div className="bg-white p-4 md:p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col md:flex-row justify-between items-center w-full">
-        <div className="flex gap-4">
-          <div>
-            <label className="block text-[11px] font-bold text-slate-500 mb-1.5 uppercase tracking-wide">Năm Kê Khai</label>
-            <select className="border border-slate-200 rounded-xl px-4 py-2 text-sm font-bold outline-none bg-slate-50 text-slate-700 min-w-[120px] focus:ring-2 focus:ring-blue-500/20" value={year} onChange={e => setYear(Number(e.target.value))}>
-              {availableYears.map(y => <option key={y} value={y}>{y}</option>)}
-            </select>
-          </div>
-          <div>
-            <label className="block text-[11px] font-bold text-slate-500 mb-1.5 uppercase tracking-wide">Kỳ Báo Cáo</label>
-            <select className="border border-slate-200 rounded-xl px-4 py-2 text-sm font-bold outline-none bg-slate-50 text-slate-700 min-w-[150px] focus:ring-2 focus:ring-blue-500/20" value={period} onChange={e => setPeriod(e.target.value)}>
-              {availablePeriods.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
-            </select>
-          </div>
-        </div>
-        <div className="mt-4 md:mt-0">
-          <Button variant="outline" onClick={handleExportTaxExcel} disabled={aggregatedData.length === 0} className="rounded-xl border-emerald-600 text-emerald-700 hover:bg-emerald-50 font-bold h-[42px] px-6 transition-all bg-white shadow-sm">
-            <FileSpreadsheet className="w-5 h-5 mr-2"/> XUẤT EXCEL CHUẨN
-          </Button>
-        </div>
-      </div>
-
-      {aggregatedData.length > 0 && (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 animate-in slide-in-from-bottom-4">
-          <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-center border-l-4 border-l-slate-400">
-            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Tổng Nhận Sự</span>
-            <span className="text-2xl font-black text-slate-800">{aggregatedData.length}</span>
-          </div>
-          <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-center border-l-4 border-l-emerald-500">
-            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Tổng Thu Nhập Trả</span>
-            <span className="text-2xl font-black text-emerald-600">{formatCurrency(totals.gross)}</span>
-          </div>
-          <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-center border-l-4 border-l-rose-500">
-            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Tổng BHXH (NLĐ)</span>
-            <span className="text-2xl font-black text-rose-500">{formatCurrency(totals.insurance)}</span>
-          </div>
-          <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-center border-l-4 border-l-amber-500">
-            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Thuế Thu Đóng</span>
-            <span className="text-2xl font-black text-amber-500">{formatCurrency(totals.tax)}</span>
-          </div>
-        </div>
-      )}
-
-      <Card className="border-none shadow-sm rounded-2xl overflow-hidden bg-white mt-4">
-        <div className="w-full overflow-x-auto overflow-y-auto max-h-[500px] custom-scrollbar relative">
-          <table className="w-full text-xs border-collapse min-w-[1100px]">
-            <thead className="bg-[#f8fafc] text-slate-600 sticky top-0 z-20 shadow-sm">
-              <tr>
-                <th className="p-4 border-b border-slate-200 text-center font-bold uppercase w-[60px] bg-[#f8fafc]">STT</th>
-                <th className="p-4 border-b border-slate-200 text-left font-bold uppercase w-[120px] bg-[#f8fafc]">Mã NV</th>
-                <th className="p-4 border-b border-slate-200 text-left font-bold uppercase bg-[#f8fafc]">Họ và tên</th>
-                <th className="p-4 border-b border-slate-200 text-left font-bold uppercase bg-[#f8fafc]">Phòng ban</th>
-                <th className="p-4 border-b border-slate-200 text-right font-bold uppercase text-emerald-600 bg-[#f8fafc]">Tổng Thu Nhập</th>
-                <th className="p-4 border-b border-slate-200 text-right font-bold uppercase text-rose-600 bg-[#f8fafc]">Tổng BHXH Trừ</th>
-                <th className="p-4 border-b border-slate-200 text-right font-bold uppercase text-amber-600 bg-[#f8fafc]">Thuế Đã Trừ</th>
-                <th className="p-4 border-b border-slate-200 text-right font-black uppercase text-blue-700 bg-[#f8fafc]">Tổng Thực Lĩnh</th>
-              </tr>
-            </thead>
-            <tbody className="bg-white">
-              {isAggregating ? (
-                <tr><td colSpan={8} className="p-16 text-center"><Loader2 className="w-8 h-8 animate-spin mx-auto text-blue-600 mb-2"/><div className="text-slate-400 font-medium">Đang cào dữ liệu...</div></td></tr>
-              ) : aggregatedData.length === 0 ? (
-                <tr>
-                  <td colSpan={8} className="p-20 text-center flex-col items-center justify-center">
-                    <Building2 className="w-16 h-16 text-slate-200 mx-auto mb-4" />
-                    <div className="text-slate-500 font-medium text-base">Chưa có dữ liệu cho kỳ này.</div>
-                  </td>
-                </tr>
-              ) : aggregatedData.map((d, i) => (
-                <tr key={d.employeeCode} className="hover:bg-slate-50 border-b border-slate-100 transition-colors">
-                  <td className="p-4 text-center font-medium text-slate-500">{i + 1}</td>
-                  <td className="p-4 font-medium text-slate-500">{d.employeeCode}</td>
-                  <td className="p-4 font-bold text-slate-800">{d.fullName}</td>
-                  <td className="p-4 text-slate-600">
-                    <Badge variant="outline" className="bg-white">{d.department}</Badge>
-                  </td>
-                  <td className="p-4 text-right font-bold text-emerald-700">{formatCurrency(d.totalGross)}</td>
-                  <td className="p-4 text-right font-medium text-rose-500">{formatCurrency(d.totalInsurance)}</td>
-                  <td className="p-4 text-right font-bold text-amber-500">{formatCurrency(d.totalTax)}</td>
-                  <td className="p-4 text-right font-black text-blue-700 bg-blue-50/30">{formatCurrency(d.totalNet)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </Card>
-    </div>
-  );
-};
-
 // =========================================================================
 // MAIN COMPONENT: GIAO DIỆN CHÍNH
 // =========================================================================
@@ -498,21 +187,17 @@ export default function PayrollBoard() {
     });
   }, [payrolls, searchQuery, deptFilter]);
 
-  const stats = useMemo(() => {
-    return {
-      count: filteredPayrolls.length,
-      totalGross: filteredPayrolls.reduce((acc, curr) => acc + (curr.incomes?.totalGross || 0), 0),
-      totalNet: filteredPayrolls.reduce((acc, curr) => acc + (curr.netSalary || 0), 0),
-      totalInsurance: filteredPayrolls.reduce((acc, curr) => acc + (curr.deductions?.insurance?.total || 0), 0),
-    };
-  }, [filteredPayrolls]);
-
-  const chartData = useMemo(() => {
-    return filteredPayrolls.map((p) => ({ name: p.employeeSnapshot?.fullName?.split(" ").pop() || "N/A", NetSalary: p.netSalary || 0 }))
-      .sort((a, b) => b.NetSalary - a.NetSalary).slice(0, 15);
-  }, [filteredPayrolls]);
-
   const handleInitMonth = async () => {
+    // Ưu tiên kiểm tra status từ màn hình hiện tại (tránh delay state do API chưa tải xong)
+    const isCurrentlyViewing = selectedMonthDoc && selectedMonthDoc.month === newMonth && selectedMonthDoc.year === newYear;
+    const existingMonth = monthsList.find(m => m.month === newMonth && m.year === newYear);
+    const targetStatus = isCurrentlyViewing ? selectedMonthDoc.status : existingMonth?.status;
+
+    if (targetStatus && targetStatus !== "draft") {
+      alert(`Bảng lương Tháng ${newMonth}/${newYear} hiện đang bị khóa!\nVui lòng mở khóa sổ trước khi thực hiện gom lại số liệu.`);
+      return;
+    }
+
     if (!window.confirm("Bắt đầu Đồng Bộ Tự Động?\nHệ thống sẽ tính toán lại dựa trên các tham số cấu hình phụ cấp và KPIs.")) return;
     setIsLoading(true);
     try {
@@ -528,13 +213,17 @@ export default function PayrollBoard() {
   };
 
   const handleToggleStatus = async (newStatus: "draft" | "approved" | "paid") => {
-    const actionName = newStatus === "approved" ? "KHÓA SỔ" : newStatus === "paid" ? "ĐÁNH DẤU ĐÃ THANH TOÁN" : "MỞ KHÓA";
+    const actionName = newStatus === "draft" ? "MỞ KHÓA SỔ" : newStatus === "approved" ? "KHÓA SỔ" : "ĐÁNH DẤU ĐÃ THANH TOÁN";
     if (!window.confirm(`Bạn có chắc muốn ${actionName}?`)) return;
     try {
       const res = await fetch(`${API_BASE_URL}/months/${selectedMonthDoc._id}/status`, { method: "PUT", headers: getAuthHeaders(), body: JSON.stringify({ status: newStatus }) });
       if (res.ok) {
-        fetchMonthsList();
+        // Cập nhật Optimistic cả 2 state cùng lúc để không bị lệch pha
         setSelectedMonthDoc((prev: any) => ({ ...prev, status: newStatus }));
+        setMonthsList((prev) => prev.map(m => m._id === selectedMonthDoc._id ? { ...m, status: newStatus } : m));
+      } else {
+        const errorData = await res.json();
+        alert(errorData.message || "Lỗi khi cập nhật trạng thái");
       }
     } catch (error) { console.error(error); }
   };
@@ -579,7 +268,7 @@ export default function PayrollBoard() {
   };
 
   const handleExportExcel = () => {
-    // Logic export excel cho Bảng Lương (nếu có)
+    // Logic export excel cho Bảng Lương Gross (nếu có)
   };
 
   if (isLoading && monthsList.length === 0) return <Loader />;
@@ -631,40 +320,41 @@ export default function PayrollBoard() {
 
       <main className="flex-1 flex flex-col h-full w-full overflow-y-auto p-4 sm:p-6 min-w-0 bg-slate-50">
         {selectedMonthDoc ? (
-          <Tabs defaultValue="board">
+          <div className="flex flex-col h-full">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 mb-4">
               <div>
                 <h1 className="text-2xl font-black text-[#0f172a] flex items-center gap-3">
-                  Bảng Lương Tháng {selectedMonthDoc.month}/{selectedMonthDoc.year}
+                  Bảng Lương Gross Tháng {selectedMonthDoc.month}/{selectedMonthDoc.year}
                   {selectedMonthDoc.status === "draft" && <Badge variant="secondary" className="bg-amber-100 text-amber-700">Bản Nháp</Badge>}
                   {selectedMonthDoc.status === "approved" && <Badge variant="secondary" className="bg-blue-100 text-blue-700">Đã Khóa Sổ</Badge>}
                   {selectedMonthDoc.status === "paid" && <Badge variant="secondary" className="bg-emerald-100 text-emerald-700">Hoàn Tất Chi Trả</Badge>}
                 </h1>
               </div>
-              <TabsList className="bg-white border p-1 rounded-xl shadow-sm">
-                <TabsTrigger value="board" className="data-[state=active]:bg-slate-100 shadow-sm font-bold"><Calculator className="w-4 h-4 mr-2" /> Bảng Lương Gross</TabsTrigger>
-                <TabsTrigger value="stats" className="data-[state=active]:bg-slate-100 shadow-sm font-bold"><TrendingUp className="w-4 h-4 mr-2" /> Tổng Cục</TabsTrigger>
-                <TabsTrigger value="tax" className="data-[state=active]:bg-emerald-50 data-[state=active]:text-emerald-700 shadow-sm font-bold"><Landmark className="w-4 h-4 mr-2" /> Kê Khai Thuế</TabsTrigger>
-              </TabsList>
             </div>
 
-            <TabsContent value="board" className="mt-0">
+            <div className="mt-0">
               <div className="bg-white p-3 rounded-2xl border-none shadow-sm flex flex-wrap gap-4 items-center mb-4">
                 <div className="flex items-center gap-2 bg-slate-50 border rounded-xl px-3 py-1.5"><Filter className="w-4 h-4 text-slate-400" /><select className="bg-transparent text-sm font-medium outline-none cursor-pointer" value={deptFilter} onChange={(e) => setDeptFilter(e.target.value)}><option value="ALL">Tất cả phòng ban</option>{departments.map((d) => (<option key={d} value={d}>{d}</option>))}</select></div>
                 <div className="relative flex-1 max-w-xs"><Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" /><Input placeholder="Tìm tên hoặc mã NV..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="pl-9 h-9 text-sm rounded-xl bg-slate-50 border-slate-200" /></div>
                 <div className="flex gap-2 ml-auto items-center">
                   <Button variant="ghost" size="sm" onClick={() => fetchPayrollData(selectedMonthDoc.month, selectedMonthDoc.year)}><RefreshCcw className="w-4 h-4" /></Button>
                   <Button size="sm" onClick={handleExportExcel} className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl"><FileDown className="w-4 h-4 mr-1" /> Xuất Excel</Button>
-                  {selectedMonthDoc.status === "draft" && <Button size="sm" onClick={() => handleToggleStatus("approved")} className="bg-[#0f172a] hover:bg-slate-800 rounded-xl"><Lock className="w-4 h-4 mr-1" /> Khóa Sổ</Button>}
+                  
+                  {/* LUÔN HIỂN THỊ NÚT KHÓA / MỞ KHÓA TÙY VÀO TRẠNG THÁI */}
+                  {selectedMonthDoc.status === "draft" ? (
+                    <Button size="sm" onClick={() => handleToggleStatus("approved")} className="bg-[#0f172a] hover:bg-slate-800 text-white rounded-xl">
+                      <Lock className="w-4 h-4 mr-1" /> Khóa Sổ
+                    </Button>
+                  ) : (
+                    <Button size="sm" onClick={() => handleToggleStatus("draft")} className="bg-amber-100 hover:bg-amber-200 text-amber-800 rounded-xl font-bold">
+                      <Unlock className="w-4 h-4 mr-1" /> Mở Khóa Sổ
+                    </Button>
+                  )}
                 </div>
               </div>
               {isDataLoading ? (<div className="bg-white h-64 rounded-2xl flex items-center justify-center"><Loader /></div>) : (<TabGrossPayrollTable filteredPayrolls={filteredPayrolls} editingRecords={editingRecords} isClosed={selectedMonthDoc.status !== "draft"} handleInputChange={handleInputChange} handleSaveRow={handleSaveRow} />)}
-            </TabsContent>
-            
-
-            <TabsContent value="stats"><TabPayrollStats stats={stats} chartData={chartData} /></TabsContent>
-            <TabsContent value="tax"><TabTaxSummary monthsList={monthsList} /></TabsContent>
-          </Tabs>
+            </div>
+          </div>
         ) : (
           <div className="h-[600px] flex flex-col items-center justify-center text-slate-400 bg-white/50 rounded-3xl border-2 border-dashed border-slate-200 shadow-sm"><Calculator className="w-20 h-20 mb-4 opacity-20" /><p className="font-bold text-lg uppercase tracking-widest opacity-60">Vui lòng khởi tạo một bảng lương</p></div>
         )}

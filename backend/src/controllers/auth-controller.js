@@ -32,7 +32,7 @@ const registerUser = async (req, res, next) => {
       email,
       name,
       password: hashPassword,
-      role: "cashier", // Default role for new users
+      role: "user", // Default role for new users
     });
 
     // TODO: send verification email
