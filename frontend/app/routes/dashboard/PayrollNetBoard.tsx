@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useState, useEffect, useMemo } from "react";
 import {
-  Search, FileDown, Wallet, Filter, CheckCircle2, Lock, Landmark, ChevronLeft, ChevronRight, HandCoins, Calculator, Users, TrendingUp, Banknote, Building2, Loader2, FileSpreadsheet
+  Search, FileDown, Wallet, Filter, CheckCircle2, Lock, Landmark, ChevronLeft, ChevronRight, HandCoins, Calculator, Users, TrendingUp, Banknote, Building2, Loader2, FileSpreadsheet, ClipboardList
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -187,21 +187,21 @@ const TabTaxSummary = ({ reportData, isReportingFetching, filterProps }: any) =>
     ];
     
     const dataRows = reportData.map((d: any, i: number) => [
-      i + 1, d.employeeCode, d.fullName, d.position, d.department,
-      d.actualDays, d.timeSalary, d.overtime, 
-      d.miniShowMoney, d.bigShowMoney, d.kpiBonus, 
-      d.meal, d.transport, d.phone, d.clothing, d.housing, 
-      d.bonus, d.totalGross, 
-      d.advance, d.insurance, d.taxTNCN, d.accountingDeductions, d.accountingNet
+      Number(i + 1), d.employeeCode, d.fullName, d.position, d.department,
+      Number(d.actualDays) || 0, Number(d.timeSalary) || 0, Number(d.overtime) || 0, 
+      Number(d.miniShowMoney) || 0, Number(d.bigShowMoney) || 0, Number(d.kpiBonus) || 0, 
+      Number(d.meal) || 0, Number(d.transport) || 0, Number(d.phone) || 0, Number(d.clothing) || 0, Number(d.housing) || 0, 
+      Number(d.bonus) || 0, Number(d.totalGross) || 0, 
+      Number(d.advance) || 0, Number(d.insurance) || 0, Number(d.taxTNCN) || 0, Number(d.accountingDeductions) || 0, Number(d.accountingNet) || 0
     ]);
 
     const totalRow = [
       "", "", "TỔNG CỘNG", "", "", 
-      totals.actualDays, totals.timeSalary, totals.overtime, 
-      totals.miniShowMoney, totals.bigShowMoney, totals.kpiBonus, 
-      totals.meal, totals.transport, totals.phone, totals.clothing, totals.housing, 
-      totals.bonus, totals.gross, 
-      totals.advance, totals.insurance, totals.taxTNCN, totals.deductions, totals.net
+      Number(totals.actualDays) || 0, Number(totals.timeSalary) || 0, Number(totals.overtime) || 0, 
+      Number(totals.miniShowMoney) || 0, Number(totals.bigShowMoney) || 0, Number(totals.kpiBonus) || 0, 
+      Number(totals.meal) || 0, Number(totals.transport) || 0, Number(totals.phone) || 0, Number(totals.clothing) || 0, Number(totals.housing) || 0, 
+      Number(totals.bonus) || 0, Number(totals.gross) || 0, 
+      Number(totals.advance) || 0, Number(totals.insurance) || 0, Number(totals.taxTNCN) || 0, Number(totals.deductions) || 0, Number(totals.net) || 0
     ];
 
     const wsData = [titleRow, emptyRow, headers, ...dataRows, totalRow];
@@ -214,39 +214,43 @@ const TabTaxSummary = ({ reportData, isReportingFetching, filterProps }: any) =>
       alignment: { horizontal: "center", vertical: "center" }
     };
 
-    const headerRowIndex = 2;
-    for (let c = 0; c < headers.length; c++) {
-      const cellRef = XLSX.utils.encode_cell({ r: headerRowIndex, c });
-      if (!ws[cellRef]) continue;
-      ws[cellRef].s = {
-        fill: { fgColor: { rgb: "003366" } },
-        font: { name: "Arial", sz: 11, bold: true, color: { rgb: "FFFFFF" } },
-        alignment: { horizontal: "center", vertical: "center", wrapText: true },
-        border: {
-          top: { style: "thin", color: { rgb: "000000" } }, bottom: { style: "thin", color: { rgb: "000000" } },
-          left: { style: "thin", color: { rgb: "000000" } }, right: { style: "thin", color: { rgb: "000000" } }
-        }
-      };
-    }
-
-    for (let r = 3; r <= 3 + dataRows.length; r++) { 
+    // Áp dụng định dạng ô và ép type
+    for (let r = 2; r <= 3 + dataRows.length; r++) { 
       const isTotalRow = r === 3 + dataRows.length;
       for (let c = 0; c < headers.length; c++) {
         const cellRef = XLSX.utils.encode_cell({ r, c });
         if (!ws[cellRef]) ws[cellRef] = { v: "", t: "s" };
         
-        ws[cellRef].s = {
-          font: { name: "Arial", sz: 11, bold: isTotalRow }, 
-          fill: isTotalRow ? { fgColor: { rgb: "FFF2CC" } } : undefined, 
-          border: {
-            top: { style: "thin", color: { rgb: "DDDDDD" } }, bottom: { style: "thin", color: { rgb: "DDDDDD" } },
-            left: { style: "thin", color: { rgb: "DDDDDD" } }, right: { style: "thin", color: { rgb: "DDDDDD" } }
-          },
-          alignment: { vertical: "center", horizontal: (c >= 5 ? "right" : (c === 0 ? "center" : "left")) }
-        };
+        if (r === 2) {
+          // Format header
+          ws[cellRef].s = {
+            fill: { fgColor: { rgb: "003366" } },
+            font: { name: "Arial", sz: 11, bold: true, color: { rgb: "FFFFFF" } },
+            alignment: { horizontal: "center", vertical: "center", wrapText: true },
+            border: {
+              top: { style: "thin", color: { rgb: "000000" } }, bottom: { style: "thin", color: { rgb: "000000" } },
+              left: { style: "thin", color: { rgb: "000000" } }, right: { style: "thin", color: { rgb: "000000" } }
+            }
+          };
+        } else {
+          // Format body & total
+          ws[cellRef].s = {
+            font: { name: "Arial", sz: 11, bold: isTotalRow }, 
+            fill: isTotalRow ? { fgColor: { rgb: "FFF2CC" } } : undefined, 
+            border: {
+              top: { style: "thin", color: { rgb: "DDDDDD" } }, bottom: { style: "thin", color: { rgb: "DDDDDD" } },
+              left: { style: "thin", color: { rgb: "DDDDDD" } }, right: { style: "thin", color: { rgb: "DDDDDD" } }
+            },
+            alignment: { vertical: "center", horizontal: (c >= 5 ? "right" : (c === 0 ? "center" : "left")) }
+          };
 
-        if (typeof ws[cellRef].v === 'number' && c >= 6) {
-          ws[cellRef].z = "#,##0";
+          // Ép chuẩn Type Number (t: 'n') và s.numFmt
+          if (typeof ws[cellRef].v === 'number') {
+            ws[cellRef].t = 'n';
+            if (c >= 6) { // Cột tiền tệ
+              ws[cellRef].s.numFmt = "#,##0";
+            }
+          }
         }
       }
     }
@@ -377,6 +381,175 @@ const TabTaxSummary = ({ reportData, isReportingFetching, filterProps }: any) =>
   );
 };
 
+// ==========================================
+// THÀNH PHẦN KÊ KHAI NHÂN VIÊN THỰC NHẬN (TAB MỚI YÊU CẦU)
+// ==========================================
+const TabEmployeeSummary = ({ reportData, isReportingFetching, filterProps }: any) => {
+  const totals = useMemo(() => {
+    return reportData.reduce((acc: any, curr: any) => {
+      acc.gross += curr.totalGross;
+      acc.advance += curr.advance;
+      acc.employeeInsurance += curr.employeeInsurance;
+      acc.employeeNet += curr.employeeNet;
+      return acc;
+    }, { gross: 0, advance: 0, employeeInsurance: 0, employeeNet: 0 });
+  }, [reportData]);
+
+  const handleExportEmployeeSummaryExcel = () => {
+    if (reportData.length === 0) return alert("Không có dữ liệu để xuất");
+    
+    const wb = XLSX.utils.book_new();
+    const { reportType, reportValue, reportYear } = filterProps;
+    let periodLabel = "";
+    if (reportType === "MONTH") periodLabel = `THÁNG ${reportValue}`;
+    else if (reportType === "QUARTER") periodLabel = `QUÝ ${reportValue}`;
+    else periodLabel = `CẢ NĂM`;
+    
+    const FONT = { name: "Times New Roman", sz: 11 };
+    const BORDER = { top: { style: "thin", color: { rgb: "000000" } }, bottom: { style: "thin", color: { rgb: "000000" } }, left: { style: "thin", color: { rgb: "000000" } }, right: { style: "thin", color: { rgb: "000000" } } };
+    
+    const titleStyle = { font: { name: "Times New Roman", sz: 14, bold: true }, alignment: { horizontal: "center", vertical: "center" } };
+    const headerStyle = { font: { ...FONT, bold: true }, alignment: { horizontal: "center", vertical: "center", wrapText: true }, fill: { fgColor: { rgb: "D9E1F2" } }, border: BORDER };
+    const cellCenter = { font: FONT, alignment: { horizontal: "center", vertical: "center" }, border: BORDER };
+    const cellLeft = { font: FONT, alignment: { horizontal: "left", vertical: "center" }, border: BORDER };
+    const cellRightBold = { font: { ...FONT, bold: true }, alignment: { horizontal: "right", vertical: "center" }, border: BORDER };
+
+    const wsData: any[][] = [];
+    wsData.push([{ v: `BẢNG TỔNG HỢP THỰC NHẬN NHÂN VIÊN - ${periodLabel} - NĂM ${reportYear}`, s: titleStyle }]);
+    wsData.push([{ v: "Phúc lợi: Đã áp dụng hỗ trợ 88.000 VND BHXH/tháng và 100% Thu Thuế TNCN.", s: { font: { ...FONT, italic: true, color: { rgb: "FF0000" } } } }]);
+    wsData.push([]);
+
+    wsData.push([
+      { v: "STT", s: headerStyle }, { v: "Mã NV", s: headerStyle }, { v: "Họ và tên", s: headerStyle }, { v: "Bộ phận", s: headerStyle },
+      { v: "Tổng Thu Nhập (Gross)", s: headerStyle }, { v: "Tạm Ứng", s: headerStyle }, 
+      { v: "BHXH (Đã trừ hỗ trợ)", s: headerStyle }, { v: "Thuế TNCN", s: headerStyle },
+      { v: "THỰC NHẬN CHUYỂN KHOẢN", s: headerStyle }
+    ]);
+
+    reportData.forEach((d: any, index: number) => {
+      wsData.push([
+        { v: Number(index + 1), s: cellCenter }, 
+        { v: d.employeeCode || "", s: cellCenter }, 
+        { v: d.fullName || "", s: cellLeft }, 
+        { v: d.department || "", s: cellCenter },
+        { v: Number(d.totalGross) || 0, s: {} },
+        { v: Number(d.advance) || 0, s: {} },
+        { v: Number(d.employeeInsurance) || 0, s: {} },
+        { v: 0, s: {} }, 
+        { v: Number(d.employeeNet) || 0, s: { ...cellRightBold, font: { ...FONT, bold: true, color: { rgb: "9C0006" } }, fill: { fgColor: { rgb: "FFC7CE" } } } } 
+      ]);
+    });
+
+    const totalRow = [
+      { v: "", s: cellCenter }, { v: "", s: cellCenter }, { v: "TỔNG CỘNG", s: { ...cellLeft, font: { ...FONT, bold: true } } }, { v: "", s: cellCenter },
+      { v: Number(totals.gross) || 0, s: cellRightBold },
+      { v: Number(totals.advance) || 0, s: cellRightBold },
+      { v: Number(totals.employeeInsurance) || 0, s: cellRightBold },
+      { v: 0, s: cellRightBold },
+      { v: Number(totals.employeeNet) || 0, s: { ...cellRightBold, fill: { fgColor: { rgb: "FFC7CE" } }, font: { ...FONT, bold: true, color: { rgb: "9C0006" } } } }
+    ];
+    wsData.push(totalRow);
+
+    const ws = XLSX.utils.aoa_to_sheet(wsData);
+    ws["!merges"] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 8 } }, { s: { r: 1, c: 0 }, e: { r: 1, c: 8 } }];
+    ws["!cols"] = [{ wch: 5 }, { wch: 10 }, { wch: 25 }, { wch: 15 }, { wch: 22 }, { wch: 14 }, { wch: 22 }, { wch: 15 }, { wch: 26 }];
+
+    // Áp dụng định dạng ép số
+    for (let r = 3; r < wsData.length; r++) {
+      for (let c = 0; c <= 8; c++) {
+        const cellRef = XLSX.utils.encode_cell({ r, c });
+        if (!ws[cellRef]) continue;
+
+        if (typeof ws[cellRef].v === 'number') {
+          ws[cellRef].t = 'n';
+          if (c >= 4) {
+            if (!ws[cellRef].s) ws[cellRef].s = {};
+            ws[cellRef].s.numFmt = "#,##0";
+            if(r < wsData.length - 1 && c !== 8) { // Căn chỉnh các ô số bình thường
+               ws[cellRef].s.font = FONT;
+               ws[cellRef].s.alignment = { horizontal: "right", vertical: "center" };
+               ws[cellRef].s.border = BORDER;
+            }
+          }
+        }
+      }
+    }
+
+    XLSX.utils.book_append_sheet(wb, ws, "Thong_Ke_Nhan_Vien");
+    XLSX.writeFile(wb, `ThongKe_ThucNhan_NhanVien_${periodLabel}_${reportYear}.xlsx`);
+  };
+
+  return (
+    <div className="flex flex-col h-full animate-in fade-in-50 pb-2">
+      <ReportFilterBar {...filterProps} onExport={handleExportEmployeeSummaryExcel} />
+
+      <Card className="flex-1 overflow-hidden border-none rounded-2xl bg-white shadow-sm flex flex-col min-h-0">
+        <div className="overflow-auto h-full custom-scrollbar relative">
+          <table className="w-full text-xs border-collapse min-w-[1000px] bg-white">
+            <thead className="bg-[#1e293b] text-white sticky top-0 z-30">
+              <tr className="h-[44px]">
+                <th className="p-3 text-center w-[60px] border-b border-slate-700">STT</th>
+                <th className="p-3 text-center w-[110px] border-b border-slate-700">Mã NV</th>
+                <th className="p-3 text-left sticky left-0 bg-[#1e293b] z-20 w-[180px] border-b border-slate-700">Họ và tên</th>
+                <th className="p-3 text-center w-[130px] border-b border-slate-700">Bộ phận</th>
+                <th className="p-3 text-right text-emerald-300 w-[160px] border-b border-slate-700">Tổng Thu Nhập</th>
+                <th className="p-3 text-right text-rose-300 w-[130px] border-b border-slate-700">Tạm Ứng</th>
+                <th className="p-3 text-right text-rose-300 w-[180px] border-b border-slate-700">BHXH Khấu Trừ (NV)</th>
+                <th className="p-3 text-right text-rose-300 w-[130px] border-b border-slate-700">Thuế TNCN</th>
+                <th className="p-3 text-right text-amber-300 w-[160px] bg-slate-900 font-bold border-b border-slate-950">Thực Nhận</th>
+              </tr>
+            </thead>
+            <tbody>
+              {isReportingFetching ? (
+                <tr><td colSpan={9} className="p-10 text-center"><Loader2 className="w-8 h-8 animate-spin mx-auto text-emerald-600 mb-2"/><div className="text-slate-400 font-medium">Đang tổng hợp dữ liệu nhân viên...</div></td></tr>
+              ) : reportData.length === 0 ? (
+                <tr>
+                  <td colSpan={9} className="p-20 text-center flex-col items-center justify-center">
+                    <Users className="w-16 h-16 text-slate-200 mx-auto mb-4" />
+                    <div className="text-slate-500 font-medium text-base">Chưa có dữ liệu cho kỳ báo cáo này.</div>
+                  </td>
+                </tr>
+              ) : reportData.map((d: any, idx: number) => {
+                const rowBg = idx % 2 === 0 ? "bg-white" : "bg-slate-50/50";
+                return (
+                  <tr key={d.employeeCode} className={`${rowBg} hover:bg-emerald-50/40 transition-colors`}>
+                    <td className="p-3 text-center border-b border-slate-100 text-slate-400">{idx + 1}</td>
+                    <td className="p-3 text-center border-b border-slate-100 font-mono font-medium text-slate-600">{d.employeeCode}</td>
+                    <td className={`p-3 border-b border-slate-100 font-bold text-slate-800 sticky left-0 ${rowBg} z-10`}>{d.fullName}</td>
+                    <td className="p-3 text-center border-b border-slate-100 text-slate-600">{d.department}</td>
+                    <td className="p-3 text-right border-b border-slate-100 font-medium">{formatNumberWithDot(d.totalGross)}</td>
+                    <td className="p-3 text-right border-b border-slate-100 text-rose-600">{formatNumberWithDot(d.advance)}</td>
+                    <td className="p-3 text-right border-b border-slate-100 text-rose-600 flex-col">
+                      <div>{formatNumberWithDot(d.employeeInsurance)}</div>
+                    </td>
+                    <td className="p-3 text-right border-b border-slate-100 font-bold text-slate-400">
+                      <span className="text-slate-400 text-xs">0 đ</span>
+                    </td>
+                    <td className="p-3 text-right border-b border-slate-100 font-black text-emerald-700 bg-emerald-50/30 text-sm">
+                      {formatNumberWithDot(d.employeeNet)}
+                    </td>
+                  </tr>
+                );
+              })}
+              {reportData.length > 0 && (
+                <tr className="bg-slate-800 text-white font-bold sticky bottom-0 z-[50]">
+                  <td colSpan={3} className="p-3 text-center border-r border-slate-600 sticky left-0 z-[60] bg-slate-800">TỔNG CỘNG</td>
+                  <td className="p-3 text-center border-r border-slate-600"></td>
+                  <td className="p-3 text-right border-r border-slate-600 text-emerald-300">{formatNumberWithDot(totals.gross)}</td>
+                  <td className="p-3 text-right border-r border-slate-600 text-rose-300">{formatNumberWithDot(totals.advance)}</td>
+                  <td className="p-3 text-right border-r border-slate-600 text-rose-300">{formatNumberWithDot(totals.employeeInsurance)}</td>
+                  <td className="p-3 text-right border-r border-slate-600 text-slate-400">0 đ</td>
+                  <td className="p-3 text-right text-amber-300 font-black bg-slate-900 border-t border-slate-950">{formatNumberWithDot(totals.employeeNet)}</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </Card>
+    </div>
+  );
+};
+
 // =========================================================================
 // MAIN COMPONENT: GIAO DIỆN CHÍNH PAYROLL NET BOARD
 // =========================================================================
@@ -394,7 +567,7 @@ export default function PayrollNetBoard() {
   const [deptFilter, setDeptFilter] = useState<string>("ALL");
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
-  // States cho Lọc Báo Cáo Tổng Hợp (Tổng cục & Thống kê Thuế)
+  // States cho Lọc Báo Cáo Tổng Hợp
   const [reportYear, setReportYear] = useState<number>(new Date().getFullYear());
   const [reportType, setReportType] = useState<string>("MONTH");
   const [reportValue, setReportValue] = useState<number>(new Date().getMonth() + 1);
@@ -436,7 +609,7 @@ export default function PayrollNetBoard() {
     } catch (error) { console.error(error); } finally { setIsDataLoading(false); }
   };
 
-  // Logic Fetch và Tổng Hợp Dữ Liệu Báo Cáo (Dùng chung cho cả 2 tab)
+  // Logic Fetch và Tổng Hợp Dữ Liệu Báo Cáo
   const fetchReportData = async () => {
     setIsReportingFetching(true);
     try {
@@ -475,35 +648,43 @@ export default function PayrollNetBoard() {
                 actualDays: 0, timeSalary: 0, overtime: 0, miniShowMoney: 0, bigShowMoney: 0, kpiBonus: 0,
                 meal: 0, transport: 0, phone: 0, clothing: 0, housing: 0, bonus: 0,
                 totalGross: 0, advance: 0, insurance: 0, taxTNCN: 0,
-                accountingDeductions: 0, accountingNet: 0
+                accountingDeductions: 0, accountingNet: 0,
+                employeeInsurance: 0, employeeNet: 0
               };
             }
             
             const allw = p.incomes?.allowances || {};
             const ded = p.deductions || {};
 
-            map[code].actualDays += (p.actualDays || 0);
-            map[code].timeSalary += (p.incomes?.timeSalary || 0);
-            map[code].overtime += (p.incomes?.overtime || 0);
-            map[code].miniShowMoney += (p.incomes?.miniShowMoney || 0);
-            map[code].bigShowMoney += (p.incomes?.bigShowMoney || 0);
-            map[code].kpiBonus += (p.incomes?.kpiBonus || 0);
-            map[code].meal += (allw.meal || 0);
-            map[code].transport += (allw.transport || 0);
-            map[code].phone += (allw.phone || 0);
-            map[code].clothing += (allw.clothing || 0);
-            map[code].housing += (allw.housing || 0);
-            map[code].bonus += (p.incomes?.bonus || 0);
+            map[code].actualDays += Number(p.actualDays || 0);
+            map[code].timeSalary += Number(p.incomes?.timeSalary || 0);
+            map[code].overtime += Number(p.incomes?.overtime || 0);
+            map[code].miniShowMoney += Number(p.incomes?.miniShowMoney || 0);
+            map[code].bigShowMoney += Number(p.incomes?.bigShowMoney || 0);
+            map[code].kpiBonus += Number(p.incomes?.kpiBonus || 0);
+            map[code].meal += Number(allw.meal || 0);
+            map[code].transport += Number(allw.transport || 0);
+            map[code].phone += Number(allw.phone || 0);
+            map[code].clothing += Number(allw.clothing || 0);
+            map[code].housing += Number(allw.housing || 0);
+            map[code].bonus += Number(p.incomes?.bonus || 0);
 
-            map[code].totalGross += (p.incomes?.totalGross || 0);
-            map[code].advance += (ded.advance || 0);
-            map[code].insurance += (ded.insurance?.total || 0);
-            map[code].taxTNCN += (ded.taxTNCN || 0);
+            const gross = Number(p.incomes?.totalGross || 0);
+            const advance = Number(ded.advance || 0);
+            const insurance = Number(ded.insurance?.total || 0);
+
+            map[code].totalGross += gross;
+            map[code].advance += advance;
+            map[code].insurance += insurance;
+            map[code].taxTNCN += Number(ded.taxTNCN || 0);
+
+            const employeeIns = Math.max(0, insurance - 88000);
+            map[code].employeeInsurance += employeeIns;
+            map[code].employeeNet += Number(p.netSalary || (gross - advance - employeeIns));
           });
         }
       });
 
-      // Tính toán Deductions và Net chuẩn Kế Toán (Không hỗ trợ)
       const finalData = Object.values(map).map((d: any) => {
         d.accountingDeductions = d.advance + d.insurance + d.taxTNCN;
         d.accountingNet = d.totalGross - d.accountingDeductions;
@@ -522,7 +703,6 @@ export default function PayrollNetBoard() {
   useEffect(() => { fetchMonthsList(); }, []);
   useEffect(() => { if (selectedMonthDoc) fetchPayrollData(selectedMonthDoc.month, selectedMonthDoc.year); }, [selectedMonthDoc]);
   
-  // Tự động gọi API báo cáo mỗi khi thay đổi bộ lọc
   useEffect(() => {
     if (reportYear && reportType && reportValue) {
       fetchReportData();
@@ -557,14 +737,12 @@ export default function PayrollNetBoard() {
     
     const cellCenter = { font: FONT, alignment: { horizontal: "center", vertical: "center" }, border: BORDER };
     const cellLeft = { font: FONT, alignment: { horizontal: "left", vertical: "center" }, border: BORDER };
-    const cellRight = { font: FONT, alignment: { horizontal: "right", vertical: "center" }, border: BORDER };
     const cellRightBold = { font: { ...FONT, bold: true }, alignment: { horizontal: "right", vertical: "center" }, border: BORDER };
 
     const wsData: any[][] = [];
     wsData.push([{ v: `BẢNG TỔNG HỢP CHI TIẾT THU NHẬP & TRÍCH TRỪ KẾ TOÁN - THÁNG ${m}/${y}`, s: titleStyle }]);
     wsData.push([]);
     
-    // Dòng Header 1
     wsData.push([
       { v: "STT", s: headerMainStyle }, { v: "Mã NV", s: headerMainStyle }, { v: "Họ và tên", s: headerMainStyle }, { v: "Bộ phận", s: headerMainStyle }, { v: "Chức vụ", s: headerMainStyle },
       { v: "Lương CV", s: headerMainStyle }, { v: "Lương Thời Gian", s: headerMainStyle }, { v: "Lương Thời Gian", s: headerMainStyle }, { v: "Làm Thêm Giờ", s: headerMainStyle },
@@ -575,7 +753,6 @@ export default function PayrollNetBoard() {
       { v: "THỰC LĨNH ", s: headerMainStyle }
     ]);
 
-    // Dòng Header 2
     wsData.push([
       { v: "", s: headerSubStyle }, { v: "", s: headerSubStyle }, { v: "", s: headerSubStyle }, { v: "", s: headerSubStyle }, { v: "", s: headerSubStyle },
       { v: "", s: headerSubStyle }, { v: "Ngày công", s: headerSubStyle }, { v: "Số tiền", s: headerSubStyle }, { v: "", s: headerSubStyle },
@@ -590,18 +767,24 @@ export default function PayrollNetBoard() {
       const snap = p.employeeSnapshot || {};
       const allw = p.incomes?.allowances || {};
       const ded = p.deductions || {};
-      const totalAllw = (allw.meal || 0) + (allw.transport || 0) + (allw.phone || 0) + (allw.clothing || 0) + (allw.housing || 0);
+      const totalAllw = Number(allw.meal || 0) + Number(allw.transport || 0) + Number(allw.phone || 0) + Number(allw.clothing || 0) + Number(allw.housing || 0);
 
-      const accountingDeductions = (ded.advance || 0) + (ded.insurance?.total || 0) + (ded.taxTNCN || 0);
-      const accountingNet = (p.incomes?.totalGross || 0) - accountingDeductions;
+      const advance = Number(ded.advance || 0);
+      const insuranceTotal = Number(ded.insurance?.total || 0);
+      const taxTNCN = Number(ded.taxTNCN || 0);
+      const gross = Number(p.incomes?.totalGross || 0);
 
+      const accountingDeductions = advance + insuranceTotal + taxTNCN;
+      const accountingNet = gross - accountingDeductions;
+
+      // Không định dạng ở đây, đổ thẳng số để format ở vòng lặp dưới cùng
       wsData.push([
-        { v: index + 1, s: cellCenter }, { v: snap.employeeCode || "", s: cellCenter }, { v: snap.fullName || "", s: cellLeft }, { v: snap.department || "", s: cellCenter }, { v: snap.position || "", s: cellCenter },
-        { v: p.baseSalary, s: cellRight }, { v: p.actualDays, s: cellCenter }, { v: p.incomes?.timeSalary, s: cellRight }, { v: p.incomes?.overtime, s: cellRight },
-        { v: p.incomes?.miniShowMoney, s: cellRight }, { v: p.incomes?.bigShowMoney, s: cellRight }, { v: p.incomes?.kpiBonus, s: cellRight },
-        { v: allw.meal, s: cellRight }, { v: allw.transport, s: cellRight }, { v: allw.phone, s: cellRight }, { v: allw.clothing, s: cellRight }, { v: allw.housing, s: cellRight }, { v: totalAllw, s: cellRightBold },
-        { v: p.incomes?.bonus || 0, s: cellRight }, { v: p.incomes?.totalGross, s: cellRightBold },
-        { v: ded.advance || 0, s: cellRight }, { v: ded.insurance?.total || 0, s: cellRight }, { v: ded.taxTNCN || 0, s: cellRight }, { v: accountingDeductions, s: cellRightBold },
+        { v: Number(index + 1), s: cellCenter }, { v: snap.employeeCode || "", s: cellCenter }, { v: snap.fullName || "", s: cellLeft }, { v: snap.department || "", s: cellCenter }, { v: snap.position || "", s: cellCenter },
+        { v: Number(p.baseSalary) || 0, s: {} }, { v: Number(p.actualDays) || 0, s: cellCenter }, { v: Number(p.incomes?.timeSalary) || 0, s: {} }, { v: Number(p.incomes?.overtime) || 0, s: {} },
+        { v: Number(p.incomes?.miniShowMoney) || 0, s: {} }, { v: Number(p.incomes?.bigShowMoney) || 0, s: {} }, { v: Number(p.incomes?.kpiBonus) || 0, s: {} },
+        { v: Number(allw.meal) || 0, s: {} }, { v: Number(allw.transport) || 0, s: {} }, { v: Number(allw.phone) || 0, s: {} }, { v: Number(allw.clothing) || 0, s: {} }, { v: Number(allw.housing) || 0, s: {} }, { v: totalAllw, s: cellRightBold },
+        { v: Number(p.incomes?.bonus) || 0, s: {} }, { v: gross, s: cellRightBold },
+        { v: advance, s: {} }, { v: insuranceTotal, s: {} }, { v: taxTNCN, s: {} }, { v: accountingDeductions, s: cellRightBold },
         { v: accountingNet, s: { ...cellRightBold, fill: { fgColor: { rgb: "FFF2CC" } } } }
       ]);
     });
@@ -626,11 +809,25 @@ export default function PayrollNetBoard() {
       { s: { r: 2, c: 24 }, e: { r: 3, c: 24 } }, 
     ];
 
+    // --- LOOP CHUẨN XÁC ĐỂ ÉP ĐỊNH DẠNG ---
     for (let r = 4; r < wsData.length; r++) {
-      for (let c = 5; c <= 24; c++) {
-        if (c === 6) continue;
+      for (let c = 0; c <= 24; c++) {
         const cellRef = XLSX.utils.encode_cell({ r, c });
-        if (ws[cellRef] && typeof ws[cellRef].v === 'number') ws[cellRef].z = "#,##0";
+        if (!ws[cellRef]) continue;
+
+        if (typeof ws[cellRef].v === 'number') {
+          ws[cellRef].t = 'n'; // Ép cứng Type = Number
+          if (c >= 5 && c !== 6) { // Nếu là cột tiền
+            if (!ws[cellRef].s) ws[cellRef].s = {};
+            ws[cellRef].s.numFmt = "#,##0"; // Truyền thẳng định dạng ngàn
+            // Apply border & alignment nếu chưa có (những ô {} trống ở trên)
+            if(Object.keys(ws[cellRef].s).length === 1) {
+              ws[cellRef].s.font = FONT;
+              ws[cellRef].s.alignment = { horizontal: "right", vertical: "center" };
+              ws[cellRef].s.border = BORDER;
+            }
+          }
+        }
       }
     }
 
@@ -654,7 +851,6 @@ export default function PayrollNetBoard() {
     const headerStyle = { font: { ...FONT, bold: true }, alignment: { horizontal: "center", vertical: "center", wrapText: true }, fill: { fgColor: { rgb: "D9E1F2" } }, border: BORDER };
     const cellCenter = { font: FONT, alignment: { horizontal: "center", vertical: "center" }, border: BORDER };
     const cellLeft = { font: FONT, alignment: { horizontal: "left", vertical: "center" }, border: BORDER };
-    const cellRight = { font: FONT, alignment: { horizontal: "right", vertical: "center" }, border: BORDER };
     const cellRightBold = { font: { ...FONT, bold: true }, alignment: { horizontal: "right", vertical: "center" }, border: BORDER };
 
     const wsData: any[][] = [];
@@ -673,15 +869,21 @@ export default function PayrollNetBoard() {
       const snap = p.employeeSnapshot || {};
       const ded = p.deductions || {};
       
-      const employeeInsuranceCost = Math.max(0, (ded.insurance?.total || 0) - 88000);
+      const employeeInsuranceCost = Math.max(0, Number(ded.insurance?.total || 0) - 88000);
 
       wsData.push([
-        { v: index + 1, s: cellCenter }, { v: snap.employeeCode || "", s: cellCenter }, { v: snap.fullName || "", s: cellLeft }, { v: snap.department || "", s: cellCenter },
-        { v: p.incomes?.totalGross, s: cellRight },
-        { v: ded.advance || 0, s: cellRight },
-        { v: employeeInsuranceCost, s: cellRight },
-        { v: 0, s: cellRight }, 
-        { v: p.netSalary, s: { ...cellRightBold, font: { ...FONT, bold: true, color: { rgb: "9C0006" } }, fill: { fgColor: { rgb: "FFC7CE" } } } } 
+        { v: Number(index + 1), s: cellCenter }, 
+        { v: snap.employeeCode || "", s: cellCenter }, 
+        { v: snap.fullName || "", s: cellLeft }, 
+        { v: snap.department || "", s: cellCenter },
+        { v: Number(p.incomes?.totalGross) || 0, s: {} },
+        { v: Number(ded.advance) || 0, s: {} },
+        { v: Number(employeeInsuranceCost) || 0, s: {} },
+        { v: 0, s: {} }, 
+        { 
+          v: Number(p.netSalary) || 0, 
+          s: { ...cellRightBold, font: { ...FONT, bold: true, color: { rgb: "9C0006" } }, fill: { fgColor: { rgb: "FFC7CE" } } } 
+        } 
       ]);
     });
 
@@ -689,10 +891,24 @@ export default function PayrollNetBoard() {
     ws["!merges"] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 8 } }, { s: { r: 1, c: 0 }, e: { r: 1, c: 8 } }];
     ws["!cols"] = [{ wch: 5 }, { wch: 10 }, { wch: 25 }, { wch: 15 }, { wch: 22 }, { wch: 14 }, { wch: 26 }, { wch: 24 }, { wch: 24 }];
 
+    // --- LOOP CHUẨN XÁC ĐỂ ÉP ĐỊNH DẠNG ---
     for (let r = 3; r < wsData.length; r++) {
-      for (let c = 4; c <= 8; c++) {
+      for (let c = 0; c <= 8; c++) {
         const cellRef = XLSX.utils.encode_cell({ r, c });
-        if (ws[cellRef] && typeof ws[cellRef].v === 'number') ws[cellRef].z = "#,##0";
+        if (!ws[cellRef]) continue;
+
+        if (typeof ws[cellRef].v === 'number') {
+          ws[cellRef].t = 'n';
+          if (c >= 4) {
+            if (!ws[cellRef].s) ws[cellRef].s = {};
+            ws[cellRef].s.numFmt = "#,##0";
+            if(r < wsData.length && c !== 8) {
+               ws[cellRef].s.font = FONT;
+               ws[cellRef].s.alignment = { horizontal: "right", vertical: "center" };
+               ws[cellRef].s.border = BORDER;
+            }
+          }
+        }
       }
     }
 
@@ -728,7 +944,6 @@ export default function PayrollNetBoard() {
               >
                 <div className="flex flex-col">
                   <span className="font-bold text-sm">Tháng {m.month}/{m.year}</span>
-                  <span className="text-[10px] opacity-80 font-medium">Quy mô quỹ: {formatCurrency(m.totalNet)}</span>
                 </div>
                 <div>
                   {m.status === "paid" ? <CheckCircle2 className="w-5 h-5 text-emerald-400" /> : m.status === "approved" ? <Lock className="w-4 h-4 text-amber-200" /> : <span className="w-3 h-3 rounded-full bg-slate-300" />}
@@ -750,16 +965,17 @@ export default function PayrollNetBoard() {
               <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4 mb-4 shrink-0">
                 <div>
                   <h1 className="text-2xl font-black text-[#0f172a] flex items-center gap-3">
-                    <HandCoins className="w-6 h-6 text-amber-600" /> Bảng Đối Soát & Thống Kê
+                    <HandCoins className="w-6 h-6 text-amber-600" /> Bảng Đối Soát
                   </h1>
                   <p className="text-xs text-slate-400 mt-0.5">Bảng Gửi Nhân Viên áp dụng cấu trúc giảm 88.000 VND BHXH và Thuế TNCN đưa về 0.</p>
                 </div>
                 
                 <TabsList className="bg-white border p-1 rounded-xl shadow-sm flex flex-wrap shrink-0">
-                  <TabsTrigger value="accounting_board" className="data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700 font-bold text-xs"><Calculator className="w-3.5 h-3.5 mr-1.5" /> Bảng Kế Toán (Tháng)</TabsTrigger>
-                  <TabsTrigger value="employee_board" className="data-[state=active]:bg-emerald-50 data-[state=active]:text-emerald-700 font-bold text-xs"><Users className="w-3.5 h-3.5 mr-1.5" /> Bảng Nhân Viên (Tháng)</TabsTrigger>
-                  <TabsTrigger value="stats" className="data-[state=active]:bg-amber-50 data-[state=active]:text-amber-700 shadow-sm font-bold text-xs"><TrendingUp className="w-3.5 h-3.5 mr-1.5" /> Tổng Cục Báo Cáo</TabsTrigger>
-                  <TabsTrigger value="tax" className="data-[state=active]:bg-slate-100 data-[state=active]:text-slate-800 shadow-sm font-bold text-xs"><Landmark className="w-3.5 h-3.5 mr-1.5" /> Thống Kê / Thuế (Gốc)</TabsTrigger>
+                  <TabsTrigger value="accounting_board" className="data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700 font-bold text-xs"><Calculator className="w-3.5 h-3.5 mr-1.5" /> Lương chưa trừ DN</TabsTrigger>
+                  <TabsTrigger value="employee_board" className="data-[state=active]:bg-emerald-50 data-[state=active]:text-emerald-700 font-bold text-xs"><Users className="w-3.5 h-3.5 mr-1.5" /> Lương đã trừ DN</TabsTrigger>
+                  <TabsTrigger value="stats" className="data-[state=active]:bg-amber-50 data-[state=active]:text-amber-700 shadow-sm font-bold text-xs"><TrendingUp className="w-3.5 h-3.5 mr-1.5" /> Biểu đồ thống kê</TabsTrigger>
+                  <TabsTrigger value="tax" className="data-[state=active]:bg-slate-100 data-[state=active]:text-slate-800 shadow-sm font-bold text-xs"><Landmark className="w-3.5 h-3.5 mr-1.5" /> Lương chưa trừ DN (Quỹ)</TabsTrigger>
+                  <TabsTrigger value="employee_summary" className="data-[state=active]:bg-emerald-100 data-[state=active]:text-emerald-800 shadow-sm font-bold text-xs"><ClipboardList className="w-3.5 h-3.5 mr-1.5" /> Lương đã trừ DN (Quỹ)</TabsTrigger>
                 </TabsList>
               </div>
 
@@ -828,11 +1044,11 @@ export default function PayrollNetBoard() {
                           const snap = p.employeeSnapshot || {};
                           const allw = p.incomes?.allowances || {};
                           const ded = p.deductions || {};
-                          const totalAllw = (allw.meal||0) + (allw.transport||0) + (allw.phone||0) + (allw.clothing||0) + (allw.housing||0);
+                          const totalAllw = Number(allw.meal||0) + Number(allw.transport||0) + Number(allw.phone||0) + Number(allw.clothing||0) + Number(allw.housing||0);
                           const rowBg = idx % 2 === 0 ? "bg-white" : "bg-slate-50/60";
 
-                          const accountingDeductions = (ded.advance || 0) + (ded.insurance?.total || 0) + (ded.taxTNCN || 0);
-                          const accountingNet = (p.incomes?.totalGross || 0) - accountingDeductions;
+                          const accountingDeductions = Number(ded.advance || 0) + Number(ded.insurance?.total || 0) + Number(ded.taxTNCN || 0);
+                          const accountingNet = Number(p.incomes?.totalGross || 0) - accountingDeductions;
 
                           return (
                             <tr key={p._id} className={`${rowBg} hover:bg-slate-100/80 transition-colors`}>
@@ -860,7 +1076,7 @@ export default function PayrollNetBoard() {
                               <td className="p-2 border-r border-b border-slate-200 text-right text-slate-600" title="Bảo hiểm gốc chưa trừ hỗ trợ">{formatNumberWithDot(ded.insurance?.total)}</td>
                               <td className="p-2 border-r border-b border-slate-200 text-right text-amber-600" title="Thuế phát sinh gốc">{formatNumberWithDot(ded.taxTNCN)}</td>
                               <td className="p-2 border-r border-b border-slate-200 text-right font-bold text-rose-700 bg-rose-50/20">{formatNumberWithDot(accountingDeductions)}</td>
-                              <td className="p-2 text-right font-black text-amber-900 bg-amber-50 text-xs sticky right-0 z-10 shadow-[-2px_0_4px_rgba(0,0,0,0.04)] border-b border-amber-200">
+                              <td className={`p-2 text-right font-black text-amber-900 bg-amber-50 text-xs sticky right-0 z-10 shadow-[-2px_0_4px_rgba(0,0,0,0.04)] border-b border-amber-200`}>
                                 {formatNumberWithDot(accountingNet)}
                               </td>
                             </tr>
@@ -903,7 +1119,7 @@ export default function PayrollNetBoard() {
                           <th className="p-3 text-center w-[130px] border-b border-slate-700">Bộ phận</th>
                           <th className="p-3 text-right text-emerald-300 w-[160px] border-b border-slate-700">Tổng Thu Nhập </th>
                           <th className="p-3 text-right text-rose-300 w-[130px] border-b border-slate-700">Tạm Ứng </th>
-                          <th className="p-3 text-right text-rose-300 w-[180px] border-b border-slate-700">BHXH </th>
+                          <th className="p-3 text-right text-rose-300 w-[180px] border-b border-slate-700">BHXH Khấu Trừ</th>
                           <th className="p-3 text-right text-rose-300 w-[180px] border-b border-slate-700">Thuế TNCN</th>
                           <th className="p-3 text-right text-amber-300 w-[160px] bg-slate-900 font-bold border-b border-slate-950">Thực Nhận </th>
                         </tr>
@@ -916,7 +1132,7 @@ export default function PayrollNetBoard() {
                           const ded = p.deductions || {};
                           const rowBg = idx % 2 === 0 ? "bg-white" : "bg-slate-50/50";
                           
-                          const displayInsuranceCost = Math.max(0, (ded.insurance?.total || 0) - 88000);
+                          const displayInsuranceCost = Math.max(0, Number(ded.insurance?.total || 0) - 88000);
 
                           return (
                             <tr key={p._id} className={`${rowBg} hover:bg-emerald-50/40 transition-colors`}>
@@ -931,7 +1147,7 @@ export default function PayrollNetBoard() {
                                 {(ded.insurance?.total || 0) > 0 && <span className="text-[9px] text-emerald-600 font-normal block">(Đã giảm 88k)</span>}
                               </td>
                               <td className="p-3 text-right border-b border-slate-100 font-bold text-slate-400">
-                                {ded.taxTNCN > 0 ? (
+                                {Number(ded.taxTNCN) > 0 ? (
                                   <>
                                     <span className="line-through text-[10px] text-rose-400 mr-1.5 font-normal">{formatNumberWithDot(ded.taxTNCN)}</span>
                                     <span className="text-emerald-600 text-xs">0 đ</span>
@@ -960,6 +1176,11 @@ export default function PayrollNetBoard() {
               {/* TAB 4: THỐNG KÊ THUẾ (GỐC) NĂM/THÁNG/QUÝ */}
               <TabsContent value="tax" className="flex-1 min-h-0 mt-0 focus-visible:outline-none overflow-y-auto custom-scrollbar pr-1">
                 <TabTaxSummary reportData={reportData} isReportingFetching={isReportingFetching} filterProps={sharedFilterProps} />
+              </TabsContent>
+
+              {/* TAB 5: THỐNG KÊ NHÂN VIÊN */}
+              <TabsContent value="employee_summary" className="flex-1 min-h-0 mt-0 focus-visible:outline-none overflow-y-auto custom-scrollbar pr-1">
+                <TabEmployeeSummary reportData={reportData} isReportingFetching={isReportingFetching} filterProps={sharedFilterProps} />
               </TabsContent>
 
             </Tabs>

@@ -3,6 +3,7 @@ import { Calculator, Download, PlayCircle, Trash2, Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Loader } from "@/components/loader";
+import XLSX from "xlsx-js-style";
 
 const API_BASE_URL = `${import.meta.env.VITE_API_URL}/tax`;
 
@@ -81,7 +82,76 @@ export default function TaxBoard() {
     } catch (error) { console.error(error); }
   };
 
-  const handleExportExcel = () => { alert("Đang tải..."); };
+  // Cập nhật logic Xuất Excel - Áp dụng ĐÚNG chuẩn z: "#,##0" của xlsx-js-style
+  const handleExportExcel = () => {
+    if (records.length === 0) return alert("Không có dữ liệu để xuất");
+    
+    const m = selectedMonth?.month;
+    const y = selectedMonth?.year;
+
+    const FONT = { name: "Times New Roman", sz: 11 };
+    const BORDER = { top: { style: "thin", color: { rgb: "000000" } }, bottom: { style: "thin", color: { rgb: "000000" } }, left: { style: "thin", color: { rgb: "000000" } }, right: { style: "thin", color: { rgb: "000000" } } };
+    
+    const titleStyle = { font: { name: "Times New Roman", sz: 14, bold: true }, alignment: { horizontal: "center", vertical: "center" } };
+    const headerStyle = { font: { ...FONT, bold: true, color: { rgb: "FFFFFF" } }, alignment: { horizontal: "center", vertical: "center", wrapText: true }, fill: { fgColor: { rgb: "0F172A" } }, border: BORDER };
+    const subHeaderStyle = { font: { name: "Consolas", sz: 10, color: { rgb: "94A3B8" } }, alignment: { horizontal: "center", vertical: "center" }, fill: { fgColor: { rgb: "1E293B" } }, border: BORDER };
+    
+    const cellCenter = { font: FONT, alignment: { horizontal: "center", vertical: "center" }, border: BORDER };
+    const cellLeft = { font: FONT, alignment: { horizontal: "left", vertical: "center" }, border: BORDER };
+    const cellRight = { font: FONT, alignment: { horizontal: "right", vertical: "center" }, border: BORDER };
+    const cellRightBold = { font: { ...FONT, bold: true }, alignment: { horizontal: "right", vertical: "center" }, border: BORDER };
+
+    const wsData: any[][] = [];
+    wsData.push([{ v: `BẢNG TÍNH THUẾ THU NHẬP CÁ NHÂN - THÁNG ${m}/${y}`, s: titleStyle }]);
+    wsData.push([]); // Dòng trống
+
+    const headers = [
+      "STT", "Mã NV", "Họ và tên", "Chức vụ", 
+      "Thu nhập chịu thuế", "Tiền ăn", "Giảm trừ bản thân", "Số NPT", 
+      "Giảm trừ NPT", "BH trừ vào lương", "Tổng giảm trừ", 
+      "Thu nhập tính thuế", "Thuế TNCN"
+    ];
+    wsData.push(headers.map(h => ({ v: h, s: headerStyle })));
+
+    const subHeaders = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M"];
+    wsData.push(subHeaders.map(h => ({ v: h, s: subHeaderStyle })));
+
+    records.forEach((r, index) => {
+      wsData.push([
+        { v: Number(index + 1), t: "n", s: cellCenter },
+        { v: r.employeeSnapshot?.employeeCode || "", s: cellCenter },
+        { v: r.employeeSnapshot?.fullName || "", s: cellLeft },
+        { v: r.employeeSnapshot?.position || "", s: cellCenter },
+        // Chú ý: Dùng t: "n" (number) và z: "#,##0" (format) đặt trực tiếp trong object
+        { v: Number(r.taxableIncome) || 0, t: "n", z: "#,##0", s: cellRightBold },
+        { v: Number(r.allowances?.meal) || 0, t: "n", z: "#,##0", s: cellRight },
+        { v: Number(r.deductions?.personal) || 0, t: "n", z: "#,##0", s: cellRight },
+        { v: Number((r.deductions?.dependent || 0) / 6200000), t: "n", s: cellCenter }, // Cột số lượng NPT không cần phẩy ngàn
+        { v: Number(r.deductions?.dependent) || 0, t: "n", z: "#,##0", s: cellRight },
+        { v: Number(r.deductions?.insurance) || 0, t: "n", z: "#,##0", s: cellRight },
+        { v: Number(r.deductions?.total) || 0, t: "n", z: "#,##0", s: cellRightBold },
+        { v: Number(r.assessableIncome) || 0, t: "n", z: "#,##0", s: { ...cellRightBold, fill: { fgColor: { rgb: "DBEAFE" } } } },
+        { v: Number(r.taxAmount) || 0, t: "n", z: "#,##0", s: { ...cellRightBold, font: { ...FONT, bold: true, color: { rgb: "E11D48" } }, fill: { fgColor: { rgb: "FFE4E6" } } } }
+      ]);
+    });
+
+    const ws = XLSX.utils.aoa_to_sheet(wsData);
+    
+    // Gộp cột tiêu đề
+    ws["!merges"] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: headers.length - 1 } }];
+    
+    // Độ rộng các cột
+    ws["!cols"] = [
+      { wch: 6 }, { wch: 12 }, { wch: 25 }, { wch: 15 }, 
+      { wch: 20 }, { wch: 15 }, { wch: 18 }, { wch: 10 }, 
+      { wch: 15 }, { wch: 18 }, { wch: 18 }, 
+      { wch: 20 }, { wch: 18 }
+    ];
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Bang_Thue_TNCN");
+    XLSX.writeFile(wb, `BangThueTNCN_T${m}_${y}.xlsx`);
+  };
 
   useEffect(() => { fetchMonthsList(); }, []);
   useEffect(() => { if (selectedMonth) fetchTaxData(selectedMonth.month, selectedMonth.year); }, [selectedMonth]);
@@ -166,7 +236,6 @@ export default function TaxBoard() {
                     <td className="p-2 border-r font-bold text-slate-800">{r.employeeSnapshot?.fullName}</td>
                     <td className="p-2 border-r text-slate-600">{r.employeeSnapshot?.position}</td>
                     
-                    {/* E: Thu nhập chịu thuế (Bây giờ là read-only vì Backend tự kéo) */}
                     <td className="p-2 border-r text-right font-bold text-slate-800 bg-emerald-50/30">
                       {formatMoney(r.taxableIncome)}
                     </td>
@@ -174,7 +243,6 @@ export default function TaxBoard() {
                     <td className="p-2 border-r text-right font-bold text-emerald-700 bg-emerald-50/20">{formatMoney(r.allowances?.meal)}</td>
                     <td className="p-2 border-r text-right font-medium text-slate-600">{formatMoney(r.deductions?.personal)}</td>
                     
-                    {/* G: Số người phụ thuộc (Tự động chia từ tiền giảm trừ) */}
                     <td className="p-2 border-r text-center font-bold text-slate-700">
                       {(r.deductions?.dependent || 0) / 6200000}
                     </td>

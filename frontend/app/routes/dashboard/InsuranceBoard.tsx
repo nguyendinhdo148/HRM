@@ -98,61 +98,52 @@ export default function InsuranceBoard() {
     setIsExporting(true);
 
     try {
-      await new Promise(resolve => setTimeout(resolve, 300));
-      const wb = XLSX.utils.book_new();
+      const FONT = { name: "Arial", sz: 10 };
+      const BORDER = { top: { style: "thin", color: { rgb: "CCCCCC" } }, bottom: { style: "thin", color: { rgb: "CCCCCC" } }, left: { style: "thin", color: { rgb: "CCCCCC" } }, right: { style: "thin", color: { rgb: "CCCCCC" } } };
+      
+      const titleStyle = { font: { name: "Arial", sz: 14, bold: true, color: { rgb: "003366" } }, alignment: { horizontal: "center", vertical: "center" } };
+      const headerStyle = { font: { name: "Arial", sz: 10, bold: true, color: { rgb: "FFFFFF" } }, fill: { fgColor: { rgb: "003366" } }, border: BORDER, alignment: { horizontal: "center", vertical: "center", wrapText: true } };
+      const cellCenter = { font: FONT, alignment: { horizontal: "center", vertical: "center" }, border: BORDER };
+      const cellLeft = { font: FONT, alignment: { horizontal: "left", vertical: "center" }, border: BORDER };
+      
+      // STYLE SỐ CHUẨN: Dùng định dạng #,##0 cho Excel
+      const numberStyle = { font: FONT, alignment: { horizontal: "right", vertical: "center" }, border: BORDER, numFmt: "#,##0" };
 
-      const applyStyle = (sheet: any, cell: string, style: any) => {
-        if (!sheet[cell]) sheet[cell] = { t: "s", v: "" };
-        sheet[cell].s = { ...(sheet[cell].s || {}), ...style };
-      };
-
-      const tableData = [
-        [`BẢNG TÍNH BẢO HIỂM THÁNG ${selectedMonth.month}/${selectedMonth.year}`], [],
-        [`Ngày xuất: ${new Date().toLocaleDateString("vi-VN")}`, "", "", "", "", "", "", "", "", "", "", ""], []
-      ];
-
-      // Đã cập nhật loại bỏ cột KPCĐ và Tổng DN
-      const header1 = [
+      const wsData: any[][] = [];
+      wsData.push([{ v: `BẢNG TÍNH BẢO HIỂM THÁNG ${selectedMonth.month}/${selectedMonth.year}`, s: titleStyle }]);
+      wsData.push([]);
+      
+      const headers = [
         "STT", "Mã NV", "Tên", "Chức vụ", "Lương đóng BH", 
         "BHXH (18%)", "BHYT (3%)", "BHTN (0.5%)",
         "BHXH (8%)", "BHYT (1.5%)", "BHTN (1%)", "Tiền BH trừ vào lương (NLĐ)"
       ];
-      tableData.push(header1);
+      wsData.push(headers.map(h => ({ v: h, s: headerStyle })));
 
       records.forEach((r, idx) => {
-        tableData.push([
-          idx + 1,
-          r.employeeSnapshot?.employeeCode || "",
-          r.employeeSnapshot?.fullName || "",
-          r.employeeSnapshot?.position || "",
-          r.insuranceSalary || 0,
-          r.companyPays?.bhxh || 0,
-          r.companyPays?.bhyt || 0,
-          r.companyPays?.bhtn || 0,
-          r.employeePays?.bhxh || 0,
-          r.employeePays?.bhyt || 0,
-          r.employeePays?.bhtn || 0,
-          r.employeePays?.total || 0
+        // Ép các giá trị về Number thuần túy (Không dùng hàm format nào ở đây)
+        wsData.push([
+          { v: Number(idx + 1), t: "n", s: cellCenter },
+          { v: r.employeeSnapshot?.employeeCode || "", s: cellCenter },
+          { v: r.employeeSnapshot?.fullName || "", s: cellLeft },
+          { v: r.employeeSnapshot?.position || "", s: cellCenter },
+          { v: Number(r.insuranceSalary || 0), t: "n", z: "#,##0", s: numberStyle },
+          { v: Number(r.companyPays?.bhxh || 0), t: "n", z: "#,##0", s: numberStyle },
+          { v: Number(r.companyPays?.bhyt || 0), t: "n", z: "#,##0", s: numberStyle },
+          { v: Number(r.companyPays?.bhtn || 0), t: "n", z: "#,##0", s: numberStyle },
+          { v: Number(r.employeePays?.bhxh || 0), t: "n", z: "#,##0", s: numberStyle },
+          { v: Number(r.employeePays?.bhyt || 0), t: "n", z: "#,##0", s: numberStyle },
+          { v: Number(r.employeePays?.bhtn || 0), t: "n", z: "#,##0", s: numberStyle },
+          { v: Number(r.employeePays?.total || 0), t: "n", z: "#,##0", s: numberStyle }
         ]);
       });
 
-      const ws = XLSX.utils.aoa_to_sheet(tableData);
+      const ws = XLSX.utils.aoa_to_sheet(wsData);
       
-      // Cập nhật lại số lượng cột
-      ws["!cols"] = [
-        { wch: 5 }, { wch: 10 }, { wch: 25 }, { wch: 20 }, { wch: 18 },
-        { wch: 15 }, { wch: 15 }, { wch: 15 }, 
-        { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 25 }
-      ];
-      ws["!merges"] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 11 } }]; // Gộp cột Tiêu đề (Cột 0 -> 11)
+      ws["!merges"] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 11 } }];
+      ws["!cols"] = [{ wch: 5 }, { wch: 10 }, { wch: 25 }, { wch: 20 }, { wch: 18 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 25 }];
 
-      applyStyle(ws, "A1", { font: { bold: true, sz: 16, color: { rgb: "1E3A8A" } }, alignment: { horizontal: "center", vertical: "center" }});
-      
-      for (let c = 0; c < header1.length; c++) {
-        const cellRef = XLSX.utils.encode_cell({ r: 4, c });
-        applyStyle(ws, cellRef, { font: { bold: true, color: { rgb: "FFFFFF" } }, fill: { fgColor: { rgb: "1E40AF" } }, alignment: { horizontal: "center", vertical: "center" }});
-      }
-
+      const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, "Bảng Bảo Hiểm");
       XLSX.writeFile(wb, `Bang_Bao_Hiem_T${selectedMonth.month}_${selectedMonth.year}.xlsx`);
     } catch (error) { console.error(error); alert("Lỗi khi xuất Excel."); } 

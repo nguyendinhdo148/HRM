@@ -144,84 +144,53 @@ const PayrollManager = () => {
       return toast.error("Không có dữ liệu để xuất Excel");
     }
 
-    // Định dạng số thành chuỗi để giữ nguyên dấu chấm của VN
-    const formatNumberToVND = (num: number) => {
-      if (!num) return "0";
-      return num.toLocaleString("vi-VN"); 
-    };
-
-    // --- 1. ĐỊNH NGHĨA STYLE ---
-    const FONT_NAME = "Times New Roman";
-    const BORDER_ALL = {
-      top: { style: "thin", color: { rgb: "000000" } },
-      bottom: { style: "thin", color: { rgb: "000000" } },
-      left: { style: "thin", color: { rgb: "000000" } },
-      right: { style: "thin", color: { rgb: "000000" } }
-    };
-
-    const titleStyle = { 
-      font: { name: FONT_NAME, sz: 16, bold: true }, 
-      alignment: { horizontal: "center", vertical: "center" } 
-    };
-    const headerStyle = { 
-      font: { name: FONT_NAME, sz: 12, bold: true }, 
-      fill: { fgColor: { rgb: "D1D5DB" } }, // Nền xám nhạt
-      alignment: { horizontal: "center", vertical: "center" }, 
-      border: BORDER_ALL 
-    };
+    // 1. ĐỊNH NGHĨA STYLE CHUẨN
+    const FONT = { name: "Arial", sz: 11 };
+    const BORDER = { top: { style: "thin" }, bottom: { style: "thin" }, left: { style: "thin" }, right: { style: "thin" } };
     
-    const cellCenter = { font: { name: FONT_NAME, sz: 12 }, alignment: { horizontal: "center", vertical: "center" }, border: BORDER_ALL };
-    const cellLeft = { font: { name: FONT_NAME, sz: 12 }, alignment: { horizontal: "left", vertical: "center" }, border: BORDER_ALL };
-    const cellMoney = { font: { name: FONT_NAME, sz: 12, bold: true }, alignment: { horizontal: "right", vertical: "center" }, border: BORDER_ALL };
+    const titleStyle = { font: { name: "Arial", sz: 14, bold: true }, alignment: { horizontal: "center" } };
+    const headerStyle = { font: { ...FONT, bold: true, color: { rgb: "FFFFFF" } }, fill: { fgColor: { rgb: "4B5563" } }, border: BORDER, alignment: { horizontal: "center" } };
+    const cellStyle = { font: FONT, border: BORDER, alignment: { horizontal: "center" } };
+    const cellLeft = { font: FONT, border: BORDER, alignment: { horizontal: "left" } };
+    
+    // ĐỊNH DẠNG SỐ (CỰC KỲ QUAN TRỌNG: t: "n" và numFmt: "#,##0")
+    const moneyStyle = { font: FONT, border: BORDER, alignment: { horizontal: "right" }, numFmt: "#,##0" };
 
-    // --- 2. TẠO DATA ARRAY 2 CHIỀU ---
     const wsData: any[] = [];
-    
-    // Dòng Tiêu đề
-    wsData.push([{ v: `DANH SÁCH BẢNG LƯƠNG THÁNG ${filterMonth}/${filterYear}`, s: titleStyle }, {v:""}, {v:""}, {v:""}, {v:""}, {v:""}, {v:""}, {v:""}]);
-    wsData.push([]); // Dòng trống
+    wsData.push([{ v: `DANH SÁCH BẢNG LƯƠNG THÁNG ${filterMonth}/${filterYear}`, s: titleStyle }]);
+    wsData.push([]); 
 
-    // Dòng Header
     const headers = ["STT", "Mã NV", "Họ và tên", "Phòng ban", "Email", "Tổng thu nhập", "Thực lĩnh", "Trạng thái Mail"];
     wsData.push(headers.map(h => ({ v: h, s: headerStyle })));
 
-    // Các dòng dữ liệu
     filteredRecords.forEach((r, index) => {
       wsData.push([
-        { v: index + 1, s: cellCenter },
-        { v: r.employeeSnapshot.employeeCode, s: cellCenter },
-        { v: r.employeeSnapshot.fullName, s: cellLeft },
-        { v: r.employeeSnapshot.department || "", s: cellCenter },
+        { v: Number(index + 1), t: "n", s: cellStyle },
+        { v: r.employeeSnapshot.employeeCode || "", s: cellStyle },
+        { v: r.employeeSnapshot.fullName || "", s: cellLeft },
+        { v: r.employeeSnapshot.department || "", s: cellStyle },
         { v: r.employee?.email || "Chưa có", s: cellLeft },
-        { v: formatNumberToVND(r.incomes.totalGross), s: cellMoney },
-        { v: formatNumberToVND(r.netSalary), s: cellMoney },
-        { v: r.isEmailSent ? "Đã gửi" : "Chưa gửi", s: cellCenter }
+        // Ép kiểu Number thuần túy, KHÔNG dùng toLocaleString ở đây
+        { v: Number(r.incomes.totalGross || 0), t: "n", s: moneyStyle },
+        { v: Number(r.netSalary || 0), t: "n", s: moneyStyle },
+        { v: r.isEmailSent ? "Đã gửi" : "Chưa gửi", s: cellStyle }
       ]);
     });
 
-    // --- 3. TẠO SHEET & TÙY CHỈNH KÍCH THƯỚC ---
     const worksheet = XLSX.utils.aoa_to_sheet(wsData);
 
     // Gộp ô tiêu đề
     worksheet["!merges"] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 7 } }];
 
-    // Mở rộng độ rộng cột
+    // Độ rộng cột
     worksheet["!cols"] = [
-      { wch: 5 },  // STT
-      { wch: 12 }, // Mã NV
-      { wch: 25 }, // Họ tên
-      { wch: 15 }, // Phòng ban
-      { wch: 30 }, // Email
-      { wch: 18 }, // Tổng thu nhập
-      { wch: 18 }, // Thực lĩnh
-      { wch: 18 }, // Trạng thái
+      { wch: 6 }, { wch: 12 }, { wch: 25 }, { wch: 15 }, 
+      { wch: 30 }, { wch: 18 }, { wch: 18 }, { wch: 15 }
     ];
 
     const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, `BangLuong_T${filterMonth}_${filterYear}`);
-
-    // --- 4. TẢI FILE XUỐNG ---
-    XLSX.writeFile(workbook, `DanhSachBangLuong_T${filterMonth}_${filterYear}.xlsx`);
+    XLSX.utils.book_append_sheet(workbook, worksheet, `Luong_T${filterMonth}`);
+    XLSX.writeFile(workbook, `BangLuong_T${filterMonth}_${filterYear}.xlsx`);
   };
 
   const filteredRecords = records.filter(r => 
