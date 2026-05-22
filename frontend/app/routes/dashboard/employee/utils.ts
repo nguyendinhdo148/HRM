@@ -18,7 +18,6 @@ export const formatDateForDisplay = (isoString?: string) => {
   return `${date.getDate().toString().padStart(2, '0')}/${(date.getMonth() + 1).toString().padStart(2, '0')}/${date.getFullYear()}`;
 };
 
-// ĐÃ XÓA equipmentProvided, transportation
 export const initialEmpForm = {
   employeeCode: "", idCardNumber: "", fullName: "", email: "", phoneNumber: "", status: "active",
   personalInfo: { dateOfBirth: "", gender: "Nam", idCardIssueDate: "", idCardIssuePlace: "", nationality: "Việt Nam", ethnicity: "", hometown: "", permanentAddress: "" },
@@ -30,7 +29,6 @@ export const initialEmpForm = {
   }
 };
 
-// ĐỊNH NGHĨA SELECT OPTIONS CHUẨN
 export const CONTRACT_TYPES = [
   { value: "PROBATION", label: "Thử việc" },
   { value: "FIXED_TERM", label: "Có thời hạn" },
@@ -71,7 +69,6 @@ export const CONTRACT_STATUSES: Record<string, { label: string, color: string, i
   CHUA_XAC_DINH: { label: "Chưa xác định", color: "bg-gray-100 text-gray-600 border-gray-200", icon: Clock },
 };
 
-// Cấu trúc ĐÚNG 40 TRƯỜNG chuẩn cho Excel (Gắn Option để render Dropdown)
 export const ALL_FIELDS = [
   { id: "employeeCode", label: "Mã NV (*)", path: "employeeCode", type: "string" },
   { id: "idCardNumber", label: "Số CCCD/CMND (*)", path: "idCardNumber", type: "string" },
@@ -114,3 +111,12 @@ export const ALL_FIELDS = [
   { id: "performanceBonus", label: "Thưởng Năng lực", path: "salaryAndBenefits.bonuses.performance", type: "number" },
   { id: "responsibilityBonus", label: "Thưởng Trách nhiệm", path: "salaryAndBenefits.bonuses.responsibility", type: "number" }
 ];
+
+export const calculateAge = (dateString?: string) => {
+  if (!dateString) return "?";
+  const dob = new Date(dateString);
+  if (isNaN(dob.getTime())) return "?";
+  const diffMs = Date.now() - dob.getTime();
+  const ageDt = new Date(diffMs);
+  return Math.abs(ageDt.getUTCFullYear() - 1970);
+};

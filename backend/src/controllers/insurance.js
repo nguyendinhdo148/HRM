@@ -1,5 +1,6 @@
 import { InsuranceRecord } from "../models/InsuranceRecord.js";
 import { Employee } from "../models/Employee.js";
+import { Attendance } from "../models/Attendance.js";
 
 // ==========================================
 // 1. LẤY DANH SÁCH CÁC THÁNG ĐÃ KHỞI TẠO
@@ -50,24 +51,37 @@ export const initializeInsuranceMonth = async (req, res) => {
       await InsuranceRecord.deleteMany({ month, year });
     }
 
-    // 2. Lấy danh sách nhân viên ĐANG HOẠT ĐỘNG
+    // 2. Lấy danh sách nhân viên: bao gồm nhân viên đang hoạt động và nhân viên nghỉ việc mà tháng nghỉ trùng với tháng đang khởi tạo
     const activeEmployees = await Employee.find({ status: "active" });
-    if (activeEmployees.length === 0) {
-      return res.status(400).json({ message: "Không có nhân viên nào đang hoạt động!" });
+    const start = new Date(year, month - 1, 1);
+    const end = new Date(year, month, 0, 23, 59, 59);
+    const resignedThisMonth = await Employee.find({ status: "resigned", "workInfo.resignationDate": { $gte: start, $lte: end } });
+
+    const allEmployees = [...activeEmployees, ...resignedThisMonth];
+    if (allEmployees.length === 0) {
+      return res.status(400).json({ message: "Không có nhân viên phù hợp để tạo bảng bảo hiểm!" });
     }
 
-    // 3. Map dữ liệu để chuẩn bị insert
-    const insuranceDocs = activeEmployees.map((emp) => {
+    // 3. Map dữ liệu để chuẩn bị insert. Nếu làm <15 ngày thì đánh dấu excludedFromInsurance
+    const attendanceMap = {};
+    const attendances = await Attendance.find({ month, year });
+    attendances.forEach(a => { attendanceMap[a.employee.toString()] = a; });
+
+    const insuranceDocs = allEmployees.map((emp) => {
       const insSalary = emp.salaryAndBenefits?.insuranceSalary || emp.salaryAndBenefits?.baseSalary || 0;
+      const att = attendanceMap[emp._id.toString()];
+      const paidDays = att?.summary?.totalPaidDays || 0;
+      const excluded = Number(paidDays) < 15;
 
       return {
         month,
         year,
         employee: emp._id,
+        excludedFromInsurance: excluded,
         employeeSnapshot: {
           employeeCode: emp.employeeCode,
           fullName: emp.fullName,
-          position: emp.workInfo?.position || "Chưa có", // ✅ Sửa thành workInfo.position
+          position: emp.workInfo?.position || "Chưa có",
           department: emp.workInfo?.department || "N/A"
         },
         insuranceSalary: insSalary,
@@ -84,7 +98,7 @@ export const initializeInsuranceMonth = async (req, res) => {
     }
 
     res.status(201).json({ 
-      message: `Đã khởi tạo Bảng bảo hiểm tháng ${month}/${year} cho ${activeEmployees.length} nhân sự.` 
+      message: `Đã khởi tạo Bảng bảo hiểm tháng ${month}/${year} cho ${allEmployees.length} nhân sự.` 
     });
   } catch (error) {
     console.error(error);

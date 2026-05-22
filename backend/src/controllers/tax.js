@@ -37,13 +37,18 @@ export const initializeTaxMonth = async (req, res) => {
       await TaxRecord.deleteMany({ month, year });
     }
 
+    // Bao gồm nhân viên đang hoạt động và nhân viên đã nghỉ việc nếu nghỉ trong tháng này
     const activeEmployees = await Employee.find({ status: "active" });
+    const start = new Date(year, month - 1, 1);
+    const end = new Date(year, month, 0, 23, 59, 59);
+    const resignedThisMonth = await Employee.find({ status: "resigned", "workInfo.resignationDate": { $gte: start, $lte: end } });
+    const allEmployees = [...activeEmployees, ...resignedThisMonth];
 
     // Kéo dữ liệu từ Bảng Lương và Bảng Bảo Hiểm CÙNG THÁNG/NĂM
     const payrolls = await PayrollRecord.find({ month, year });
     const insurances = await InsuranceRecord.find({ month, year });
 
-    const taxDocs = activeEmployees.map((emp) => {
+    const taxDocs = allEmployees.map((emp) => {
       const payroll = payrolls.find(p => p.employee?.toString() === emp._id.toString());
       const insurance = insurances.find(i => i.employee?.toString() === emp._id.toString());
       const payrollAllowances = payroll?.incomes?.allowances || {};
@@ -73,7 +78,7 @@ export const initializeTaxMonth = async (req, res) => {
           housing: payrollAllowances.housing || 0,
           total: allowanceTotal
         },
-        dependents: emp.personalInfo?.dependents || 0,
+        dependents: emp.salaryAndBenefits?.dependents || 0,
         deductions: { insurance: insurance ? insurance.employeePays.total : 0 }
       };
     });
@@ -84,7 +89,7 @@ export const initializeTaxMonth = async (req, res) => {
       await record.save(); // Gọi Hook để tính ra kết quả Thuế
     }
 
-    res.status(201).json({ message: `Tạo Bảng Thuế TNCN thành công cho ${activeEmployees.length} nhân sự.` });
+    res.status(201).json({ message: `Đã khởi tạo Bảng Thuế TNCN tháng ${month}/${year} cho ${allEmployees.length} nhân sự.` });
   } catch (error) { 
     res.status(500).json({ message: "Lỗi khởi tạo Bảng Thuế" }); 
   }

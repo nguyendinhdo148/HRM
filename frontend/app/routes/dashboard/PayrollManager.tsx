@@ -39,6 +39,9 @@ interface PayrollRecordType {
     totalGross: number;
   };
   netSalary: number;
+  deductions?: {
+    excludedFromInsurance?: boolean;
+  };
   isEmailSent?: boolean; 
 }
 
@@ -292,6 +295,9 @@ const PayrollManager = () => {
                       <TableCell>
                         <div className="font-semibold text-gray-900">{record.employeeSnapshot.fullName}</div>
                         <div className="text-xs text-gray-500">{record.employee?.email || "Chưa có email"}</div>
+                        {record.deductions?.excludedFromInsurance && (
+                          <div className="text-xs text-red-600 font-medium mt-1">Không tham gia BH (làm &lt; 15 ngày)</div>
+                        )}
                       </TableCell>
                       <TableCell>
                         <Badge variant="secondary" className="bg-blue-50 text-blue-700">

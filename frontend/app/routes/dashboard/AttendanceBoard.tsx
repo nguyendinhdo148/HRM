@@ -25,6 +25,7 @@ export default function AttendanceBoard() {
   const [isDataLoading, setIsDataLoading] = useState(false);
   const [editingRecords, setEditingRecords] = useState<{ [recordId: string]: any }>({});
   const [isExporting, setIsExporting] = useState(false);
+  const [isInitializingMonth, setIsInitializingMonth] = useState(false);
   const [isSavingAll, setIsSavingAll] = useState(false);
 
   const [searchQuery, setSearchQuery] = useState("");
@@ -61,6 +62,7 @@ export default function AttendanceBoard() {
   };
 
   const handleInitializeMonth = async () => {
+    setIsInitializingMonth(true);
     try {
       const res = await fetch(`${API_BASE_URL}/init`, {
         method: "POST",
@@ -71,7 +73,7 @@ export default function AttendanceBoard() {
       if (!res.ok) { alert(data.message || "Khởi tạo thất bại"); return; }
       alert(data.message || "Đã khởi tạo thành công");
       await fetchMonthsList();
-    } catch (error) { alert("Có lỗi khi khởi tạo kỳ công"); }
+    } catch (error) { alert("Có lỗi khi khởi tạo kỳ công"); } finally { setIsInitializingMonth(false); }
   };
 
   useEffect(() => { fetchMonthsList(); }, []);
@@ -370,7 +372,8 @@ export default function AttendanceBoard() {
         >
           <Sidebar 
             monthsList={monthsList} selectedMonthDoc={selectedMonthDoc} setSelectedMonthDoc={setSelectedMonthDoc}
-            newMonth={newMonth} setNewMonth={setNewMonth} newYear={newYear} setNewYear={setNewYear} handleInitializeMonth={handleInitializeMonth} 
+            newMonth={newMonth} setNewMonth={setNewMonth} newYear={newYear} setNewYear={setNewYear} handleInitializeMonth={handleInitializeMonth}
+            isInitializing={isInitializingMonth}
           />
         </div>
 

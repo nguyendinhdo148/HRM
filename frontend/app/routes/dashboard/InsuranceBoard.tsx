@@ -22,6 +22,7 @@ export default function InsuranceBoard() {
   const [isLoading, setIsLoading] = useState(false);
   const [isDataLoading, setIsDataLoading] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
+  const [isInitializing, setIsInitializing] = useState(false);
 
   const currentDate = new Date();
   const [newMonth, setNewMonth] = useState(currentDate.getMonth() + 1);
@@ -54,6 +55,7 @@ export default function InsuranceBoard() {
 
   const handleInitMonth = async () => {
     if (!window.confirm(`Khởi tạo Bảng Bảo hiểm tháng ${newMonth}/${newYear}?`)) return;
+    setIsInitializing(true);
     try {
       const res = await fetch(`${API_BASE_URL}/init`, {
         method: "POST",
@@ -66,7 +68,7 @@ export default function InsuranceBoard() {
         await fetchMonthsList();
         setSelectedMonth({ month: newMonth, year: newYear });
       } else alert(result.message);
-    } catch (error) { console.error(error); alert("Lỗi khởi tạo"); }
+    } catch (error) { console.error(error); alert("Lỗi khởi tạo"); } finally { setIsInitializing(false); }
   };
 
   const handleDeleteMonth = async () => {
@@ -194,7 +196,9 @@ export default function InsuranceBoard() {
             <select className="border rounded-md px-2 py-1.5 text-sm outline-none" value={newYear} onChange={e => setNewYear(Number(e.target.value))}>
               {[2025, 2026, 2027].map(y => <option key={y} value={y}>{y}</option>)}
             </select>
-            <Button size="sm" onClick={handleInitMonth} className="bg-emerald-600 hover:bg-emerald-700 ml-1"><PlayCircle className="w-4 h-4 mr-1"/> Tạo Bảng</Button>
+            <Button size="sm" onClick={handleInitMonth} disabled={isInitializing} className="bg-emerald-600 hover:bg-emerald-700 ml-1">
+              {isInitializing ? <><RefreshCcw className="w-4 h-4 mr-1 animate-spin"/> Đang tạo...</> : <><PlayCircle className="w-4 h-4 mr-1"/> Tạo Bảng</>}
+            </Button>
           </div>
           
           <Button size="sm" variant="outline" onClick={handleExportExcel} disabled={isExporting} className="text-emerald-700 border-emerald-600 hover:bg-emerald-50 ml-2">

@@ -66,18 +66,21 @@ export const getPayrollByMonth = async (req, res) => {
       const newBhyt = latestIns?.employeePays?.bhyt || 0;
       const newBhtn = latestIns?.employeePays?.bhtn || 0;
       const newInsTotal = latestIns?.employeePays?.total || 0;
+      const newExcluded = latestIns?.excludedFromInsurance || false;
 
       const currentIns = record.deductions.insurance;
       if (
         record.deductions.taxTNCN !== newTaxValue ||
         record.deductions.advance !== newAdvanceValue ||
         currentIns.bhxh !== newBhxh || currentIns.bhyt !== newBhyt || 
-        currentIns.bhtn !== newBhtn || currentIns.total !== newInsTotal
+        currentIns.bhtn !== newBhtn || currentIns.total !== newInsTotal ||
+        record.deductions.excludedFromInsurance !== newExcluded
       ) {
         currentIns.bhxh = newBhxh;
         currentIns.bhyt = newBhyt;
         currentIns.bhtn = newBhtn;
         currentIns.total = newInsTotal;
+        record.deductions.excludedFromInsurance = newExcluded;
         
         // Áp dụng luật khấu trừ phúc lợi khi đồng bộ lại dữ liệu liên quan
         calculateNetWithCompanySupport(record, newTaxValue, newAdvanceValue, newInsTotal);
@@ -111,7 +114,13 @@ export const initializePayroll = async (req, res) => {
     const stdDays = Number(standardDays) || 26;
     const configRates = rates || { minishow: 40800, bigshow: 130500, meal: 35000, transport: 30000, housingUnder15: 425000, housingOver15: 850000 };
 
+    // Bao gồm nhân viên đang hoạt động và nhân viên nghỉ việc nếu nghỉ trong tháng này
     const activeEmployees = await Employee.find({ status: "active" });
+    const start = new Date(year, month - 1, 1);
+    const end = new Date(year, month, 0, 23, 59, 59);
+    const resignedThisMonth = await Employee.find({ status: "resigned", "workInfo.resignationDate": { $gte: start, $lte: end } });
+    const allEmployees = [...activeEmployees, ...resignedThisMonth];
+
     const [attendances, overtimes, insurances, taxes] = await Promise.all([
       Attendance.find({ month, year }),
       OvertimePayRecord.find({ month, year }),
@@ -119,7 +128,7 @@ export const initializePayroll = async (req, res) => {
       TaxRecord.find({ month, year })
     ]);
 
-    const payrollDocs = activeEmployees.map((emp) => {
+    const payrollDocs = allEmployees.map((emp) => {
       const empIdStr = emp._id.toString();
       const att = attendances.find(a => a.employee?.toString() === empIdStr);
       const ot = overtimes.find(o => o.employee?.toString() === empIdStr);
@@ -154,6 +163,7 @@ export const initializePayroll = async (req, res) => {
         month, year, employee: emp._id,
         employeeSnapshot: { employeeCode: emp.employeeCode, fullName: emp.fullName, position: emp.workInfo?.position, department: emp.workInfo?.department },
         baseSalary, standardDays: stdDays, actualDays,
+        insuranceSalary: ins?.insuranceSalary || 0,
         incomes: {
           timeSalary, overtime: overtimePay, miniShowMoney, bigShowMoney, kpiBonus,
           allowances: { meal, transport, housing, phone: emp.salaryAndBenefits?.allowances?.phone || 0, clothing: emp.salaryAndBenefits?.allowances?.clothing || 0 },
@@ -167,6 +177,7 @@ export const initializePayroll = async (req, res) => {
             bhtn: ins?.employeePays?.bhtn || 0,
             total: insTotal 
           }, 
+          excludedFromInsurance: ins?.excludedFromInsurance || false,
           taxTNCN: taxTNCN,
           totalDeductions: 0
         },
@@ -180,7 +191,7 @@ export const initializePayroll = async (req, res) => {
 
     await PayrollRecord.deleteMany({ month, year });
     await PayrollRecord.insertMany(payrollDocs);
-    res.status(201).json({ success: true, message: "Đã đồng bộ và siết lương thành công!" });
+    res.status(201).json({ success: true, message: `Đã khởi tạo/đồng bộ bảng lương tháng ${month}/${year} cho ${allEmployees.length} nhân sự.` });
   } catch (error) { res.status(500).json({ success: false, message: error.message }); }
 };
 

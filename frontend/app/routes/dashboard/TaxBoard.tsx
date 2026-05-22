@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Calculator, Download, PlayCircle, Trash2, Info } from "lucide-react";
+import { Calculator, Download, PlayCircle, Trash2, Info, RefreshCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Loader } from "@/components/loader";
@@ -21,6 +21,7 @@ export default function TaxBoard() {
   
   const [isLoading, setIsLoading] = useState(false);
   const [isDataLoading, setIsDataLoading] = useState(false);
+  const [isInitializing, setIsInitializing] = useState(false);
 
   const currentDate = new Date();
   const [newMonth, setNewMonth] = useState(currentDate.getMonth() + 1);
@@ -55,6 +56,7 @@ export default function TaxBoard() {
 
   const handleInitMonth = async () => {
     if (!window.confirm(`Khởi tạo Bảng Thuế TNCN? (Hệ thống sẽ kéo Lương Gross & Tiền BH từ các bảng đã tạo sang)`)) return;
+    setIsInitializing(true);
     try {
       const res = await fetch(`${API_BASE_URL}/init`, {
         method: "POST", headers: getAuthHeaders(), body: JSON.stringify({ month: newMonth, year: newYear })
@@ -65,7 +67,7 @@ export default function TaxBoard() {
         await fetchMonthsList();
         setSelectedMonth({ month: newMonth, year: newYear });
       } else alert(result.message);
-    } catch (error) { alert("Lỗi khởi tạo"); }
+    } catch (error) { alert("Lỗi khởi tạo"); } finally { setIsInitializing(false); }
   };
 
   const handleDeleteMonth = async () => {
@@ -181,7 +183,9 @@ export default function TaxBoard() {
           <div className="flex items-center gap-1 border-l pl-4 border-slate-200">
             <select className="border rounded-md px-2 py-1.5 text-sm outline-none" value={newMonth} onChange={e => setNewMonth(Number(e.target.value))}>{[...Array(12)].map((_, i) => <option key={i+1} value={i+1}>Tháng {i+1}</option>)}</select>
             <select className="border rounded-md px-2 py-1.5 text-sm outline-none" value={newYear} onChange={e => setNewYear(Number(e.target.value))}>{[2025, 2026, 2027].map(y => <option key={y} value={y}>{y}</option>)}</select>
-            <Button size="sm" onClick={handleInitMonth} className="bg-blue-600 hover:bg-blue-700 ml-1"><PlayCircle className="w-4 h-4 mr-1"/> Tạo Bảng</Button>
+            <Button size="sm" onClick={handleInitMonth} disabled={isInitializing} className="bg-blue-600 hover:bg-blue-700 ml-1">
+              {isInitializing ? <><RefreshCcw className="w-4 h-4 mr-1 animate-spin"/> Đang tạo...</> : <><PlayCircle className="w-4 h-4 mr-1"/> Tạo Bảng</>}
+            </Button>
           </div>
           <Button size="sm" variant="outline" onClick={handleExportExcel} className="text-emerald-700 border-emerald-600 hover:bg-emerald-50 ml-2"><Download className="w-4 h-4 mr-1"/> Xuất Excel</Button>
           {selectedMonth && <Button size="sm" variant="destructive" onClick={handleDeleteMonth} className="ml-1"><Trash2 className="w-4 h-4" /></Button>}

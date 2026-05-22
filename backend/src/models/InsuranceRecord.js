@@ -13,6 +13,8 @@ const insuranceRecordSchema = new mongoose.Schema(
     },
 
     insuranceSalary: { type: Number, required: true },
+    // Nếu nhân sự làm < 15 ngày trong tháng này thì không tham gia BH
+    excludedFromInsurance: { type: Boolean, default: false },
 
     companyPays: {
       bhxh: { type: Number, default: 0 }, 
@@ -34,6 +36,19 @@ const insuranceRecordSchema = new mongoose.Schema(
 // HOOK: TỰ ĐỘNG TÍNH TOÁN FULL LƯƠNG (KHÔNG ÁP TRẦN)
 insuranceRecordSchema.pre("save", function (next) {
   let salary = this.insuranceSalary || 0;
+
+  // Nếu nhân sự bị loại khỏi đóng BH (ví dụ làm < 15 ngày) thì đặt mọi khoản đóng = 0
+  if (this.excludedFromInsurance) {
+    this.companyPays.bhxh = 0;
+    this.companyPays.bhyt = 0;
+    this.companyPays.bhtn = 0;
+
+    this.employeePays.bhxh = 0;
+    this.employeePays.bhyt = 0;
+    this.employeePays.bhtn = 0;
+    this.employeePays.total = 0;
+    return next();
+  }
 
   // ==============================================
   // 1. DOANH NGHIỆP ĐÓNG (Chỉ tính Bảo hiểm 21.5%)

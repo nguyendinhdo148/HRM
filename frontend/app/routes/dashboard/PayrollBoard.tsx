@@ -10,6 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Loader } from "@/components/loader";
+import * as XLSX from "xlsx";
 
 const API_BASE_URL = `${import.meta.env.VITE_API_URL}/payroll`;
 
@@ -188,7 +189,6 @@ export default function PayrollBoard() {
   }, [payrolls, searchQuery, deptFilter]);
 
   const handleInitMonth = async () => {
-    // Ưu tiên kiểm tra status từ màn hình hiện tại (tránh delay state do API chưa tải xong)
     const isCurrentlyViewing = selectedMonthDoc && selectedMonthDoc.month === newMonth && selectedMonthDoc.year === newYear;
     const existingMonth = monthsList.find(m => m.month === newMonth && m.year === newYear);
     const targetStatus = isCurrentlyViewing ? selectedMonthDoc.status : existingMonth?.status;
@@ -218,7 +218,6 @@ export default function PayrollBoard() {
     try {
       const res = await fetch(`${API_BASE_URL}/months/${selectedMonthDoc._id}/status`, { method: "PUT", headers: getAuthHeaders(), body: JSON.stringify({ status: newStatus }) });
       if (res.ok) {
-        // Cập nhật Optimistic cả 2 state cùng lúc để không bị lệch pha
         setSelectedMonthDoc((prev: any) => ({ ...prev, status: newStatus }));
         setMonthsList((prev) => prev.map(m => m._id === selectedMonthDoc._id ? { ...m, status: newStatus } : m));
       } else {
@@ -254,7 +253,7 @@ export default function PayrollBoard() {
       const totalAllw = (allw.meal||0) + (allw.transport||0) + (allw.phone||0) + (allw.clothing||0) + (allw.housing||0) + (allw.other||0);
       currentEdit.incomes.totalGross = currentEdit.incomes.timeSalary + totalAllw + currentEdit.incomes.overtime + currentEdit.incomes.bonus + currentEdit.incomes.miniShowMoney + currentEdit.incomes.bigShowMoney + currentEdit.incomes.kpiBonus;
 
-      return { ...prev, [recordId]: currentEdit };
+      return { ...prev, [recordId] : currentEdit };
     });
   };
 
@@ -267,8 +266,75 @@ export default function PayrollBoard() {
     } catch (error) { console.error(error); }
   };
 
+  // HÀM XUẤT EXCEL (ĐÃ ÁP DỤNG formatNumberWithDot)
   const handleExportExcel = () => {
-    // Logic export excel cho Bảng Lương Gross (nếu có)
+    if (!filteredPayrolls || filteredPayrolls.length === 0) {
+      alert("Không có dữ liệu để xuất!");
+      return;
+    }
+
+    const exportData = filteredPayrolls.map((p, index) => {
+      const snap = p.employeeSnapshot || {};
+      const allowances = p.incomes?.allowances || {};
+      const totalAllw = (allowances.meal || 0) + (allowances.transport || 0) + (allowances.phone || 0) + (allowances.clothing || 0) + (allowances.housing || 0);
+
+      // Sử dụng formatNumberWithDot cho TẤT CẢ các trường liên quan đến tiền tệ
+      return {
+        "STT": index + 1,
+        "Họ và tên": snap.fullName || "",
+        "Mã NV": snap.employeeCode || "",
+        "Chức vụ": snap.position || "",
+        "Bộ phận": snap.department || "",
+        "Lương Cơ Bản": formatNumberWithDot(p.baseSalary || 0),
+        "Ngày công": p.actualDays || 0,
+        "Lương Thời Gian": formatNumberWithDot(p.incomes?.timeSalary || 0),
+        "Làm Thêm Giờ": formatNumberWithDot(p.incomes?.overtime || 0),
+        "Mini Show": formatNumberWithDot(p.incomes?.miniShowMoney || 0),
+        "Big Show": formatNumberWithDot(p.incomes?.bigShowMoney || 0),
+        "Thưởng N.Công": formatNumberWithDot(p.incomes?.kpiBonus || 0),
+        "Tiền ăn ca": formatNumberWithDot(allowances.meal || 0),
+        "Xăng xe": formatNumberWithDot(allowances.transport || 0),
+        "Điện thoại": formatNumberWithDot(allowances.phone || 0),
+        "Trang phục": formatNumberWithDot(allowances.clothing || 0),
+        "Nhà ở": formatNumberWithDot(allowances.housing || 0),
+        "Tổng Phụ Cấp": formatNumberWithDot(totalAllw),
+        "Thưởng Mới": formatNumberWithDot(p.incomes?.bonus || 0),
+        "TỔNG GROSS": formatNumberWithDot(p.incomes?.totalGross || 0),
+      };
+    });
+
+    const ws = XLSX.utils.json_to_sheet(exportData);
+    
+    // Auto-size độ rộng các cột
+    const wscols = [
+      { wch: 5 },  // STT
+      { wch: 25 }, // Ho ten
+      { wch: 15 }, // Ma NV
+      { wch: 15 }, // Chuc vu
+      { wch: 20 }, // Bo phan
+      { wch: 15 }, // Luong CB
+      { wch: 10 }, // Ngay cong
+      { wch: 15 }, // Luong TG
+      { wch: 15 }, // OT
+      { wch: 15 }, // Mini
+      { wch: 15 }, // Big
+      { wch: 15 }, // Thuong N.Cong
+      { wch: 12 }, // Tien an
+      { wch: 12 }, // Xang
+      { wch: 12 }, // Dien thoai
+      { wch: 12 }, // Trang phuc
+      { wch: 12 }, // Nha o
+      { wch: 15 }, // Tong PC
+      { wch: 15 }, // Thuong moi
+      { wch: 18 }, // TONG GROSS
+    ];
+    ws['!cols'] = wscols;
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Bang_Luong_Gross");
+    
+    const fileName = `Bang_Luong_Gross_T${selectedMonthDoc?.month}_${selectedMonthDoc?.year}.xlsx`;
+    XLSX.writeFile(wb, fileName);
   };
 
   if (isLoading && monthsList.length === 0) return <Loader />;
@@ -296,7 +362,9 @@ export default function PayrollBoard() {
                 <select className="border rounded-md p-2 text-xs w-full bg-slate-50" value={newMonth} onChange={(e) => setNewMonth(Number(e.target.value))}>{[...Array(12)].map((_, i) => (<option key={i + 1} value={i + 1}>Tháng {i + 1}</option>))}</select>
                 <select className="border rounded-md p-2 text-xs w-full bg-slate-50" value={newYear} onChange={(e) => setNewYear(Number(e.target.value))}>{[2025, 2026, 2027].map((y) => (<option key={y} value={y}>Năm {y}</option>))}</select>
               </div>
-              <Button onClick={handleInitMonth} className="w-full h-9 text-xs bg-blue-600 hover:bg-blue-700 font-bold"><PlayCircle className="w-4 h-4 mr-1" /> Gom Số Liệu Tự Động</Button>
+              <Button onClick={handleInitMonth} disabled={isLoading} className="w-full h-9 text-xs bg-blue-600 hover:bg-blue-700 font-bold">
+                {isLoading ? <><RefreshCcw className="w-4 h-4 mr-1 animate-spin"/> Đang gom...</> : <><PlayCircle className="w-4 h-4 mr-1" /> Gom Số Liệu Tự Động</>}
+              </Button>
             </CardContent>
           </Card>
 
@@ -338,9 +406,9 @@ export default function PayrollBoard() {
                 <div className="relative flex-1 max-w-xs"><Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" /><Input placeholder="Tìm tên hoặc mã NV..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="pl-9 h-9 text-sm rounded-xl bg-slate-50 border-slate-200" /></div>
                 <div className="flex gap-2 ml-auto items-center">
                   <Button variant="ghost" size="sm" onClick={() => fetchPayrollData(selectedMonthDoc.month, selectedMonthDoc.year)}><RefreshCcw className="w-4 h-4" /></Button>
+                  
                   <Button size="sm" onClick={handleExportExcel} className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl"><FileDown className="w-4 h-4 mr-1" /> Xuất Excel</Button>
                   
-                  {/* LUÔN HIỂN THỊ NÚT KHÓA / MỞ KHÓA TÙY VÀO TRẠNG THÁI */}
                   {selectedMonthDoc.status === "draft" ? (
                     <Button size="sm" onClick={() => handleToggleStatus("approved")} className="bg-[#0f172a] hover:bg-slate-800 text-white rounded-xl">
                       <Lock className="w-4 h-4 mr-1" /> Khóa Sổ

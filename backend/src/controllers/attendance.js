@@ -54,10 +54,15 @@ export const initializeMonthAttendance = async (req, res) => {
       await AttendanceMonth.findByIdAndDelete(existingMonth._id);
     }
 
-    // 2. Lấy danh sách nhân viên ĐANG HOẠT ĐỘNG
+    // 2. Lấy danh sách nhân viên: bao gồm nhân viên đang hoạt động và nhân viên nghỉ việc nếu nghỉ trong tháng này
     const activeEmployees = await Employee.find({ status: "active" });
-    if (activeEmployees.length === 0) {
-      return res.status(400).json({ message: "Không có nhân viên nào đang hoạt động để tạo bảng công!" });
+    const start = new Date(year, month - 1, 1);
+    const end = new Date(year, month, 0, 23, 59, 59);
+    const resignedThisMonth = await Employee.find({ status: "resigned", "workInfo.resignationDate": { $gte: start, $lte: end } });
+
+    const allEmployees = [...activeEmployees, ...resignedThisMonth];
+    if (allEmployees.length === 0) {
+      return res.status(400).json({ message: "Không có nhân viên phù hợp để tạo bảng công!" });
     }
 
     // 3. Setup mặc định (Mặc định để trắng "", rỗng OT/Shortfall/KPI)
@@ -77,11 +82,11 @@ export const initializeMonthAttendance = async (req, res) => {
       month,
       year,
       status: "open",
-      totalEmployees: activeEmployees.length
+      totalEmployees: allEmployees.length
     });
 
     // 5. Chuẩn bị mảng data cho bảng Attendance
-    const attendanceDocs = activeEmployees.map((emp) => ({
+    const attendanceDocs = allEmployees.map((emp) => ({
       employee: emp._id,
       month,
       year,
@@ -96,7 +101,7 @@ export const initializeMonthAttendance = async (req, res) => {
     await Attendance.create(attendanceDocs);
 
     res.status(201).json({ 
-      message: `Đã khởi tạo thành công tháng ${month}/${year} cho ${activeEmployees.length} nhân sự.`,
+      message: `Đã khởi tạo thành công tháng ${month}/${year} cho ${allEmployees.length} nhân sự.`,
       data: newMonth
     });
   } catch (error) {

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { 
   Building2, Users, Briefcase, Filter, X, Search, Upload, UserPlus, 
-  Download, RefreshCcw, ArrowDownAZ, ArrowUpZA, ArrowUpDown 
+  Download, RefreshCcw, ArrowDownAZ, ArrowUpZA, ArrowUpDown, User
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -11,7 +11,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Loader } from "@/components/loader";
 import * as XLSX from "xlsx";
 
-import { API_BASE_URL, getAuthHeaders, EMPLOYEE_STATUSES, CONTRACT_TYPES, initialEmpForm, formatDateForInput, ALL_FIELDS, formatDateForDisplay } from "./utils";
+import { API_BASE_URL, getAuthHeaders, EMPLOYEE_STATUSES, CONTRACT_TYPES, GENDER_OPTIONS, initialEmpForm, formatDateForInput, ALL_FIELDS, formatDateForDisplay } from "./utils";
 import { DepartmentsTab, EmployeesTab, ContractsTab } from "./TabsUI";
 import { DepartmentModal, EmployeeModal } from "./FormsModal";
 import { ImportExcelModal } from "./ImportExcelModal";
@@ -27,7 +27,7 @@ export default function HRMDashboard() {
   const [deptFilter, setDeptFilter] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [typeFilter, setTypeFilter] = useState<string>("all");
-  // STATE MỚI: Sắp xếp theo mã nhân viên
+  const [genderFilter, setGenderFilter] = useState<string>("all");
   const [sortCodeOrder, setSortCodeOrder] = useState<"asc" | "desc">("asc");
 
   const [isDeptModalOpen, setIsDeptModalOpen] = useState(false);
@@ -83,9 +83,7 @@ export default function HRMDashboard() {
     }
   }, [empForm.contractInfo.contractType, empForm.contractInfo.signDate, durationValue, durationUnit]);
 
-  // CẬP NHẬT LOGIC LỌC VÀ SẮP XẾP
   const processedEmployees = useMemo(() => {
-    // 1. Lọc dữ liệu
     const filtered = employees.filter((emp) => {
       const matchesSearch = searchQuery === "" || 
         emp.fullName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -93,23 +91,22 @@ export default function HRMDashboard() {
       const matchesDept = deptFilter === null || emp.workInfo?.department === deptFilter;
       const matchesStatus = statusFilter === "all" || emp.status === statusFilter;
       const matchesType = typeFilter === "all" || emp.contractInfo?.contractType === typeFilter;
+      const matchesGender = genderFilter === "all" || emp.personalInfo?.gender === genderFilter;
 
-      return matchesSearch && matchesDept && matchesStatus && matchesType;
+      return matchesSearch && matchesDept && matchesStatus && matchesType && matchesGender;
     });
 
-    // 2. Sắp xếp dữ liệu theo Mã NV
     return filtered.sort((a, b) => {
       const codeA = a.employeeCode || "";
       const codeB = b.employeeCode || "";
       
-      // Sử dụng numeric: true để sắp xếp đúng số (VD: NV02 đứng trước NV10)
       if (sortCodeOrder === "asc") {
         return codeA.localeCompare(codeB, undefined, { numeric: true, sensitivity: 'base' });
       } else {
         return codeB.localeCompare(codeA, undefined, { numeric: true, sensitivity: 'base' });
       }
     });
-  }, [employees, searchQuery, deptFilter, statusFilter, typeFilter, sortCodeOrder]);
+  }, [employees, searchQuery, deptFilter, statusFilter, typeFilter, genderFilter, sortCodeOrder]);
 
   const handleSaveDepartment = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -251,7 +248,6 @@ export default function HRMDashboard() {
     }
   };
 
-  // NẾU ĐANG TẢI DỮ LIỆU TỪ BAN ĐẦU -> HIỂN THỊ LOADER
   if (isLoading) {
     return (
       <div className="flex h-screen w-full items-center justify-center bg-slate-50/50">
@@ -294,7 +290,6 @@ export default function HRMDashboard() {
                 <Input placeholder="Tìm tên, mã NV..." className="pl-9 bg-slate-50 border-slate-200" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
               </div>
 
-              {/* NÚT SẮP XẾP THEO MÃ NV */}
               <Button 
                 variant="outline" 
                 onClick={() => setSortCodeOrder(prev => prev === "asc" ? "desc" : "asc")}
@@ -330,6 +325,21 @@ export default function HRMDashboard() {
                 </DropdownMenuContent>
               </DropdownMenu>
 
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" className="bg-slate-50 border-slate-200 w-full sm:w-auto">
+                    <User className="w-4 h-4 mr-2 text-slate-500" />
+                    {genderFilter === "all" ? "Mọi giới tính" : GENDER_OPTIONS.find(g => g.value === genderFilter)?.label}
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="w-32">
+                  <DropdownMenuItem onClick={() => setGenderFilter("all")} className="font-medium">Tất cả</DropdownMenuItem>
+                  {GENDER_OPTIONS.map((g) => (
+                    <DropdownMenuItem key={g.value} onClick={() => setGenderFilter(g.value)}>{g.label}</DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+
               {activeTab === "employees" && (
                 <>
                   <Button variant="outline" onClick={handleExportExcel} disabled={isExporting} className="border-blue-600 text-blue-600 hover:bg-blue-50 ml-0 lg:ml-2 w-full sm:w-auto flex">
@@ -348,7 +358,6 @@ export default function HRMDashboard() {
           </div>
         )}
 
-        {/* CÁC TAB HIỂN THỊ */}
         <DepartmentsTab 
           departments={departments} 
           handleOpenDeptModal={(dept: any) => { setSelectedDept(dept); setIsDeptModalOpen(true); }} 
@@ -357,12 +366,12 @@ export default function HRMDashboard() {
           getEmployeeCount={(name: string) => employees.filter(emp => emp.workInfo?.department === name).length}
         />
         
-        {/* NẾU KHÔNG CÓ DỮ LIỆU ĐỂ HIỂN THỊ TRONG TAB EMPLOYEES/CONTRACTS */}
         <EmployeesTab 
           processedEmployees={processedEmployees} 
           handleOpenEmpModal={handleOpenEmpModal} 
           handleDeleteEmp={handleDeleteEmp} 
         />
+        
         <ContractsTab 
           processedEmployees={processedEmployees} 
           handleOpenEmpModal={handleOpenEmpModal} 

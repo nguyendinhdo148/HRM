@@ -46,6 +46,8 @@ const payrollRecordSchema = new mongoose.Schema(
         bhtn: { type: Number, default: 0 },
         total: { type: Number, default: 0 }, 
       },
+      // Nếu true: nhân sự không đóng BH do làm < 15 ngày
+      excludedFromInsurance: { type: Boolean, default: false },
       taxTNCN: { type: Number, default: 0 }, 
       totalDeductions: { type: Number, default: 0 },
     },

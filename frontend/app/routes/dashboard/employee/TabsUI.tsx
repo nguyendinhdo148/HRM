@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { NoDataFound } from "@/components/no-data-found";
-import { CONTRACT_TYPES, EMPLOYEE_STATUS_UI, CONTRACT_STATUSES, formatDateForDisplay } from "./utils";
+import { calculateAge, CONTRACT_TYPES, EMPLOYEE_STATUS_UI, CONTRACT_STATUSES, formatDateForDisplay } from "./utils";
 
 export const DepartmentsTab = ({ departments, handleOpenDeptModal, handleDeleteDept, isDeptDeleting, handleViewEmployeesInDept, getEmployeeCount }: any) => (
   <TabsContent value="departments" className="space-y-6">
@@ -52,16 +52,33 @@ export const EmployeesTab = ({ processedEmployees, handleOpenEmpModal, handleDel
       <Table>
         <TableHeader className="bg-slate-50">
           <TableRow>
-            <TableHead>Mã NV</TableHead><TableHead>Họ Tên</TableHead><TableHead>Phòng ban</TableHead>
-            <TableHead>Loại HĐ</TableHead><TableHead>Lương CB</TableHead><TableHead>Ngày vào làm</TableHead>
-            <TableHead className="text-center">Trạng thái NS</TableHead><TableHead className="text-right">Thao tác</TableHead>
+            <TableHead>Mã NV</TableHead>
+            <TableHead>Họ Tên & Định danh</TableHead>
+            <TableHead>Phòng ban</TableHead>
+            <TableHead>Loại HĐ</TableHead>
+            <TableHead>Lương CB</TableHead>
+            <TableHead>Ngày vào làm</TableHead>
+            <TableHead className="text-center">Trạng thái NS</TableHead>
+            <TableHead className="text-right">Thao tác</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {processedEmployees.map((emp: any) => (
             <TableRow key={emp._id}>
               <TableCell className="font-medium text-blue-600">{emp.employeeCode}</TableCell>
-              <TableCell className="font-semibold">{emp.fullName}</TableCell>
+              <TableCell>
+                <div className="font-bold text-slate-900">{emp.fullName}</div>
+                <div className="flex flex-col gap-1 mt-1">
+                  <div className="flex items-center gap-1.5">
+                    <Badge variant="outline" className="px-1.5 py-0 text-[10px] bg-slate-50 text-slate-600 border-slate-200">
+                      {emp.personalInfo?.gender || "Khác"} | {calculateAge(emp.personalInfo?.dateOfBirth)} tuổi
+                    </Badge>
+                  </div>
+                  <div className="text-[11px] text-slate-500 font-medium">
+                    CCCD: {emp.idCardNumber || "Chưa cập nhật"}
+                  </div>
+                </div>
+              </TableCell>
               <TableCell>{emp.workInfo?.department || "Chưa xếp"}</TableCell>
               <TableCell>
                 <Badge variant="outline" className="text-indigo-700 bg-indigo-50">{CONTRACT_TYPES.find(t => t.value === emp.contractInfo?.contractType)?.label || "N/A"}</Badge>
@@ -97,9 +114,12 @@ export const ContractsTab = ({ processedEmployees, handleOpenEmpModal }: any) =>
       <Table>
         <TableHeader className="bg-slate-50">
           <TableRow>
-            <TableHead>Nhân viên</TableHead><TableHead className="text-center">Loại Hợp Đồng</TableHead>
-            <TableHead className="text-center">Thời hạn HĐ</TableHead><TableHead className="text-center">Trạng Thái NS</TableHead>
-            <TableHead>Thâm Niên</TableHead><TableHead className="text-right">Thao tác</TableHead>
+            <TableHead>Nhân viên</TableHead>
+            <TableHead className="text-center">Loại Hợp Đồng</TableHead>
+            <TableHead className="text-center">Thời hạn HĐ</TableHead>
+            <TableHead className="text-center">Trạng Thái NS</TableHead>
+            <TableHead>Thâm Niên</TableHead>
+            <TableHead className="text-right">Thao tác</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -123,7 +143,6 @@ export const ContractsTab = ({ processedEmployees, handleOpenEmpModal }: any) =>
                 </TableCell>
                 <TableCell className="text-center">
                   <Badge className={`${EMPLOYEE_STATUS_UI[emp.status]?.color} font-medium`}>{EMPLOYEE_STATUS_UI[emp.status]?.label}</Badge>
-                  {/* HIỂN THỊ NGÀY NGHỈ NẾU CÓ */}
                   {emp.status === "resigned" && emp.workInfo?.resignationDate && (
                     <div className="text-[11px] text-rose-600 font-bold mt-1">Nghỉ: {formatDateForDisplay(emp.workInfo.resignationDate)}</div>
                   )}

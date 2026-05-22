@@ -1,5 +1,5 @@
 import React from "react";
-import { PlusCircle, PlayCircle, CalendarDays, Users, CheckCircle2, CalendarClock } from "lucide-react";
+import { PlusCircle, PlayCircle, CalendarDays, Users, CheckCircle2, CalendarClock, RefreshCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -14,6 +14,7 @@ interface SidebarProps {
   newYear: number;
   setNewYear: (y: number) => void;
   handleInitializeMonth: () => void;
+  isInitializing?: boolean;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -25,6 +26,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   newYear,
   setNewYear,
   handleInitializeMonth,
+  isInitializing,
 }) => {
   return (
     <div className="w-full xl:w-80 shrink-0 space-y-4">
@@ -72,9 +74,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
           </div>
           <Button
             onClick={handleInitializeMonth}
+            disabled={isInitializing}
             className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-semibold py-2.5 rounded-xl shadow-md hover:shadow-lg transition-all duration-200"
           >
-            <PlayCircle className="w-4 h-4 mr-2" /> Khởi tạo bảng công
+            {isInitializing ? <><RefreshCcw className="w-4 h-4 mr-2 animate-spin"/> Đang khởi tạo...</> : <><PlayCircle className="w-4 h-4 mr-2" /> Khởi tạo bảng công</>}
           </Button>
         </CardContent>
       </Card>
