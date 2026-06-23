@@ -12,25 +12,20 @@ if (!gmailUser || !gmailPassword) {
   );
 }
 
-// Cấu hình tối giản giống VieJobs (chỉ giữ lại family: 4 phòng Render chặn IPv6)
+// Cấu hình chuyển sang port 587 để tránh bị Render/Google chặn
 const transporter = nodemailer.createTransport({
   host: "smtp.gmail.com",
-  port: 465,
-  secure: true,
+  port: 587,
+  secure: false, // Bắt buộc false khi dùng cổng 587
+  requireTLS: true, // Bật luồng bảo mật TLS
   auth: {
     user: gmailUser,
     pass: gmailPassword,
   },
-  family: 4, 
+  family: 4, // Ép dùng IPv4
 });
 
-transporter.verify((error) => {
-  if (error) {
-    console.error("SMTP Verify Error:", error);
-  } else {
-    console.log("SMTP Server Ready");
-  }
-});
+// ĐÃ XÓA PHẦN transporter.verify() ĐỂ TRÁNH LỖI TIMEOUT LÚC BOOT SERVER
 
 export const sendEmail = async (to, subject, html) => {
   if (!gmailUser || !gmailPassword) {
