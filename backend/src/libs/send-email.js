@@ -18,17 +18,14 @@ if (!gmailUser || !gmailPassword) {
 
 const transporter = nodemailer.createTransport({
   host: "smtp.gmail.com",
-  port: 587,
-  secure: false,
-  requireTLS: true,
+  port: 465,
+  secure: true,
 
-  connectionTimeout: 15000,
-  greetingTimeout: 15000,
-  socketTimeout: 20000,
+  connectionTimeout: 30000,
+  greetingTimeout: 30000,
+  socketTimeout: 60000,
 
-  pool: true,
-  maxConnections: 3,
-  maxMessages: 100,
+  pool: false,
 
   auth: {
     user: gmailUser,
@@ -62,6 +59,8 @@ export const sendEmail = async (to, subject, html) => {
     return true;
   } catch (error) {
     console.error("Full email error:", error);
+    console.error("Error code:", error.code);
+    console.error("Error command:", error.command);
     return false;
   }
 };
