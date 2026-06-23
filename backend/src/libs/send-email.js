@@ -1,11 +1,7 @@
 import nodemailer from "nodemailer";
-import dns from "dns";
 import dotenv from "dotenv";
 
 dotenv.config();
-
-// Ưu tiên IPv4 ở mức hệ thống Node.js
-dns.setDefaultResultOrder("ipv4first");
 
 const gmailUser = process.env.GMAIL_USER;
 const gmailPassword = process.env.GMAIL_APP_PASSWORD;
@@ -16,22 +12,16 @@ if (!gmailUser || !gmailPassword) {
   );
 }
 
+// Cấu hình tối giản giống VieJobs (chỉ giữ lại family: 4 phòng Render chặn IPv6)
 const transporter = nodemailer.createTransport({
   host: "smtp.gmail.com",
-  port: 587,         // SỬA TỪ 465 THÀNH 587
-  secure: false,     // SỬA TỪ TRUE THÀNH FALSE
-  requireTLS: true,  // THÊM DÒNG NÀY ĐỂ BẢO MẬT BẰNG STARTTLS
-
-  connectionTimeout: 30000,
-  greetingTimeout: 30000,
-  socketTimeout: 60000,
-  pool: false,
-
+  port: 465,
+  secure: true,
   auth: {
     user: gmailUser,
     pass: gmailPassword,
   },
-  family: 4, // Vẫn giữ nguyên dòng này để chống lỗi IPv6 cũ nhé!
+  family: 4, 
 });
 
 transporter.verify((error) => {
@@ -50,7 +40,10 @@ export const sendEmail = async (to, subject, html) => {
 
   try {
     const info = await transporter.sendMail({
-      from: `"LighHouse" <${gmailUser}>`,
+      from: {
+        name: "LighHouse",
+        address: gmailUser,
+      },
       to,
       subject,
       html,
@@ -60,8 +53,6 @@ export const sendEmail = async (to, subject, html) => {
     return true;
   } catch (error) {
     console.error("Full email error:", error);
-    console.error("Error code:", error.code);
-    console.error("Error command:", error.command);
     return false;
   }
 };
