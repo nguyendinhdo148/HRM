@@ -1,29 +1,47 @@
-import sgMail from "@sendgrid/mail";
+import nodemailer from "nodemailer";
 import dotenv from "dotenv";
 
 dotenv.config();
 
-sgMail.setApiKey(process.env.SEND_GRID_API);
+const gmailUser = process.env.GMAIL_USER;
+const gmailPassword = process.env.GMAIL_APP_PASSWORD;
 
-const fromEmail = process.env.FROM_EMAIL;
+if (!gmailUser || !gmailPassword) {
+  console.error("Missing GMAIL_USER or GMAIL_APP_PASSWORD in environment variables.");
+}
+
+// Khởi tạo Transporter cho Gmail
+const transporter = nodemailer.createTransport({
+  service: "gmail",
+  auth: {
+    user: gmailUser,
+    pass: gmailPassword,
+  },
+});
 
 export const sendEmail = async (to, subject, html) => {
-  const msg = {
+  if (!gmailUser || !gmailPassword) {
+    console.error("Email not sent because environment vars are not configured.");
+    return false;
+  }
+
+  const mailOptions = {
+    from: `"LighHouse" <${gmailUser}>`, // Tên hiển thị khi gửi
     to,
-    from: `LighHouse <${fromEmail}>`,
     subject,
     html,
   };
 
   try {
-    await sgMail.send(msg);
-    console.log("Email sent successfully.");
+    const info = await transporter.sendMail(mailOptions);
+    console.log("Email sent successfully. Message ID:", info.messageId);
     return true;
   } catch (error) {
-    console.error("Error sending email:", error);
+    console.error("Error sending email via Nodemailer:", error.message || error);
     return false;
   }
 };
+
 // Hàm format tiền tệ (Ví dụ: 25000000 -> 25.000.000, 0 -> "-")
 const formatMoney = (amount) => {
   if (!amount || amount === 0) return "-";
@@ -40,7 +58,6 @@ export const buildPayslipTemplate = (record, companyName = "CÔNG TY CỦA BẠN
   return `
     <div style="font-family: 'Times New Roman', Times, serif; color: #000; max-width: 700px; margin: 0 auto; padding: 20px; border: 1px solid #ccc;">
       
-      <!-- Header -->
       <div style="text-align: center; border-bottom: 2px dashed #000; padding-bottom: 10px; margin-bottom: 15px;">
         <h1 style="margin: 0; font-size: 24px; text-transform: uppercase;">PHIẾU LƯƠNG NHÂN VIÊN</h1>
       </div>
@@ -53,9 +70,7 @@ export const buildPayslipTemplate = (record, companyName = "CÔNG TY CỦA BẠN
         } năm ${record.year}</div>
       </div>
 
-      <!-- Bảng thông tin chi tiết -->
       <table style="width: 100%; border-collapse: collapse; font-size: 15px;">
-        <!-- Thông tin người lĩnh -->
         <tr>
           <td colspan="2" style="border-top: 1px solid #000; border-bottom: 1px solid #000; padding: 5px 0; font-weight: bold;">
             Thông tin người lĩnh
@@ -68,7 +83,6 @@ export const buildPayslipTemplate = (record, companyName = "CÔNG TY CỦA BẠN
           <td colspan="2" style="padding: 3px 0; border-bottom: 1px solid #000;">Mã nhân viên: ${emp.employeeCode}</td>
         </tr>
 
-        <!-- Tiền lương chi tiết (1) -->
         <tr>
           <td style="padding: 5px 0; font-weight: bold; border-bottom: 1px solid #ddd;">Tiền lương chi tiết (1)</td>
           <td style="padding: 5px 0; font-weight: bold; text-align: right; border-bottom: 1px solid #ddd;">
@@ -108,7 +122,6 @@ export const buildPayslipTemplate = (record, companyName = "CÔNG TY CỦA BẠN
           <td style="padding: 3px 0; text-align: right; border-bottom: 1px solid #000;">${formatMoney(allw.housing)}</td>
         </tr>
 
-        <!-- Các khoản giảm trừ (2) -->
         <tr>
           <td style="padding: 5px 0; font-weight: bold; border-bottom: 1px solid #ddd;">Tổng các khoản giảm trừ (2)</td>
           <td style="padding: 5px 0; font-weight: bold; text-align: right; border-bottom: 1px solid #ddd;">
@@ -128,7 +141,6 @@ export const buildPayslipTemplate = (record, companyName = "CÔNG TY CỦA BẠN
           <td style="padding: 3px 0; text-align: right; border-bottom: 1px solid #000;">${formatMoney(ded.advance)}</td>
         </tr>
 
-        <!-- Tổng thực lĩnh (3) -->
         <tr>
           <td style="padding: 8px 0; font-weight: bold; border-bottom: 1px solid #000;">Tổng số thực lĩnh (3) = (1) - (2)</td>
           <td style="padding: 8px 0; font-weight: bold; text-align: right; border-bottom: 1px solid #000; font-size: 16px;">
@@ -136,7 +148,6 @@ export const buildPayslipTemplate = (record, companyName = "CÔNG TY CỦA BẠN
           </td>
         </tr>
 
-        <!-- Ghi chú -->
         <tr>
           <td colspan="2" style="padding: 15px 0 5px 0; font-weight: bold; border-bottom: 1px solid #000;">Ghi chú:</td>
         </tr>

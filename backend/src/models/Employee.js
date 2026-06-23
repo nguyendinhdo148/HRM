@@ -124,8 +124,7 @@ employeeSchema.virtual("currentContractStatus").get(function () {
   return "CON_HAN";
 });
 
-// Chỉ đánh index tìm kiếm, KHÔNG GẮN UNIQUE cho các trường này
-employeeSchema.index({ employeeCode: 1 }); 
+// Chỉ đánh index tìm kiếm cho các trường không có unique:true
 employeeSchema.index({ idCardNumber: 1 }); 
 employeeSchema.index({ email: 1 });
 employeeSchema.index({ phoneNumber: 1 });

@@ -3,7 +3,7 @@ import { User } from "../models/user.js";
 import { Verification } from "../models/verification.js";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
-import aj from "../libs/arcjet.js";
+import aj from "../libs/arcjet.js"; // 🛑 TẠM TẮT IMPORT ARCJET
 
 // register
 const registerUser = async (req, res, next) => {
@@ -48,10 +48,21 @@ const registerUser = async (req, res, next) => {
       expiresAt: new Date(Date.now() + 1 * 60 * 60 * 1000), // 1 hour
     });
 
-    // send email
+    // CẬP NHẬT GIAO DIỆN EMAIL
     const verificationLink = `${process.env.FRONTEND_URL}/verify-email?token=${verificationToken}`;
-    const emailBody = `<p>Click <a href="${verificationLink}">here</a> to verify your account</p>`;
-    const emailSubject = "Verify your email";
+    const emailSubject = "Xác nhận địa chỉ email của bạn";
+    const emailBody = `
+      <div style="font-family: Arial, sans-serif; padding: 20px; border: 1px solid #ddd; max-width: 500px; margin: 0 auto; border-radius: 8px;">
+        <h2 style="color: #333; text-align: center;">Xác thực tài khoản</h2>
+        <p>Chào <strong>${name}</strong>,</p>
+        <p>Cảm ơn bạn đã đăng ký tài khoản. Vui lòng click vào nút bên dưới để xác thực địa chỉ email của bạn:</p>
+        <div style="text-align: center; margin: 25px 0;">
+          <a href="${verificationLink}" style="padding: 12px 25px; background-color: #007bff; color: #fff; text-decoration: none; border-radius: 5px; font-weight: bold;">Xác thực Email</a>
+        </div>
+        <p style="font-size: 13px; color: #777;">Nếu nút bấm không hoạt động, bạn có thể copy và dán đường link sau vào trình duyệt:<br>
+        <a href="${verificationLink}" style="color: #007bff;">${verificationLink}</a></p>
+      </div>
+    `;
 
     const isEmailSent = await sendEmail(email, emailSubject, emailBody);
 
@@ -107,10 +118,21 @@ const loginUser = async (req, res) => {
           expiresAt: new Date(Date.now() + 1 * 60 * 60 * 1000),
         });
 
-        // send email
+        // CẬP NHẬT GIAO DIỆN EMAIL
         const verificationLink = `${process.env.FRONTEND_URL}/verify-email?token=${verificationToken}`;
-        const emailBody = `<p>Click <a href="${verificationLink}">here</a> to verify your email</p>`;
-        const emailSubject = "Verify your email";
+        const emailSubject = "Xác nhận địa chỉ email của bạn";
+        const emailBody = `
+          <div style="font-family: Arial, sans-serif; padding: 20px; border: 1px solid #ddd; max-width: 500px; margin: 0 auto; border-radius: 8px;">
+            <h2 style="color: #333; text-align: center;">Xác thực tài khoản</h2>
+            <p>Chào <strong>${user.name}</strong>,</p>
+            <p>Tài khoản của bạn chưa được xác thực. Vui lòng click vào nút bên dưới để hoàn tất quá trình này:</p>
+            <div style="text-align: center; margin: 25px 0;">
+              <a href="${verificationLink}" style="padding: 12px 25px; background-color: #007bff; color: #fff; text-decoration: none; border-radius: 5px; font-weight: bold;">Xác thực Email</a>
+            </div>
+            <p style="font-size: 13px; color: #777;">Nếu nút bấm không hoạt động, bạn có thể copy và dán đường link sau vào trình duyệt:<br>
+            <a href="${verificationLink}" style="color: #007bff;">${verificationLink}</a></p>
+          </div>
+        `;
 
         const isEmailSent = await sendEmail(email, emailSubject, emailBody);
 
@@ -246,9 +268,21 @@ const resetPasswordRequest = async (req, res) => {
       token: resetPassWordToken,
       expiresAt: new Date(Date.now() + 15 * 60 * 1000), // 15 minutes
     });
+    
+    // CẬP NHẬT GIAO DIỆN EMAIL
     const resetPassWordLink = `${process.env.FRONTEND_URL}/reset-password?token=${resetPassWordToken}`;
-    const emailBody = `<p>Click <a href="${resetPassWordLink}">here</a> to reset your password</p>`;
-    const emailSubject = "Reset your password";
+    const emailSubject = "Yêu cầu khôi phục mật khẩu";
+    const emailBody = `
+      <div style="font-family: Arial, sans-serif; padding: 20px; border: 1px solid #ddd; max-width: 500px; margin: 0 auto; border-radius: 8px;">
+        <h2 style="color: #dc3545; text-align: center;">Khôi phục mật khẩu</h2>
+        <p>Chào <strong>${user.name}</strong>,</p>
+        <p>Chúng tôi nhận được yêu cầu đặt lại mật khẩu cho tài khoản của bạn. Link này sẽ <strong>hết hạn sau 15 phút</strong>.</p>
+        <div style="text-align: center; margin: 25px 0;">
+          <a href="${resetPassWordLink}" style="padding: 12px 25px; background-color: #dc3545; color: #fff; text-decoration: none; border-radius: 5px; font-weight: bold;">Đặt lại mật khẩu</a>
+        </div>
+        <p style="font-size: 13px; color: #777;">Nếu bạn không yêu cầu đổi mật khẩu, vui lòng bỏ qua email này.</p>
+      </div>
+    `;
 
     const isEmailSent = await sendEmail(email, emailSubject, emailBody);
 
