@@ -18,21 +18,20 @@ if (!gmailUser || !gmailPassword) {
 
 const transporter = nodemailer.createTransport({
   host: "smtp.gmail.com",
-  port: 465,
-  secure: true,
+  port: 587,         // SỬA TỪ 465 THÀNH 587
+  secure: false,     // SỬA TỪ TRUE THÀNH FALSE
+  requireTLS: true,  // THÊM DÒNG NÀY ĐỂ BẢO MẬT BẰNG STARTTLS
 
   connectionTimeout: 30000,
   greetingTimeout: 30000,
   socketTimeout: 60000,
-
   pool: false,
 
   auth: {
     user: gmailUser,
     pass: gmailPassword,
   },
-  // THÊM DÒNG NÀY: Ép buộc Nodemailer chỉ sử dụng IPv4, sửa triệt để lỗi ENETUNREACH IPv6
-  family: 4, 
+  family: 4, // Vẫn giữ nguyên dòng này để chống lỗi IPv6 cũ nhé!
 });
 
 transporter.verify((error) => {
