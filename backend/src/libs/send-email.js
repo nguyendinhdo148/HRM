@@ -1,25 +1,47 @@
 import nodemailer from "nodemailer";
+import dns from "dns";
 import dotenv from "dotenv";
 
 dotenv.config();
+
+// Ưu tiên IPv4
+dns.setDefaultResultOrder("ipv4first");
 
 const gmailUser = process.env.GMAIL_USER;
 const gmailPassword = process.env.GMAIL_APP_PASSWORD;
 
 if (!gmailUser || !gmailPassword) {
-  console.error("Missing GMAIL_USER or GMAIL_APP_PASSWORD in environment variables.");
+  console.error(
+    "Missing GMAIL_USER or GMAIL_APP_PASSWORD in environment variables."
+  );
 }
 
-// Khởi tạo Transporter cho Gmail
 const transporter = nodemailer.createTransport({
   host: "smtp.gmail.com",
   port: 587,
   secure: false,
   requireTLS: true,
+
+  connectionTimeout: 15000,
+  greetingTimeout: 15000,
+  socketTimeout: 20000,
+
+  pool: true,
+  maxConnections: 3,
+  maxMessages: 100,
+
   auth: {
     user: gmailUser,
     pass: gmailPassword,
   },
+});
+
+transporter.verify((error) => {
+  if (error) {
+    console.error("SMTP Verify Error:", error);
+  } else {
+    console.log("SMTP Server Ready");
+  }
 });
 
 export const sendEmail = async (to, subject, html) => {
@@ -28,19 +50,18 @@ export const sendEmail = async (to, subject, html) => {
     return false;
   }
 
-  const mailOptions = {
-    from: `"LighHouse" <${gmailUser}>`, // Tên hiển thị khi gửi
-    to,
-    subject,
-    html,
-  };
-
   try {
-    const info = await transporter.sendMail(mailOptions);
-    console.log("Email sent successfully. Message ID:", info.messageId);
+    const info = await transporter.sendMail({
+      from: `"LighHouse" <${gmailUser}>`,
+      to,
+      subject,
+      html,
+    });
+
+    console.log("Email sent successfully:", info.messageId);
     return true;
   } catch (error) {
-    console.error("Error sending email via Nodemailer:", error.message || error);
+    console.error("Full email error:", error);
     return false;
   }
 };
