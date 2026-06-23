@@ -4,7 +4,7 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
-// Ưu tiên IPv4
+// Ưu tiên IPv4 ở mức hệ thống Node.js
 dns.setDefaultResultOrder("ipv4first");
 
 const gmailUser = process.env.GMAIL_USER;
@@ -31,6 +31,8 @@ const transporter = nodemailer.createTransport({
     user: gmailUser,
     pass: gmailPassword,
   },
+  // THÊM DÒNG NÀY: Ép buộc Nodemailer chỉ sử dụng IPv4, sửa triệt để lỗi ENETUNREACH IPv6
+  family: 4, 
 });
 
 transporter.verify((error) => {
