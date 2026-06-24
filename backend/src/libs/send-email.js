@@ -1,38 +1,30 @@
 import nodemailer from "nodemailer";
-import dns from "dns"; // THÊM THƯ VIỆN NÀY
 import dotenv from "dotenv";
 
 dotenv.config();
 
-// ÉP CỨNG TOÀN BỘ TIẾN TRÌNH NODE.JS PHẢI DÙNG IPV4
-// Lệnh này sẽ chặn đứng việc máy chủ cố phân giải smtp.gmail.com ra IPv6
-dns.setDefaultResultOrder("ipv4first");
+const brevoUser = process.env.BREVO_USER;
+const brevoPassword = process.env.BREVO_PASS;
 
-const gmailUser = process.env.GMAIL_USER;
-const gmailPassword = process.env.GMAIL_APP_PASSWORD;
-
-if (!gmailUser || !gmailPassword) {
+if (!brevoUser || !brevoPassword) {
   console.error(
-    "Missing GMAIL_USER or GMAIL_APP_PASSWORD in environment variables."
+    "Missing BREVO_USER or BREVO_PASS in environment variables."
   );
 }
 
+// Cấu hình kết nối đến SMTP của Brevo với Port 587
 const transporter = nodemailer.createTransport({
-  host: "smtp.gmail.com",
-  port: 465, // Dùng port 465 an toàn hơn trên các server Cloud
-  secure: true, 
+  host: "smtp-relay.brevo.com",
+  port: 587,
+  secure: false, // Port 587 không dùng SSL ở cấp độ kết nối ban đầu
   auth: {
-    user: process.env.GMAIL_USER,
-    pass: process.env.GMAIL_APP_PASSWORD,
-  },
-  tls: {
-    // Rất quan trọng khi deploy lên Render/Heroku để không bị lỗi chứng chỉ SSL
-    rejectUnauthorized: false,
+    user: brevoUser,
+    pass: brevoPassword,
   },
 });
 
 export const sendEmail = async (to, subject, html) => {
-  if (!gmailUser || !gmailPassword) {
+  if (!brevoUser || !brevoPassword) {
     console.error("Email not sent because environment vars are not configured.");
     return false;
   }
@@ -40,8 +32,9 @@ export const sendEmail = async (to, subject, html) => {
   try {
     const info = await transporter.sendMail({
       from: {
-        name: "LighHouse",
-        address: gmailUser,
+        name: "LighHouse HR",
+        // Địa chỉ gửi đi phải khớp hoặc được verified trên hệ thống Brevo
+        address: brevoUser, 
       },
       to,
       subject,
