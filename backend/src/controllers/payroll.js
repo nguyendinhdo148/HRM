@@ -272,7 +272,8 @@ export const viewPayrollByCCCD = async (req, res) => {
     const employee = await Employee.findOne({ idCardNumber: idCardNumber.trim() });
     
     if (!employee) {
-      return res.status(404).json({ success: false, message: "Số CCCD không chính xác hoặc không tồn tại trên hệ thống." });
+      // SỬA DÒNG NÀY: Đổi câu thông báo theo ý bạn
+      return res.status(404).json({ success: false, message: "Nhân viên này chưa có thông tin, vui lòng kiểm tra lại số CCCD!" });
     }
 
     // 2. Tìm bảng lương mới nhất của nhân viên này
@@ -280,7 +281,8 @@ export const viewPayrollByCCCD = async (req, res) => {
       .sort({ year: -1, month: -1 });
 
     if (!latestPayroll) {
-      return res.status(404).json({ success: false, message: "Chưa có dữ liệu bảng lương cho nhân sự này." });
+      // SỬA DÒNG NÀY (Tùy chọn): Nếu có nhân viên nhưng tháng đó chưa tính lương
+      return res.status(404).json({ success: false, message: "Nhân viên này chưa có dữ liệu bảng lương." });
     }
 
     // 3. Tính toán tổng phụ cấp

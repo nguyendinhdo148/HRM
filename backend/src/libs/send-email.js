@@ -19,14 +19,16 @@ if (!gmailUser || !gmailPassword) {
 
 const transporter = nodemailer.createTransport({
   host: "smtp.gmail.com",
-  port: 587,
-  secure: false, 
-  requireTLS: true,
+  port: 465, // Dùng port 465 an toàn hơn trên các server Cloud
+  secure: true, 
   auth: {
-    user: gmailUser,
-    pass: gmailPassword,
+    user: process.env.GMAIL_USER,
+    pass: process.env.GMAIL_APP_PASSWORD,
   },
-  family: 4, // Vẫn giữ lại để tăng lớp phòng ngự
+  tls: {
+    // Rất quan trọng khi deploy lên Render/Heroku để không bị lỗi chứng chỉ SSL
+    rejectUnauthorized: false,
+  },
 });
 
 export const sendEmail = async (to, subject, html) => {

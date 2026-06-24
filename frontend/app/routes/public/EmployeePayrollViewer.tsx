@@ -36,7 +36,7 @@ const EmployeePayrollViewer = () => {
   const [idCardNumber, setIdCardNumber] = useState("");
   const [payrollData, setPayrollData] = useState<PersonalPayroll | null>(null);
 
-  const handleFetchPayroll = async (e: React.FormEvent) => {
+const handleFetchPayroll = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!idCardNumber.trim()) return toast.error("Vui lòng nhập số CCCD!");
 
@@ -50,7 +50,10 @@ const EmployeePayrollViewer = () => {
         setStep(2);
       }
     } catch (error: any) {
-      toast.error(error.response?.data?.message || "Không tìm thấy dữ liệu lương khớp với số CCCD này.");
+      // Ưu tiên hiển thị thông báo lỗi từ backend trả về (nếu có). 
+      // Nếu backend không trả về message cụ thể, sẽ hiển thị câu thông báo mặc định của bạn.
+      const errorMessage = error.response?.data?.message || "Nhân viên này chưa có thông tin, vui lòng kiểm tra lại số CCCD!";
+      toast.error(errorMessage);
     } finally {
       setIsLoading(false);
     }

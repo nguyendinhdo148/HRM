@@ -7,6 +7,8 @@ import {
   ScrollRestoration,
 } from "react-router";
 
+import { Toaster } from "react-hot-toast";
+
 import type { Route } from "./+types/root";
 import "./app.css";
 import ReactQueryProvider from "./provider/react-query-provider";
@@ -58,6 +60,7 @@ export default function App() {
   return (
     <ReactQueryProvider>
       <Outlet />
+      <Toaster position="top-center" reverseOrder={false} />
     </ReactQueryProvider>
   );
 }
