@@ -12,11 +12,11 @@ if (!brevoUser || !brevoPassword) {
   );
 }
 
-// Cấu hình kết nối đến SMTP của Brevo với Port 587
+// Cấu hình kết nối đến SMTP của Brevo
 const transporter = nodemailer.createTransport({
   host: "smtp-relay.brevo.com",
-  port: 587,
-  secure: false, // Port 587 không dùng SSL ở cấp độ kết nối ban đầu
+  port: 2525, // Bắt buộc dùng 2525 để xuyên qua tường lửa của Render
+  secure: false, // Port 2525 không dùng SSL ở cấp độ kết nối ban đầu
   auth: {
     user: brevoUser,
     pass: brevoPassword,
@@ -33,8 +33,8 @@ export const sendEmail = async (to, subject, html) => {
     const info = await transporter.sendMail({
       from: {
         name: "LighHouse HR",
-        // Địa chỉ gửi đi phải khớp hoặc được verified trên hệ thống Brevo
-        address: brevoUser, 
+        // Bắt buộc dùng email thật đã đăng ký Brevo để không bị lỗi mạo danh
+        address: "nguyendinhdo2k4@gmail.com", 
       },
       to,
       subject,
