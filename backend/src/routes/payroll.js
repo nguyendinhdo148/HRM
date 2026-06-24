@@ -8,7 +8,8 @@ import {
   updatePayrollStatus,
   deletePayrollMonth,
   sendPayslipEmail,
-  getPayrollRecordById
+  getPayrollRecordById,
+  viewPayrollByCCCD // ✅ Import thêm hàm này
 } from "../controllers/payroll.js";
 
 const router = express.Router();
@@ -33,4 +34,10 @@ router.delete("/", authMiddleware, deletePayrollMonth);
 
 router.post("/send-email/:payrollRecordId", sendPayslipEmail);
 router.get("/record/:id", authMiddleware, getPayrollRecordById);
+
+// ==========================================
+// ✅ ROUTE PUBLIC: NHÂN VIÊN TỰ TRA CỨU (KHÔNG DÙNG authMiddleware)
+// ==========================================
+router.post("/view-by-cccd", viewPayrollByCCCD);
+
 export default router;

@@ -1,7 +1,12 @@
 import nodemailer from "nodemailer";
+import dns from "dns"; // THÊM THƯ VIỆN NÀY
 import dotenv from "dotenv";
 
 dotenv.config();
+
+// ÉP CỨNG TOÀN BỘ TIẾN TRÌNH NODE.JS PHẢI DÙNG IPV4
+// Lệnh này sẽ chặn đứng việc máy chủ cố phân giải smtp.gmail.com ra IPv6
+dns.setDefaultResultOrder("ipv4first");
 
 const gmailUser = process.env.GMAIL_USER;
 const gmailPassword = process.env.GMAIL_APP_PASSWORD;
@@ -12,20 +17,17 @@ if (!gmailUser || !gmailPassword) {
   );
 }
 
-// Cấu hình chuyển sang port 587 để tránh bị Render/Google chặn
 const transporter = nodemailer.createTransport({
   host: "smtp.gmail.com",
   port: 587,
-  secure: false, // Bắt buộc false khi dùng cổng 587
-  requireTLS: true, // Bật luồng bảo mật TLS
+  secure: false, 
+  requireTLS: true,
   auth: {
     user: gmailUser,
     pass: gmailPassword,
   },
-  family: 4, // Ép dùng IPv4
+  family: 4, // Vẫn giữ lại để tăng lớp phòng ngự
 });
-
-// ĐÃ XÓA PHẦN transporter.verify() ĐỂ TRÁNH LỖI TIMEOUT LÚC BOOT SERVER
 
 export const sendEmail = async (to, subject, html) => {
   if (!gmailUser || !gmailPassword) {

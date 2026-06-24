@@ -259,3 +259,62 @@ export const sendPayslipEmail = async (req, res, next) => {
     }
   } catch (error) { next(error); }
 };
+
+export const viewPayrollByCCCD = async (req, res) => {
+  try {
+    const { idCardNumber } = req.body;
+    
+    if (!idCardNumber) {
+      return res.status(400).json({ success: false, message: "Vui lòng nhập số CCCD/CMND." });
+    }
+
+    // 1. Tìm nhân viên theo số CCCD (trim để xóa khoảng trắng)
+    const employee = await Employee.findOne({ idCardNumber: idCardNumber.trim() });
+    
+    if (!employee) {
+      return res.status(404).json({ success: false, message: "Số CCCD không chính xác hoặc không tồn tại trên hệ thống." });
+    }
+
+    // 2. Tìm bảng lương mới nhất của nhân viên này
+    const latestPayroll = await PayrollRecord.findOne({ employee: employee._id })
+      .sort({ year: -1, month: -1 });
+
+    if (!latestPayroll) {
+      return res.status(404).json({ success: false, message: "Chưa có dữ liệu bảng lương cho nhân sự này." });
+    }
+
+    // 3. Tính toán tổng phụ cấp
+    const allowancesTotal = 
+      (latestPayroll.incomes.allowances?.meal || 0) +
+      (latestPayroll.incomes.allowances?.transport || 0) +
+      (latestPayroll.incomes.allowances?.housing || 0) +
+      (latestPayroll.incomes.allowances?.phone || 0) +
+      (latestPayroll.incomes.allowances?.clothing || 0);
+
+    // 4. Format dữ liệu gửi về Frontend
+    const formattedData = {
+      month: latestPayroll.month,
+      year: latestPayroll.year,
+      fullName: latestPayroll.employeeSnapshot.fullName,
+      employeeCode: latestPayroll.employeeSnapshot.employeeCode,
+      department: latestPayroll.employeeSnapshot.department || "Chưa cập nhật",
+      incomes: {
+        baseSalary: latestPayroll.baseSalary,
+        allowances: allowancesTotal,
+        totalGross: latestPayroll.incomes.totalGross
+      },
+      deductions: {
+        tax: latestPayroll.deductions.taxTNCN || 0,
+        insurance: latestPayroll.deductions.insurance.total || 0,
+        totalDeductions: latestPayroll.deductions.totalDeductions || 0
+      },
+      netSalary: latestPayroll.netSalary
+    };
+
+    return res.status(200).json({ success: true, data: formattedData });
+
+  } catch (error) {
+    console.error("Lỗi viewPayrollByCCCD:", error);
+    return res.status(500).json({ success: false, message: "Lỗi máy chủ khi tra cứu lương." });
+  }
+};

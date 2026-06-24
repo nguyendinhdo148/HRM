@@ -19,7 +19,7 @@ export default [
     
     // ✅ Bảng lương
     route("PayrollBoard", "routes/dashboard/PayrollBoard.tsx"),
-    route("PayrollBoardNet", "routes/dashboard/PayrollNetBoard.tsx"), // ✅ ĐÃ THÊM ROUTE LƯƠNG NET TẠI ĐÂY
+    route("PayrollBoardNet", "routes/dashboard/PayrollNetBoard.tsx"),
     route("PayrollManager", "routes/dashboard/PayrollManager.tsx"),
     
     // ✅ Bảng tính Bảo Hiểm & Thuế
@@ -36,5 +36,7 @@ export default [
     route("payroll/slip/:id", "routes/dashboard/PayslipDetail.tsx"),
     
   ]),
+
+  route("tra-cuu-luong", "routes/public/EmployeePayrollViewer.tsx"),
 
 ] satisfies RouteConfig;
