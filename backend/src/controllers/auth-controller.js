@@ -3,21 +3,11 @@ import { User } from "../models/user.js";
 import { Verification } from "../models/verification.js";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
-import aj from "../libs/arcjet.js"; // 🛑 TẠM TẮT IMPORT ARCJET
 
 // register
 const registerUser = async (req, res, next) => {
   try {
     const { email, name, password } = req.body;
-
-    const decision = await aj.protect(req, { requested: 1, email });
-    console.log("Arcjet decision", decision);
-
-    if (decision.isDenied() || decision.conclusion === "ERROR") {
-      return res
-        .status(403)
-        .json({ message: "Too many requests or blocked by security policy" });
-    }
 
     const existingUser = await User.findOne({ email });
     if (existingUser) {
