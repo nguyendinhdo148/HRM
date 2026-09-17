@@ -15,6 +15,7 @@ import { API_BASE_URL, getAuthHeaders, EMPLOYEE_STATUSES, CONTRACT_TYPES, GENDER
 import { DepartmentsTab, EmployeesTab, ContractsTab } from "./TabsUI";
 import { DepartmentModal, EmployeeModal } from "./FormsModal";
 import { ImportExcelModal } from "./ImportExcelModal";
+import { PrintContractModal } from "./PrintContractModal";   // ← THÊM
 
 export default function HRMDashboard() {
   const [departments, setDepartments] = useState<any[]>([]);
@@ -42,6 +43,9 @@ export default function HRMDashboard() {
   const [durationUnit, setDurationUnit] = useState<"months" | "years">("years");
 
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+
+  // ===== STATE IN HỢP ĐỒNG =====
+  const [printEmployee, setPrintEmployee] = useState<any>(null);
 
   const fetchData = async () => {
     setIsLoading(true);
@@ -370,11 +374,13 @@ export default function HRMDashboard() {
           processedEmployees={processedEmployees} 
           handleOpenEmpModal={handleOpenEmpModal} 
           handleDeleteEmp={handleDeleteEmp} 
+          onPrintContract={(emp: any) => setPrintEmployee(emp)}   // ← THÊM
         />
         
         <ContractsTab 
           processedEmployees={processedEmployees} 
           handleOpenEmpModal={handleOpenEmpModal} 
+          onPrintContract={(emp: any) => setPrintEmployee(emp)}   // ← THÊM
         />
       </Tabs>
 
@@ -390,6 +396,11 @@ export default function HRMDashboard() {
       />
       <ImportExcelModal 
         isOpen={isImportModalOpen} onClose={() => setIsImportModalOpen(false)} onSuccess={fetchData} departmentsList={departments}
+      />
+      <PrintContractModal 
+        isOpen={!!printEmployee} 
+        onClose={() => setPrintEmployee(null)} 
+        employee={printEmployee} 
       />
     </div>
   );

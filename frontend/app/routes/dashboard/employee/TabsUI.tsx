@@ -1,5 +1,5 @@
 import React from "react";
-import { Users, MoreHorizontal, Pencil, Trash2, Clock, PlusCircle } from "lucide-react";
+import { Users, MoreHorizontal, Pencil, Trash2, Clock, PlusCircle, Printer } from "lucide-react";
 import { TabsContent } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -46,7 +46,7 @@ export const DepartmentsTab = ({ departments, handleOpenDeptModal, handleDeleteD
   </TabsContent>
 );
 
-export const EmployeesTab = ({ processedEmployees, handleOpenEmpModal, handleDeleteEmp }: any) => (
+export const EmployeesTab = ({ processedEmployees, handleOpenEmpModal, handleDeleteEmp, onPrintContract }: any) => (
   <TabsContent value="employees">
     <div className="bg-white rounded-xl border shadow-sm overflow-hidden">
       <Table>
@@ -94,8 +94,15 @@ export const EmployeesTab = ({ processedEmployees, handleOpenEmpModal, handleDel
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild><Button variant="ghost" className="h-8 w-8"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
-                    <DropdownMenuItem onClick={() => handleOpenEmpModal(emp)} className="cursor-pointer text-blue-600"><Pencil className="mr-2 h-4 w-4" /> Sửa</DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => handleDeleteEmp(emp._id)} className="cursor-pointer text-red-600"><Trash2 className="mr-2 h-4 w-4" /> Xóa</DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => onPrintContract?.(emp)} className="cursor-pointer text-emerald-600">
+                      <Printer className="mr-2 h-4 w-4" /> In hợp đồng
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => handleOpenEmpModal(emp)} className="cursor-pointer text-blue-600">
+                      <Pencil className="mr-2 h-4 w-4" /> Sửa
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => handleDeleteEmp(emp._id)} className="cursor-pointer text-red-600">
+                      <Trash2 className="mr-2 h-4 w-4" /> Xóa
+                    </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
               </TableCell>
@@ -108,7 +115,7 @@ export const EmployeesTab = ({ processedEmployees, handleOpenEmpModal, handleDel
   </TabsContent>
 );
 
-export const ContractsTab = ({ processedEmployees, handleOpenEmpModal }: any) => (
+export const ContractsTab = ({ processedEmployees, handleOpenEmpModal, onPrintContract }: any) => (
   <TabsContent value="contracts">
     <div className="bg-white rounded-xl border shadow-sm overflow-hidden">
       <Table>
@@ -151,9 +158,24 @@ export const ContractsTab = ({ processedEmployees, handleOpenEmpModal }: any) =>
                   <div className="text-sm font-bold text-slate-800">{emp.workingDuration?.formatted || "-"}</div>
                 </TableCell>
                 <TableCell className="text-right">
-                  <Button variant="outline" size="sm" onClick={() => handleOpenEmpModal(emp, "work")} className="border-teal-200 text-teal-700 hover:bg-teal-50">
-                    <Pencil className="w-3.5 h-3.5 mr-1.5" /> Cập nhật HĐ
-                  </Button>
+                  <div className="flex justify-end gap-2">
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={() => onPrintContract?.(emp)} 
+                      className="border-blue-200 text-blue-700 hover:bg-blue-50"
+                    >
+                      <Printer className="w-3.5 h-3.5 mr-1.5" /> In HĐ
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={() => handleOpenEmpModal(emp, "work")} 
+                      className="border-teal-200 text-teal-700 hover:bg-teal-50"
+                    >
+                      <Pencil className="w-3.5 h-3.5 mr-1.5" /> Cập nhật HĐ
+                    </Button>
+                  </div>
                 </TableCell>
               </TableRow>
             );

@@ -34,20 +34,15 @@ export const DepartmentModal = ({ isOpen, onClose, selectedDept, deptForm, setDe
 export const EmployeeModal = ({ isOpen, onClose, selectedEmp, empForm, setEmpForm, empFormTab, setEmpFormTab, handleSaveEmployee, departments, durationValue, setDurationValue, durationUnit, setDurationUnit }: any) => {
   if (!isOpen) return null;
 
-  // =========================================================================
-  // HÀM CHẶN VÀ KIỂM TRA DỮ LIỆU XUYÊN TAB TRƯỚC KHI GỌI API LƯU
-  // =========================================================================
   const handleFormSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
-    // 1. Kiểm tra ràng buộc cực mạnh cho "Ngày nghỉ việc"
     if (empForm.status === "resigned" && !empForm.workInfo.resignationDate) {
       alert("Hồ sơ đang ở trạng thái 'Đã nghỉ việc'. Vui lòng điền 'Ngày nghỉ việc'!");
-      setEmpFormTab("personal"); // Tự động nhảy về Tab 1
+      setEmpFormTab("personal");
       return;
     }
 
-    // 2. Ràng buộc các trường bắt buộc ở Tab 1 (Nếu user đang đứng ở Tab 2,3 mà bấm Lưu)
     if (!empForm.employeeCode || !empForm.fullName || !empForm.idCardNumber || !empForm.phoneNumber || !empForm.email) {
       if (empFormTab !== "personal") {
         alert("Vui lòng điền đầy đủ các trường bắt buộc (*) ở mục Định danh & Cá nhân!");
@@ -56,7 +51,6 @@ export const EmployeeModal = ({ isOpen, onClose, selectedEmp, empForm, setEmpFor
       }
     }
 
-    // 3. Ràng buộc các trường bắt buộc ở Tab 2
     if (!empForm.workInfo.joinDate) {
       if (empFormTab !== "work") {
         alert("Vui lòng điền 'Ngày Bắt Đầu Đi Làm' ở mục Công việc & Hợp đồng!");
@@ -65,7 +59,6 @@ export const EmployeeModal = ({ isOpen, onClose, selectedEmp, empForm, setEmpFor
       }
     }
 
-    // Nếu mọi thứ đều ổn, tiến hành gọi API lưu dữ liệu
     handleSaveEmployee(e);
   };
 
@@ -134,9 +127,84 @@ export const EmployeeModal = ({ isOpen, onClose, selectedEmp, empForm, setEmpFor
                 <div><label className="block text-sm font-medium mb-1">Quốc tịch</label><input type="text" className="w-full border rounded-md p-2" value={empForm.personalInfo.nationality} onChange={(e) => setEmpForm({...empForm, personalInfo: {...empForm.personalInfo, nationality: e.target.value}})}/></div>
                 <div><label className="block text-sm font-medium mb-1">Dân tộc</label><input type="text" className="w-full border rounded-md p-2" value={empForm.personalInfo.ethnicity} onChange={(e) => setEmpForm({...empForm, personalInfo: {...empForm.personalInfo, ethnicity: e.target.value}})}/></div>
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div><label className="block text-sm font-medium mb-1">Nguyên quán</label><input type="text" className="w-full border rounded-md p-2" value={empForm.personalInfo.hometown} onChange={(e) => setEmpForm({...empForm, personalInfo: {...empForm.personalInfo, hometown: e.target.value}})}/></div>
-                <div><label className="block text-sm font-medium mb-1">Địa chỉ thường trú</label><input type="text" className="w-full border rounded-md p-2" value={empForm.personalInfo.permanentAddress} onChange={(e) => setEmpForm({...empForm, personalInfo: {...empForm.personalInfo, permanentAddress: e.target.value}})}/></div>
+
+              <div>
+                <label className="block text-sm font-medium mb-1">Nguyên quán</label>
+                <input type="text" className="w-full border rounded-md p-2" value={empForm.personalInfo.hometown} onChange={(e) => setEmpForm({...empForm, personalInfo: {...empForm.personalInfo, hometown: e.target.value}})}/>
+              </div>
+
+              {/* ===== ĐỊA CHỈ THƯỜNG TRÚ (KHAI SINH) - 3 CỘT ===== */}
+              <div className="p-4 bg-slate-50 border border-slate-200 rounded-lg space-y-3">
+                <h4 className="font-semibold text-slate-800 text-sm">Địa chỉ thường trú (Khai sinh)</h4>
+                <div className="grid grid-cols-3 gap-3">
+                  <div>
+                    <label className="block text-xs font-medium mb-1 text-slate-600">Số nhà + Tên đường</label>
+                    <input 
+                      type="text" 
+                      className="w-full border rounded-md p-2 text-sm" 
+                      value={empForm.personalInfo.permanentAddress?.houseStreet || ""} 
+                      onChange={(e) => setEmpForm({...empForm, personalInfo: {...empForm.personalInfo, permanentAddress: {...empForm.personalInfo.permanentAddress, houseStreet: e.target.value}}})}
+                      placeholder="VD: 123 Lê Lợi"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium mb-1 text-slate-600">Phường/Xã</label>
+                    <input 
+                      type="text" 
+                      className="w-full border rounded-md p-2 text-sm" 
+                      value={empForm.personalInfo.permanentAddress?.ward || ""} 
+                      onChange={(e) => setEmpForm({...empForm, personalInfo: {...empForm.personalInfo, permanentAddress: {...empForm.personalInfo.permanentAddress, ward: e.target.value}}})}
+                      placeholder="VD: Phường Bến Nghé"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium mb-1 text-slate-600">Tỉnh/TP</label>
+                    <input 
+                      type="text" 
+                      className="w-full border rounded-md p-2 text-sm" 
+                      value={empForm.personalInfo.permanentAddress?.province || ""} 
+                      onChange={(e) => setEmpForm({...empForm, personalInfo: {...empForm.personalInfo, permanentAddress: {...empForm.personalInfo.permanentAddress, province: e.target.value}}})}
+                      placeholder="VD: TP. Hồ Chí Minh"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* ===== ĐỊA CHỈ HIỆN TẠI - 3 CỘT ===== */}
+              <div className="p-4 bg-slate-50 border border-slate-200 rounded-lg space-y-3">
+                <h4 className="font-semibold text-slate-800 text-sm">Địa chỉ hiện tại</h4>
+                <div className="grid grid-cols-3 gap-3">
+                  <div>
+                    <label className="block text-xs font-medium mb-1 text-slate-600">Số nhà + Tên đường</label>
+                    <input 
+                      type="text" 
+                      className="w-full border rounded-md p-2 text-sm" 
+                      value={empForm.personalInfo.currentAddress?.houseStreet || ""} 
+                      onChange={(e) => setEmpForm({...empForm, personalInfo: {...empForm.personalInfo, currentAddress: {...empForm.personalInfo.currentAddress, houseStreet: e.target.value}}})}
+                      placeholder="VD: 456 Nguyễn Huệ"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium mb-1 text-slate-600">Phường/Xã</label>
+                    <input 
+                      type="text" 
+                      className="w-full border rounded-md p-2 text-sm" 
+                      value={empForm.personalInfo.currentAddress?.ward || ""} 
+                      onChange={(e) => setEmpForm({...empForm, personalInfo: {...empForm.personalInfo, currentAddress: {...empForm.personalInfo.currentAddress, ward: e.target.value}}})}
+                      placeholder="VD: Phường Đa Kao"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium mb-1 text-slate-600">Tỉnh/TP</label>
+                    <input 
+                      type="text" 
+                      className="w-full border rounded-md p-2 text-sm" 
+                      value={empForm.personalInfo.currentAddress?.province || ""} 
+                      onChange={(e) => setEmpForm({...empForm, personalInfo: {...empForm.personalInfo, currentAddress: {...empForm.personalInfo.currentAddress, province: e.target.value}}})}
+                      placeholder="VD: TP. Hồ Chí Minh"
+                    />
+                  </div>
+                </div>
               </div>
             </div>
           )}

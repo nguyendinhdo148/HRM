@@ -77,10 +77,7 @@ export const createEmployee = async (req, res) => {
   try {
     const employeeData = req.body;
 
-    // 1. Check điều kiện tiên quyết cho logic Thâm niên & Hợp đồng
-    if (!employeeData.workInfo?.joinDate) {
-      return res.status(400).json({ message: "Ngày bắt đầu đi làm (joinDate) là bắt buộc để tính thâm niên!" });
-    }
+    // Không bắt buộc joinDate ở đây nữa vì schema đã cho phép null/không điền.
     if (!employeeData.contractInfo?.contractType) {
       return res.status(400).json({ message: "Vui lòng chọn Loại Hợp Đồng!" });
     }

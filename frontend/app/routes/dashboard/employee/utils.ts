@@ -20,7 +20,12 @@ export const formatDateForDisplay = (isoString?: string) => {
 
 export const initialEmpForm = {
   employeeCode: "", idCardNumber: "", fullName: "", email: "", phoneNumber: "", status: "active",
-  personalInfo: { dateOfBirth: "", gender: "Nam", idCardIssueDate: "", idCardIssuePlace: "", nationality: "Việt Nam", ethnicity: "", hometown: "", permanentAddress: "" },
+  personalInfo: {
+    dateOfBirth: "", gender: "Nam", idCardIssueDate: "", idCardIssuePlace: "",
+    nationality: "Việt Nam", ethnicity: "", hometown: "",
+    permanentAddress: { houseStreet: "", ward: "", province: "" },
+    currentAddress: { houseStreet: "", ward: "", province: "" },
+  },
   workInfo: { department: "", position: "", title: "", profession: "", jobDescription: "", workingTime: "", joinDate: "", resignationDate: "" },
   contractInfo: { contractNumber: "", contractType: "PROBATION", contractDuration: "", signDate: "", endDate: "", probationStartDate: "", probationEndDate: "", compensationRegime: "" },
   salaryAndBenefits: {
@@ -83,14 +88,24 @@ export const ALL_FIELDS = [
   { id: "nationality", label: "Quốc tịch", path: "personalInfo.nationality", type: "string" },
   { id: "ethnicity", label: "Dân tộc", path: "personalInfo.ethnicity", type: "string" },
   { id: "hometown", label: "Nguyên quán", path: "personalInfo.hometown", type: "string" },
-  { id: "permanentAddress", label: "Địa chỉ TT", path: "personalInfo.permanentAddress", type: "string" },
+
+  // ĐỊA CHỈ THƯỜNG TRÚ (KHAI SINH) - 3 CỘT
+  { id: "permanentHouseStreet", label: "TT - Số nhà + Tên đường", path: "personalInfo.permanentAddress.houseStreet", type: "string" },
+  { id: "permanentWard", label: "TT - Phường/Xã", path: "personalInfo.permanentAddress.ward", type: "string" },
+  { id: "permanentProvince", label: "TT - Tỉnh/TP", path: "personalInfo.permanentAddress.province", type: "string" },
+
+  // ĐỊA CHỈ HIỆN TẠI - 3 CỘT
+  { id: "currentHouseStreet", label: "HT - Số nhà + Tên đường", path: "personalInfo.currentAddress.houseStreet", type: "string" },
+  { id: "currentWard", label: "HT - Phường/Xã", path: "personalInfo.currentAddress.ward", type: "string" },
+  { id: "currentProvince", label: "HT - Tỉnh/TP", path: "personalInfo.currentAddress.province", type: "string" },
+
   { id: "department", label: "Phòng ban", path: "workInfo.department", type: "select", isDepartment: true },
   { id: "position", label: "Chức vụ", path: "workInfo.position", type: "string" },
   { id: "title", label: "Chức danh", path: "workInfo.title", type: "string" },
   { id: "profession", label: "Nghề nghiệp", path: "workInfo.profession", type: "string" },
   { id: "jobDescription", label: "Mô tả CV", path: "workInfo.jobDescription", type: "string" },
   { id: "workingTime", label: "Thời gian LV", path: "workInfo.workingTime", type: "string" },
-  { id: "joinDate", label: "Ngày vào làm (*)", path: "workInfo.joinDate", type: "date" },
+  { id: "joinDate", label: "Ngày vào làm", path: "workInfo.joinDate", type: "date" },
   { id: "resignationDate", label: "Ngày nghỉ việc", path: "workInfo.resignationDate", type: "date" },
   { id: "contractNumber", label: "Số HĐ", path: "contractInfo.contractNumber", type: "string" },
   { id: "contractType", label: "Loại HĐ", path: "contractInfo.contractType", type: "select", options: CONTRACT_TYPES },

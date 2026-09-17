@@ -134,8 +134,8 @@ export const ImportExcelModal = ({ isOpen, onClose, onSuccess, departmentsList }
     e.target.value = "";
   };
 
-// ==============================================================
-  // 3. PARSE DỮ LIỆU TỪ EXCEL -> DB (CÓ CHECK TRÙNG LẶP TRONG FILE)
+  // ==============================================================
+  // 3. PARSE DỮ LIỆU TỪ EXCEL -> DB (CHỈ RÀNG BUỘC MÃ NV)
   // ==============================================================
   const processExcelData = (rowsFormatted: any[][], rowsRaw: any[][]) => {
     if (rowsFormatted.length <= 2) {
@@ -148,7 +148,7 @@ export const ImportExcelModal = ({ isOpen, onClose, onSuccess, departmentsList }
     const actualRawRows = rowsRaw.slice(2); 
     const parsedData: any[] = [];
 
-    // Tạo 2 bộ nhớ tạm để check trùng lặp ngay trong lúc đọc file
+    // Chỉ check trùng Mã NV trong file
     const seenCodes = new Set<string>();
 
     const parseDateVN = (rawVal: any, formattedVal: string) => {
@@ -195,7 +195,7 @@ export const ImportExcelModal = ({ isOpen, onClose, onSuccess, departmentsList }
         const keys = colDef.path.split('.');
         let currentObj = newEmployee;
         for (let i = 0; i < keys.length - 1; i++) {
-          if (!currentObj[keys[i]]) currentObj[keys[i]] = {}; // Đảm bảo node luôn tồn tại
+          if (!currentObj[keys[i]]) currentObj[keys[i]] = {}; 
           currentObj = currentObj[keys[i]];
         }
         const lastKey = keys[keys.length - 1];
@@ -237,7 +237,7 @@ export const ImportExcelModal = ({ isOpen, onClose, onSuccess, departmentsList }
         }
       });
 
-      // VALIDATE BẮT BUỘC & KIỂM TRA TRÙNG LẶP TRONG FILE EXCEL
+      // ===== CHỈ RÀNG BUỘC MÃ NV =====
       if (!newEmployee.employeeCode) {
         errors["employeeCode"] = "Bắt buộc";
       } else {
@@ -245,25 +245,7 @@ export const ImportExcelModal = ({ isOpen, onClose, onSuccess, departmentsList }
         seenCodes.add(newEmployee.employeeCode);
       }
 
-      if (!newEmployee.fullName) errors["fullName"] = "Bắt buộc";
-      if (!newEmployee.idCardNumber) errors["idCardNumber"] = "Bắt buộc";
-      if (!newEmployee.phoneNumber) errors["phoneNumber"] = "Bắt buộc";
-
-      if (!newEmployee.email) {
-        errors["email"] = "Bắt buộc";
-      } else if (!/^\S+@\S+\.\S+$/.test(newEmployee.email)) {
-        errors["email"] = "Email sai định dạng";
-      }
-
-      if (!newEmployee.workInfo.joinDate) errors["workInfo.joinDate"] = "Bắt buộc";
-      
-      const employeeStatus = String(newEmployee.status || "").toLowerCase();
-      if (employeeStatus !== "resigned") {
-        newEmployee.workInfo.resignationDate = null;
-        delete errors["workInfo.resignationDate"];
-      } else if (employeeStatus === "resigned" && !newEmployee.workInfo?.resignationDate) {
-        errors["workInfo.resignationDate"] = "Đã nghỉ phải có Ngày nghỉ";
-      }
+      // KHÔNG kiểm tra các trường khác nữa
 
       parsedData.push({ id: rowIndex, data: newEmployee, errors, isSuccess: false });
     });
@@ -415,7 +397,6 @@ export const ImportExcelModal = ({ isOpen, onClose, onSuccess, departmentsList }
                           const hasError = row.errors[col.path];
                           const keys = col.path.split('.');
                           let val = row.data;
-                          // Dùng try-catch ẩn hoặc optional chaining đảm bảo không chết UI nếu obj bị thiếu node
                           for(let k of keys) {
                             val = val?.[k];
                           }

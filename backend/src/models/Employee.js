@@ -2,12 +2,11 @@ import mongoose from "mongoose";
 
 const employeeSchema = new mongoose.Schema(
   {
-    // Chỉ duy nhất Mã NV là unique: true
     employeeCode: { type: String, required: true, unique: true, trim: true, description: "Mã nhân viên nội bộ" },
-    idCardNumber: { type: String, required: true, trim: true, description: "Số CCCD/CMND" }, // Xóa unique
-    fullName: { type: String, required: true, trim: true, description: "Họ và tên" },
-    email: { type: String, required: true, trim: true, lowercase: true, match: [/^\S+@\S+\.\S+$/, "Email không hợp lệ"] },
-    phoneNumber: { type: String, required: true, trim: true, description: "Số điện thoại" },
+    idCardNumber: { type: String, trim: true, description: "Số CCCD/CMND" },              // ĐÃ BỎ required
+    fullName: { type: String, trim: true, description: "Họ và tên" },                     // ĐÃ BỎ required
+    email: { type: String, trim: true, lowercase: true },                                 // ĐÃ BỎ required + match
+    phoneNumber: { type: String, trim: true, description: "Số điện thoại" },              // ĐÃ BỎ required
 
     personalInfo: {
       dateOfBirth: { type: Date },
@@ -17,7 +16,20 @@ const employeeSchema = new mongoose.Schema(
       nationality: { type: String, default: "Việt Nam", trim: true },
       ethnicity: { type: String, trim: true },
       hometown: { type: String, trim: true },
-      permanentAddress: { type: String, trim: true },
+
+      // ĐỊA CHỈ THƯỜNG TRÚ (KHAI SINH) - TÁCH 3 CỘT
+      permanentAddress: {
+        houseStreet: { type: String, trim: true, description: "Số nhà + tên đường" },
+        ward: { type: String, trim: true, description: "Phường/Xã" },
+        province: { type: String, trim: true, description: "Tỉnh/TP" },
+      },
+
+      // ĐỊA CHỈ HIỆN TẠI - TÁCH 3 CỘT
+      currentAddress: {
+        houseStreet: { type: String, trim: true, description: "Số nhà + tên đường" },
+        ward: { type: String, trim: true, description: "Phường/Xã" },
+        province: { type: String, trim: true, description: "Tỉnh/TP" },
+      },
     },
 
     workInfo: {
@@ -27,7 +39,7 @@ const employeeSchema = new mongoose.Schema(
       profession: { type: String, trim: true },
       jobDescription: { type: String, trim: true },
       workingTime: { type: String, trim: true },
-      joinDate: { type: Date, required: true, description: "Ngày chính thức đi làm" },
+      joinDate: { type: Date, description: "Ngày chính thức đi làm" },                     // ĐÃ BỎ required
       resignationDate: { type: Date, description: "Ngày nghỉ việc (nếu có)" },
     },
 
@@ -36,7 +48,7 @@ const employeeSchema = new mongoose.Schema(
       contractType: { 
         type: String, 
         enum: ["PROBATION", "FIXED_TERM", "INDEFINITE", "FREELANCE", "INTERNSHIP"],
-        required: true 
+        default: "PROBATION"                                                                // ĐÃ BỎ required, THÊM default
       },
       contractDuration: { type: String, trim: true, description: "Thời hạn HĐ" },
       signDate: { type: Date },
@@ -48,7 +60,7 @@ const employeeSchema = new mongoose.Schema(
 
     salaryAndBenefits: {
       taxCode: { type: String, trim: true },
-      dependents: { type: Number, default: 0, description: "Số người phụ thuộc" }, // <--- ĐÃ CHUYỂN SANG ĐÂY
+      dependents: { type: Number, default: 0, description: "Số người phụ thuộc" },
       socialInsuranceNumber: { type: String, trim: true },
       insuranceSalary: { type: Number, default: 0 },
       baseSalary: { type: Number, default: 0 },
@@ -124,7 +136,6 @@ employeeSchema.virtual("currentContractStatus").get(function () {
   return "CON_HAN";
 });
 
-// Chỉ đánh index tìm kiếm cho các trường không có unique:true
 employeeSchema.index({ idCardNumber: 1 }); 
 employeeSchema.index({ email: 1 });
 employeeSchema.index({ phoneNumber: 1 });
