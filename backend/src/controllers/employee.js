@@ -34,7 +34,42 @@ export const getDepartments = async (req, res) => {
     res.status(500).json({ message: "Lỗi hệ thống khi lấy danh sách phòng ban" });
   }
 };
+// ==========================================
+// CHUYỂN PHÒNG BAN HÀNG LOẠT
+// ==========================================
+export const bulkTransferDepartment = async (req, res) => {
+  try {
+    const { employeeIds, departmentName } = req.body;
 
+    if (!Array.isArray(employeeIds) || employeeIds.length === 0) {
+      return res.status(400).json({ message: "Chưa chọn nhân viên nào!" });
+    }
+
+    if (!departmentName) {
+      return res.status(400).json({ message: "Vui lòng chọn phòng ban đích!" });
+    }
+
+    // Kiểm tra phòng ban có tồn tại không
+    const dept = await Department.findOne({ name: departmentName });
+    if (!dept) {
+      return res.status(404).json({ message: "Phòng ban không tồn tại!" });
+    }
+
+    // Cập nhật workInfo.department cho tất cả nhân viên được chọn
+    const result = await Employee.updateMany(
+      { _id: { $in: employeeIds } },
+      { $set: { "workInfo.department": departmentName } }
+    );
+
+    res.status(200).json({
+      message: `Đã chuyển ${result.modifiedCount} nhân viên sang phòng "${departmentName}"`,
+      modifiedCount: result.modifiedCount,
+    });
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ message: "Lỗi hệ thống khi chuyển phòng ban" });
+  }
+};
 export const updateDepartment = async (req, res) => {
   try {
     const { departmentId } = req.params;

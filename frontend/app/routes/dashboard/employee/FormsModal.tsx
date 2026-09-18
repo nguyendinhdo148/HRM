@@ -59,7 +59,42 @@ export const EmployeeModal = ({ isOpen, onClose, selectedEmp, empForm, setEmpFor
       }
     }
 
-    handleSaveEmployee(e);
+    // ===== Tính giá trị cuối của Phụ cấp ca tập trước khi lưu =====
+    // CHỈ tính FIXED. PER_SESSION sẽ được tính ở backend khi gom lương (vì cần số buổi từ chấm công).
+    const sb = empForm.salaryAndBenefits || {};
+    let trainingAllowance = 0;
+    if (sb.trainingAllowanceType === "FIXED") {
+      trainingAllowance = Number(sb.trainingAllowanceFixed) || 0;
+    }
+    const finalForm = {
+      ...empForm,
+      salaryAndBenefits: { ...sb, trainingAllowance }
+    };
+    setEmpForm(finalForm);
+
+    handleSaveEmployee(e, finalForm);
+  };
+
+  // ===== Hàm tính Phụ cấp Ở =====
+  const handleHousingChange = (field: "housingCost" | "dormitoryDeduction", value: number) => {
+    const newSalary = { ...empForm.salaryAndBenefits, [field]: value };
+    const cost = field === "housingCost" ? value : (newSalary.housingCost || 0);
+    const deduction = field === "dormitoryDeduction" ? value : (newSalary.dormitoryDeduction || 0);
+    newSalary.housingAllowance = (cost || 0) - (deduction || 0);
+    setEmpForm({ ...empForm, salaryAndBenefits: newSalary });
+  };
+
+  // ===== Cập nhật trường Phụ cấp ca tập =====
+  // CHỈ preview giá trị cho FIXED. PER_SESSION để trống (backend tính khi gom lương).
+  const handleTrainingChange = (field: string, value: any) => {
+    const sb = { ...empForm.salaryAndBenefits, [field]: value };
+    let trainingAllowance = 0;
+    if (sb.trainingAllowanceType === "FIXED") {
+      trainingAllowance = Number(sb.trainingAllowanceFixed) || 0;
+    }
+    // PER_SESSION: để trainingAllowance = 0, sẽ được tính lại ở backend
+    sb.trainingAllowance = trainingAllowance;
+    setEmpForm({ ...empForm, salaryAndBenefits: sb });
   };
 
   return (
@@ -78,9 +113,7 @@ export const EmployeeModal = ({ isOpen, onClose, selectedEmp, empForm, setEmpFor
 
         <form id="employee-form" onSubmit={handleFormSubmit} className="p-6 overflow-y-auto flex-1">
           
-          {/* ============================================================== */}
           {/* TAB 1: ĐỊNH DANH & CÁ NHÂN */}
-          {/* ============================================================== */}
           {empFormTab === "personal" && (
             <div className="space-y-6 animate-in fade-in-50">
               <div className="grid grid-cols-2 gap-4">
@@ -133,85 +166,45 @@ export const EmployeeModal = ({ isOpen, onClose, selectedEmp, empForm, setEmpFor
                 <input type="text" className="w-full border rounded-md p-2" value={empForm.personalInfo.hometown} onChange={(e) => setEmpForm({...empForm, personalInfo: {...empForm.personalInfo, hometown: e.target.value}})}/>
               </div>
 
-              {/* ===== ĐỊA CHỈ THƯỜNG TRÚ (KHAI SINH) - 3 CỘT ===== */}
               <div className="p-4 bg-slate-50 border border-slate-200 rounded-lg space-y-3">
                 <h4 className="font-semibold text-slate-800 text-sm">Địa chỉ thường trú (Khai sinh)</h4>
                 <div className="grid grid-cols-3 gap-3">
                   <div>
                     <label className="block text-xs font-medium mb-1 text-slate-600">Số nhà + Tên đường</label>
-                    <input 
-                      type="text" 
-                      className="w-full border rounded-md p-2 text-sm" 
-                      value={empForm.personalInfo.permanentAddress?.houseStreet || ""} 
-                      onChange={(e) => setEmpForm({...empForm, personalInfo: {...empForm.personalInfo, permanentAddress: {...empForm.personalInfo.permanentAddress, houseStreet: e.target.value}}})}
-                      placeholder="VD: 123 Lê Lợi"
-                    />
+                    <input type="text" className="w-full border rounded-md p-2 text-sm" value={empForm.personalInfo.permanentAddress?.houseStreet || ""} onChange={(e) => setEmpForm({...empForm, personalInfo: {...empForm.personalInfo, permanentAddress: {...empForm.personalInfo.permanentAddress, houseStreet: e.target.value}}})} placeholder="VD: 123 Lê Lợi"/>
                   </div>
                   <div>
                     <label className="block text-xs font-medium mb-1 text-slate-600">Phường/Xã</label>
-                    <input 
-                      type="text" 
-                      className="w-full border rounded-md p-2 text-sm" 
-                      value={empForm.personalInfo.permanentAddress?.ward || ""} 
-                      onChange={(e) => setEmpForm({...empForm, personalInfo: {...empForm.personalInfo, permanentAddress: {...empForm.personalInfo.permanentAddress, ward: e.target.value}}})}
-                      placeholder="VD: Phường Bến Nghé"
-                    />
+                    <input type="text" className="w-full border rounded-md p-2 text-sm" value={empForm.personalInfo.permanentAddress?.ward || ""} onChange={(e) => setEmpForm({...empForm, personalInfo: {...empForm.personalInfo, permanentAddress: {...empForm.personalInfo.permanentAddress, ward: e.target.value}}})} placeholder="VD: Phường Bến Nghé"/>
                   </div>
                   <div>
                     <label className="block text-xs font-medium mb-1 text-slate-600">Tỉnh/TP</label>
-                    <input 
-                      type="text" 
-                      className="w-full border rounded-md p-2 text-sm" 
-                      value={empForm.personalInfo.permanentAddress?.province || ""} 
-                      onChange={(e) => setEmpForm({...empForm, personalInfo: {...empForm.personalInfo, permanentAddress: {...empForm.personalInfo.permanentAddress, province: e.target.value}}})}
-                      placeholder="VD: TP. Hồ Chí Minh"
-                    />
+                    <input type="text" className="w-full border rounded-md p-2 text-sm" value={empForm.personalInfo.permanentAddress?.province || ""} onChange={(e) => setEmpForm({...empForm, personalInfo: {...empForm.personalInfo, permanentAddress: {...empForm.personalInfo.permanentAddress, province: e.target.value}}})} placeholder="VD: TP. Hồ Chí Minh"/>
                   </div>
                 </div>
               </div>
 
-              {/* ===== ĐỊA CHỈ HIỆN TẠI - 3 CỘT ===== */}
               <div className="p-4 bg-slate-50 border border-slate-200 rounded-lg space-y-3">
                 <h4 className="font-semibold text-slate-800 text-sm">Địa chỉ hiện tại</h4>
                 <div className="grid grid-cols-3 gap-3">
                   <div>
                     <label className="block text-xs font-medium mb-1 text-slate-600">Số nhà + Tên đường</label>
-                    <input 
-                      type="text" 
-                      className="w-full border rounded-md p-2 text-sm" 
-                      value={empForm.personalInfo.currentAddress?.houseStreet || ""} 
-                      onChange={(e) => setEmpForm({...empForm, personalInfo: {...empForm.personalInfo, currentAddress: {...empForm.personalInfo.currentAddress, houseStreet: e.target.value}}})}
-                      placeholder="VD: 456 Nguyễn Huệ"
-                    />
+                    <input type="text" className="w-full border rounded-md p-2 text-sm" value={empForm.personalInfo.currentAddress?.houseStreet || ""} onChange={(e) => setEmpForm({...empForm, personalInfo: {...empForm.personalInfo, currentAddress: {...empForm.personalInfo.currentAddress, houseStreet: e.target.value}}})} placeholder="VD: 456 Nguyễn Huệ"/>
                   </div>
                   <div>
                     <label className="block text-xs font-medium mb-1 text-slate-600">Phường/Xã</label>
-                    <input 
-                      type="text" 
-                      className="w-full border rounded-md p-2 text-sm" 
-                      value={empForm.personalInfo.currentAddress?.ward || ""} 
-                      onChange={(e) => setEmpForm({...empForm, personalInfo: {...empForm.personalInfo, currentAddress: {...empForm.personalInfo.currentAddress, ward: e.target.value}}})}
-                      placeholder="VD: Phường Đa Kao"
-                    />
+                    <input type="text" className="w-full border rounded-md p-2 text-sm" value={empForm.personalInfo.currentAddress?.ward || ""} onChange={(e) => setEmpForm({...empForm, personalInfo: {...empForm.personalInfo, currentAddress: {...empForm.personalInfo.currentAddress, ward: e.target.value}}})} placeholder="VD: Phường Đa Kao"/>
                   </div>
                   <div>
                     <label className="block text-xs font-medium mb-1 text-slate-600">Tỉnh/TP</label>
-                    <input 
-                      type="text" 
-                      className="w-full border rounded-md p-2 text-sm" 
-                      value={empForm.personalInfo.currentAddress?.province || ""} 
-                      onChange={(e) => setEmpForm({...empForm, personalInfo: {...empForm.personalInfo, currentAddress: {...empForm.personalInfo.currentAddress, province: e.target.value}}})}
-                      placeholder="VD: TP. Hồ Chí Minh"
-                    />
+                    <input type="text" className="w-full border rounded-md p-2 text-sm" value={empForm.personalInfo.currentAddress?.province || ""} onChange={(e) => setEmpForm({...empForm, personalInfo: {...empForm.personalInfo, currentAddress: {...empForm.personalInfo.currentAddress, province: e.target.value}}})} placeholder="VD: TP. Hồ Chí Minh"/>
                   </div>
                 </div>
               </div>
             </div>
           )}
 
-          {/* ============================================================== */}
           {/* TAB 2: CÔNG VIỆC & HỢP ĐỒNG */}
-          {/* ============================================================== */}
           {empFormTab === "work" && (
             <div className="space-y-8 animate-in fade-in-50">
               <div className="bg-amber-50 p-4 rounded-lg border border-amber-100">
@@ -275,13 +268,7 @@ export const EmployeeModal = ({ isOpen, onClose, selectedEmp, empForm, setEmpFor
                 <div><label className="block text-sm font-medium mb-1">Ngày ký HĐ</label><input type="date" className="w-full border rounded-md p-2" value={empForm.contractInfo.signDate} onChange={(e) => setEmpForm({...empForm, contractInfo: {...empForm.contractInfo, signDate: e.target.value}})}/></div>
                 <div>
                   <label className="block text-sm font-medium mb-1">Ngày kết thúc HĐ</label>
-                  <input 
-                    type="date" 
-                    className="w-full border rounded-md p-2 disabled:bg-slate-100 disabled:text-slate-500" 
-                    value={empForm.contractInfo.endDate} 
-                    disabled={empForm.contractInfo.contractType === "INDEFINITE"}
-                    onChange={(e) => setEmpForm({...empForm, contractInfo: {...empForm.contractInfo, endDate: e.target.value}})}
-                  />
+                  <input type="date" className="w-full border rounded-md p-2 disabled:bg-slate-100 disabled:text-slate-500" value={empForm.contractInfo.endDate} disabled={empForm.contractInfo.contractType === "INDEFINITE"} onChange={(e) => setEmpForm({...empForm, contractInfo: {...empForm.contractInfo, endDate: e.target.value}})}/>
                 </div>
               </div>
 
@@ -294,9 +281,7 @@ export const EmployeeModal = ({ isOpen, onClose, selectedEmp, empForm, setEmpFor
             </div>
           )}
 
-          {/* ============================================================== */}
           {/* TAB 3: LƯƠNG & BẢO HIỂM */}
-          {/* ============================================================== */}
           {empFormTab === "salary" && (
             <div className="space-y-6 animate-in fade-in-50">
               <h4 className="font-semibold text-slate-800 border-b pb-2">Lương, Bảo hiểm & Ngân hàng</h4>
@@ -326,7 +311,108 @@ export const EmployeeModal = ({ isOpen, onClose, selectedEmp, empForm, setEmpFor
                 </div>
                 <div><label className="block text-sm font-medium mb-1">Thời gian trả lương</label><input type="text" className="w-full border rounded-md p-2" value={empForm.salaryAndBenefits.paymentPeriod} onChange={(e) => setEmpForm({...empForm, salaryAndBenefits: {...empForm.salaryAndBenefits, paymentPeriod: e.target.value}})} placeholder="VD: Mùng 5 hàng tháng"/></div>
               </div>
-              
+
+              {/* ===== ĐƠN GIÁ SHOW & ĂN CA ===== */}
+              <h4 className="font-semibold text-slate-800 border-b pb-2 mt-8">Đơn giá Show &amp; Tiền Ăn Ca</h4>
+              <div className="grid grid-cols-3 gap-4">
+                <div className="bg-purple-50 p-2 rounded border border-purple-200">
+                  <label className="block text-sm font-bold text-purple-800 mb-1">Đơn giá Mini Show (VNĐ)</label>
+                  <input type="number" className="w-full border border-purple-300 rounded-md p-2" value={empForm.salaryAndBenefits.minishowRate ?? 65000} onChange={(e) => setEmpForm({...empForm, salaryAndBenefits: {...empForm.salaryAndBenefits, minishowRate: Number(e.target.value)}})}/>
+                  <p className="text-[10px] text-purple-600 mt-1 leading-tight">Mặc định: 65.000</p>
+                </div>
+                <div className="bg-purple-50 p-2 rounded border border-purple-200">
+                  <label className="block text-sm font-bold text-purple-800 mb-1">Đơn giá Big Show (VNĐ)</label>
+                  <input type="number" className="w-full border border-purple-300 rounded-md p-2" value={empForm.salaryAndBenefits.bigshowRate ?? 213462} onChange={(e) => setEmpForm({...empForm, salaryAndBenefits: {...empForm.salaryAndBenefits, bigshowRate: Number(e.target.value)}})}/>
+                  <p className="text-[10px] text-purple-600 mt-1 leading-tight">Mặc định: 213.462</p>
+                </div>
+                <div className="bg-emerald-50 p-2 rounded border border-emerald-200">
+                  <label className="block text-sm font-bold text-emerald-800 mb-1">Tiền ăn / Công (VNĐ)</label>
+                  <input type="number" className="w-full border border-emerald-300 rounded-md p-2" value={empForm.salaryAndBenefits.mealRate ?? 0} onChange={(e) => setEmpForm({...empForm, salaryAndBenefits: {...empForm.salaryAndBenefits, mealRate: Number(e.target.value)}})}/>
+                  <p className="text-[10px] text-emerald-600 mt-1 leading-tight">Để 0 = dùng mặc định 1.800.000/26 ≈ 69.231</p>
+                </div>
+              </div>
+
+              {/* ===== PHỤ CẤP CA TẬP ===== */}
+              <h4 className="font-semibold text-slate-800 border-b pb-2 mt-8">Phụ cấp Ca tập</h4>
+              <div className="grid grid-cols-4 gap-4 items-end">
+                <div className="col-span-1">
+                  <label className="block text-sm font-bold text-indigo-800 mb-1">Hình thức</label>
+                  <select 
+                    className="w-full border border-indigo-300 rounded-md p-2 bg-white font-medium"
+                    value={empForm.salaryAndBenefits.trainingAllowanceType || "NONE"}
+                    onChange={(e) => handleTrainingChange("trainingAllowanceType", e.target.value)}
+                  >
+                    <option value="NONE">Không có</option>
+                    <option value="FIXED">Nhập số tiền cố định</option>
+                    <option value="PER_SESSION">Đơn giá × Số buổi (chấm công)</option>
+                  </select>
+                </div>
+
+                {empForm.salaryAndBenefits.trainingAllowanceType === "FIXED" && (
+                  <div className="col-span-2 bg-indigo-50 p-2 rounded border border-indigo-200">
+                    <label className="block text-sm font-bold text-indigo-800 mb-1">Số tiền (VNĐ)</label>
+                    <input 
+                      type="number" 
+                      className="w-full border border-indigo-300 rounded-md p-2" 
+                      value={empForm.salaryAndBenefits.trainingAllowanceFixed || 0} 
+                      onChange={(e) => handleTrainingChange("trainingAllowanceFixed", Number(e.target.value))}
+                      placeholder="VD: 500000"
+                    />
+                  </div>
+                )}
+
+                {empForm.salaryAndBenefits.trainingAllowanceType === "PER_SESSION" && (
+                  <div className="col-span-2 bg-indigo-50 p-2 rounded border border-indigo-200">
+                    <label className="block text-sm font-bold text-indigo-800 mb-1">Đơn giá / buổi (VNĐ)</label>
+                    <input 
+                      type="number" 
+                      className="w-full border border-indigo-300 rounded-md p-2" 
+                      value={empForm.salaryAndBenefits.trainingAllowanceRate || 0} 
+                      onChange={(e) => handleTrainingChange("trainingAllowanceRate", Number(e.target.value))}
+                      placeholder="VD: 39000"
+                    />
+                    <p className="text-[10px] text-indigo-600 mt-1 leading-tight">
+                      Số buổi sẽ tự động lấy từ bảng chấm công khi gom lương
+                    </p>
+                  </div>
+                )}
+
+                <div className="col-span-1 bg-green-50 p-2 rounded border border-green-200">
+                  <label className="block text-sm font-bold text-green-800 mb-1">
+                    {empForm.salaryAndBenefits.trainingAllowanceType === "PER_SESSION" ? "Tạm tính" : "Thành tiền"} (VNĐ)
+                  </label>
+                  <input 
+                    type="number" 
+                    readOnly
+                    className="w-full border border-green-300 rounded-md p-2 bg-slate-100 text-slate-700 font-semibold" 
+                    value={empForm.salaryAndBenefits.trainingAllowance || 0} 
+                  />
+                  <p className="text-[10px] text-green-600 mt-1 leading-tight">
+                    {empForm.salaryAndBenefits.trainingAllowanceType === "PER_SESSION" 
+                      ? "Sẽ tính theo số buổi chấm công" 
+                      : "Tự tính"}
+                  </p>
+                </div>
+              </div>
+
+              {/* ===== PHỤ CẤP Ở ===== */}
+              <h4 className="font-semibold text-slate-800 border-b pb-2 mt-8">Phụ cấp Ở</h4>
+              <div className="grid grid-cols-3 gap-4">
+                <div className="bg-amber-50 p-2 rounded border border-amber-200">
+                  <label className="block text-sm font-bold text-amber-800 mb-1">Chi phí ở (VNĐ)</label>
+                  <input type="number" className="w-full border border-amber-300 rounded-md p-2" value={empForm.salaryAndBenefits.housingCost} onChange={(e) => handleHousingChange("housingCost", Number(e.target.value))}/>
+                </div>
+                <div className="bg-amber-50 p-2 rounded border border-amber-200">
+                  <label className="block text-sm font-bold text-amber-800 mb-1">KTX tt VS (VNĐ)</label>
+                  <input type="number" className="w-full border border-amber-300 rounded-md p-2" value={empForm.salaryAndBenefits.dormitoryDeduction} onChange={(e) => handleHousingChange("dormitoryDeduction", Number(e.target.value))}/>
+                </div>
+                <div className="bg-green-50 p-2 rounded border border-green-200">
+                  <label className="block text-sm font-bold text-green-800 mb-1">Phụ cấp Ở (VNĐ)</label>
+                  <input type="number" readOnly className="w-full border border-green-300 rounded-md p-2 bg-slate-100 text-slate-700 font-semibold" value={empForm.salaryAndBenefits.housingAllowance} />
+                  <p className="text-[10px] text-green-600 mt-1 leading-tight">= Chi phí ở - KTX tt VS</p>
+                </div>
+              </div>
+
               <h4 className="font-semibold text-slate-800 border-b pb-2 mt-8">Chính sách Thưởng</h4>
               <div className="grid grid-cols-3 gap-4">
                 <div className="bg-teal-50 p-2 rounded border border-teal-200">

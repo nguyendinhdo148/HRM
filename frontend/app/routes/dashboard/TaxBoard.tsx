@@ -84,7 +84,7 @@ export default function TaxBoard() {
     } catch (error) { console.error(error); }
   };
 
-  // Cập nhật logic Xuất Excel - Áp dụng ĐÚNG chuẩn z: "#,##0" của xlsx-js-style
+  // ===== XUẤT EXCEL =====
   const handleExportExcel = () => {
     if (records.length === 0) return alert("Không có dữ liệu để xuất");
     
@@ -105,12 +105,14 @@ export default function TaxBoard() {
 
     const wsData: any[][] = [];
     wsData.push([{ v: `BẢNG TÍNH THUẾ THU NHẬP CÁ NHÂN - THÁNG ${m}/${y}`, s: titleStyle }]);
-    wsData.push([]); // Dòng trống
+    wsData.push([]);
 
+    // BỎ cột "Tiền ăn"
     const headers = [
       "STT", "Mã NV", "Họ và tên", "Chức vụ", 
-      "Thu nhập chịu thuế", "Tiền ăn", "Giảm trừ bản thân", "Số NPT", 
-      "Giảm trừ NPT", "BH trừ vào lương", "Tổng giảm trừ", 
+      "Lương Gross", "Tiền ở", 
+      "Giảm trừ bản thân", "Số NPT", "Giảm trừ NPT", 
+      "BH trừ vào lương", "Tổng giảm trừ", 
       "Thu nhập tính thuế", "Thuế TNCN"
     ];
     wsData.push(headers.map(h => ({ v: h, s: headerStyle })));
@@ -119,16 +121,17 @@ export default function TaxBoard() {
     wsData.push(subHeaders.map(h => ({ v: h, s: subHeaderStyle })));
 
     records.forEach((r, index) => {
+      const housingAllowance = r.deductions?.housingAllowance || 0;
+      
       wsData.push([
         { v: Number(index + 1), t: "n", s: cellCenter },
         { v: r.employeeSnapshot?.employeeCode || "", s: cellCenter },
         { v: r.employeeSnapshot?.fullName || "", s: cellLeft },
         { v: r.employeeSnapshot?.position || "", s: cellCenter },
-        // Chú ý: Dùng t: "n" (number) và z: "#,##0" (format) đặt trực tiếp trong object
         { v: Number(r.taxableIncome) || 0, t: "n", z: "#,##0", s: cellRightBold },
-        { v: Number(r.allowances?.meal) || 0, t: "n", z: "#,##0", s: cellRight },
+        { v: Number(housingAllowance), t: "n", z: "#,##0", s: cellRight },
         { v: Number(r.deductions?.personal) || 0, t: "n", z: "#,##0", s: cellRight },
-        { v: Number((r.deductions?.dependent || 0) / 6200000), t: "n", s: cellCenter }, // Cột số lượng NPT không cần phẩy ngàn
+        { v: Number((r.deductions?.dependent || 0) / 6200000), t: "n", s: cellCenter },
         { v: Number(r.deductions?.dependent) || 0, t: "n", z: "#,##0", s: cellRight },
         { v: Number(r.deductions?.insurance) || 0, t: "n", z: "#,##0", s: cellRight },
         { v: Number(r.deductions?.total) || 0, t: "n", z: "#,##0", s: cellRightBold },
@@ -138,11 +141,7 @@ export default function TaxBoard() {
     });
 
     const ws = XLSX.utils.aoa_to_sheet(wsData);
-    
-    // Gộp cột tiêu đề
     ws["!merges"] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: headers.length - 1 } }];
-    
-    // Độ rộng các cột
     ws["!cols"] = [
       { wch: 6 }, { wch: 12 }, { wch: 25 }, { wch: 15 }, 
       { wch: 20 }, { wch: 15 }, { wch: 18 }, { wch: 10 }, 
@@ -192,32 +191,32 @@ export default function TaxBoard() {
         </div>
       </div>
 
-      {/* NOTE MÀU VÀNG */}
+      {/* NOTE */}
       <div className="bg-yellow-100 border border-yellow-300 p-4 rounded-xl flex items-start gap-3 shadow-sm">
         <Info className="w-5 h-5 text-yellow-600 shrink-0 mt-0.5" />
         <div className="text-sm font-medium text-yellow-900 leading-relaxed">
           <strong>Lưu ý: Bảng thuế cập nhật mới</strong><br/>
-          + Mức Giảm Trừ Gia Cảnh bản thân Tăng Lên <strong>15,5 Triệu Đồng/ Tháng</strong>.<br/>
-          + Mỗi Người Phụ Thuộc <strong>6,2 Triệu/ Tháng</strong>.<br/>
-          + <strong>Công thức tính thuế:</strong> Thu nhập tính thuế = Thu nhập chịu thuế - Giảm trừ bản thân - NPT - Tiền ăn - BHXH
+          + Mức Giảm Trừ Gia Cảnh bản thân <strong>15.5 Triệu Đồng/ Tháng</strong>.<br/>
+          + Mỗi Người Phụ Thuộc <strong>6.2 Triệu/ Tháng</strong>.<br/>
+          + <strong>Công thức:</strong> Thu nhập tính thuế = Lương Gross - (BHXH - 88k) - Tiền ở - 15.5tr - (6.2tr × NPT)
         </div>
       </div>
 
-      {/* BẢNG TÍNH CHI TIẾT */}
+      {/* BẢNG */}
       <Card className="border-none shadow-sm rounded-xl overflow-hidden">
         <div className="overflow-x-auto">
           {isDataLoading ? (
             <div className="h-64 flex items-center justify-center"><Loader /></div>
           ) : (
-            <table className="w-full text-xs border-collapse min-w-[1300px]">
+            <table className="w-full text-xs border-collapse min-w-[1400px]">
               <thead>
                 <tr className="bg-[#0f172a] text-white">
                   <th className="border border-slate-700 p-3 text-center">STT</th>
                   <th className="border border-slate-700 p-3 text-center">Mã NV</th>
                   <th className="border border-slate-700 p-3 text-left">Họ và tên</th>
                   <th className="border border-slate-700 p-3 text-left">Chức vụ</th>
-                  <th className="border border-slate-700 p-3 text-right text-emerald-300">Thu nhập chịu thuế</th>
-                  <th className="border border-slate-700 p-3 text-right text-emerald-300">Tiền ăn</th>
+                  <th className="border border-slate-700 p-3 text-right text-emerald-300">Lương Gross</th>
+                  <th className="border border-slate-700 p-3 text-right text-amber-300">Tiền ở</th>
                   <th className="border border-slate-700 p-3 text-right">Giảm trừ bản thân</th>
                   <th className="border border-slate-700 p-3 text-center">Số NPT</th>
                   <th className="border border-slate-700 p-3 text-right">Giảm trừ NPT</th>
@@ -233,32 +232,35 @@ export default function TaxBoard() {
               <tbody className="bg-white">
                 {records.length === 0 ? (
                   <tr><td colSpan={13} className="text-center p-10 text-slate-400">Chưa có dữ liệu</td></tr>
-                ) : records.map((r, idx) => (
-                  <tr key={r._id} className="hover:bg-slate-50 border-b">
-                    <td className="p-2 border-r text-center">{idx + 1}</td>
-                    <td className="p-2 border-r text-center font-medium">{r.employeeSnapshot?.employeeCode}</td>
-                    <td className="p-2 border-r font-bold text-slate-800">{r.employeeSnapshot?.fullName}</td>
-                    <td className="p-2 border-r text-slate-600">{r.employeeSnapshot?.position}</td>
-                    
-                    <td className="p-2 border-r text-right font-bold text-slate-800 bg-emerald-50/30">
-                      {formatMoney(r.taxableIncome)}
-                    </td>
+                ) : records.map((r, idx) => {
+                  const housingAllowance = r.deductions?.housingAllowance || 0;
+                  return (
+                    <tr key={r._id} className="hover:bg-slate-50 border-b">
+                      <td className="p-2 border-r text-center">{idx + 1}</td>
+                      <td className="p-2 border-r text-center font-medium">{r.employeeSnapshot?.employeeCode}</td>
+                      <td className="p-2 border-r font-bold text-slate-800">{r.employeeSnapshot?.fullName}</td>
+                      <td className="p-2 border-r text-slate-600">{r.employeeSnapshot?.position}</td>
+                      
+                      <td className="p-2 border-r text-right font-bold text-slate-800 bg-emerald-50/30">
+                        {formatMoney(r.taxableIncome)}
+                      </td>
 
-                    <td className="p-2 border-r text-right font-bold text-emerald-700 bg-emerald-50/20">{formatMoney(r.allowances?.meal)}</td>
-                    <td className="p-2 border-r text-right font-medium text-slate-600">{formatMoney(r.deductions?.personal)}</td>
-                    
-                    <td className="p-2 border-r text-center font-bold text-slate-700">
-                      {(r.deductions?.dependent || 0) / 6200000}
-                    </td>
+                      <td className="p-2 border-r text-right font-bold text-amber-700 bg-amber-50/20">{formatMoney(housingAllowance)}</td>
+                      <td className="p-2 border-r text-right font-medium text-slate-600">{formatMoney(r.deductions?.personal)}</td>
+                      
+                      <td className="p-2 border-r text-center font-bold text-slate-700">
+                        {(r.deductions?.dependent || 0) / 6200000}
+                      </td>
 
-                    <td className="p-2 border-r text-right font-medium text-slate-600">{formatMoney(r.deductions?.dependent)}</td>
-                    <td className="p-2 border-r text-right font-medium text-slate-600">{formatMoney(r.deductions?.insurance)}</td>
-                    <td className="p-2 border-r text-right font-bold text-slate-700">{formatMoney(r.deductions?.total)}</td>
-                    
-                    <td className="p-2 border-r text-right font-bold text-blue-700 bg-blue-50/30">{r.assessableIncome > 0 ? formatMoney(r.assessableIncome) : "-"}</td>
-                    <td className="p-2 border-r text-right font-black text-rose-600 bg-rose-50/50">{r.taxAmount > 0 ? formatMoney(r.taxAmount) : "-"}</td>
-                  </tr>
-                ))}
+                      <td className="p-2 border-r text-right font-medium text-slate-600">{formatMoney(r.deductions?.dependent)}</td>
+                      <td className="p-2 border-r text-right font-medium text-slate-600">{formatMoney(r.deductions?.insurance)}</td>
+                      <td className="p-2 border-r text-right font-bold text-slate-700">{formatMoney(r.deductions?.total)}</td>
+                      
+                      <td className="p-2 border-r text-right font-bold text-blue-700 bg-blue-50/30">{r.assessableIncome > 0 ? formatMoney(r.assessableIncome) : "-"}</td>
+                      <td className="p-2 border-r text-right font-black text-rose-600 bg-rose-50/50">{r.taxAmount > 0 ? formatMoney(r.taxAmount) : "-"}</td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           )}

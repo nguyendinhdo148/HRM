@@ -8,9 +8,10 @@ import {
   createEmployee,
   getEmployees,
   getEmployeeDetails,
-  updateEmployee, // Bổ sung import
-  deleteEmployee, // Bổ sung import
+  updateEmployee,
+  deleteEmployee,
   getHRStats,
+  bulkTransferDepartment, // <-- BỔ SUNG: chuyển phòng ban hàng loạt
 } from "../controllers/employee.js";
 
 const router = express.Router();
@@ -28,6 +29,15 @@ router.delete("/departments/:departmentId", authMiddleware, deleteDepartment);
 // ==========================================
 router.post("/employees", authMiddleware, createEmployee);
 router.get("/employees", authMiddleware, getEmployees);
+
+// ⚠️ QUAN TRỌNG: Route bulk-transfer PHẢI đặt TRƯỚC route /:employeeId
+// Nếu đặt sau, Express sẽ hiểu "bulk-transfer-department" là employeeId
+router.put(
+  "/employees/bulk-transfer-department",
+  authMiddleware,
+  bulkTransferDepartment
+);
+
 router.get("/employees/:employeeId", authMiddleware, getEmployeeDetails);
 
 // BỔ SUNG 2 CHỨC NĂNG UPDATE VÀ DELETE CHO NHÂN VIÊN

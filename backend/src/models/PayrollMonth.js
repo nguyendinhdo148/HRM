@@ -1,41 +1,69 @@
 import mongoose from "mongoose";
 
-const payrollMonthSchema = new mongoose.Schema(
+const payrollRecordSchema = new mongoose.Schema(
   {
-    month: { 
-      type: Number, 
-      required: true, 
-      min: 1, 
-      max: 12 
+    payrollMonth: { type: mongoose.Schema.Types.ObjectId, ref: "PayrollMonth" }, 
+    employee: { type: mongoose.Schema.Types.ObjectId, ref: "Employee" },
+    
+    employeeSnapshot: {
+      fullName: { type: String, required: true },
+      employeeCode: { type: String, required: true },
+      department: { type: String },
+      position: { type: String }
     },
-    year: { 
-      type: Number, 
-      required: true 
+
+    month: { type: Number, required: true },
+    year: { type: Number, required: true },
+
+    baseSalary: { type: Number, default: 0 },
+    insuranceSalary: { type: Number, default: 0 },
+    standardDays: { type: Number, default: 26 },
+    actualDays: { type: Number, default: 0 },
+
+    incomes: {
+      timeSalary: { type: Number, default: 0 },
+      overtime: { type: Number, default: 0 },
+      miniShowMoney: { type: Number, default: 0 },
+      bigShowMoney: { type: Number, default: 0 },
+      kpiBonus: { type: Number, default: 0 },
+      bonus: { type: Number, default: 0 },
+      totalGross: { type: Number, default: 0 },
+      insuranceAdvance: { type: Number, default: 500000 },
+      penalty: { type: Number, default: 0 },
+      // ===== ĐIỀU CHỈNH CP KHÁC (nhập tay) =====
+      adjustment: { type: Number, default: 0 },
+      allowances: {
+        meal: { type: Number, default: 0 },
+        transport: { type: Number, default: 0 },
+        phone: { type: Number, default: 0 },
+        clothing: { type: Number, default: 0 },
+        housing: { type: Number, default: 0 },
+        housingAllowance: { type: Number, default: 0 },
+        trainingAllowance: { type: Number, default: 0 },
+        other: { type: Number, default: 0 }
+      }
     },
-    status: {
-      type: String,
-      enum: ["draft", "approved", "paid"],
-      default: "draft", // draft: đang nháp, approved: đã khóa, paid: đã thanh toán
+
+    deductions: {
+      advance: { type: Number, default: 0 },  
+      insurance: {
+        bhxh: { type: Number, default: 0 },
+        bhyt: { type: Number, default: 0 },
+        bhtn: { type: Number, default: 0 },
+        total: { type: Number, default: 0 }, 
+      },
+      excludedFromInsurance: { type: Boolean, default: false },
+      taxTNCN: { type: Number, default: 0 }, 
+      totalDeductions: { type: Number, default: 0 },
     },
-    totalEmployees: { 
-      type: Number, 
-      default: 0 
-    },
-    totalGross: { 
-      type: Number, 
-      default: 0,
-      description: "Tổng lương trước thuế/BH của toàn công ty tháng này"
-    },
-    totalNet: { 
-      type: Number, 
-      default: 0,
-      description: "Tổng thực lĩnh phải trả"
-    },
+
+    netSalary: { type: Number, default: 0 },
+    isEmailSent: { type: Boolean, default: false },
   },
   { timestamps: true }
 );
 
-// Đảm bảo không tạo trùng 2 kỳ lương cho cùng 1 tháng
-payrollMonthSchema.index({ month: 1, year: 1 }, { unique: true });
+payrollRecordSchema.index({ month: 1, year: 1, employee: 1 }, { unique: true });
 
-export const PayrollMonth = mongoose.model("PayrollMonth", payrollMonthSchema);
+
+export const PayrollRecord = mongoose.model("PayrollRecord", payrollRecordSchema);

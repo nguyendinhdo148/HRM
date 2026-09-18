@@ -43,6 +43,7 @@ export default function HRMDashboard() {
   const [durationUnit, setDurationUnit] = useState<"months" | "years">("years");
 
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [isBulkTransferring, setIsBulkTransferring] = useState(false);
 
   // ===== STATE IN HỢP ĐỒNG =====
   const [printEmployee, setPrintEmployee] = useState<any>(null);
@@ -186,6 +187,30 @@ export default function HRMDashboard() {
   const handleDeleteEmp = async (id: string) => {
     if (!window.confirm("Bạn có chắc muốn xóa nhân sự này?")) return;
     try { const res = await fetch(`${API_BASE_URL}/employees/${id}`, { method: "DELETE", headers: getAuthHeaders() }); if (res.ok) fetchData(); } catch (error) { console.error(error); }
+  };
+
+  const handleBulkTransfer = async (employeeIds: string[], departmentName: string) => {
+    setIsBulkTransferring(true);
+    try {
+      const res = await fetch(`${API_BASE_URL}/employees/bulk-transfer-department`, {
+        method: "PUT",
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ employeeIds, departmentName }),
+      });
+
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data?.message || "Chuyển phòng ban thất bại");
+      }
+
+      alert(data?.message || `Đã chuyển ${employeeIds.length} nhân viên sang phòng "${departmentName}"`);
+      await fetchData();
+    } catch (error: any) {
+      console.error("Bulk transfer failed:", error);
+      alert(error?.message || "Có lỗi xảy ra khi chuyển phòng ban");
+    } finally {
+      setIsBulkTransferring(false);
+    }
   };
 
   const handleExportExcel = async () => {
@@ -372,6 +397,9 @@ export default function HRMDashboard() {
         
         <EmployeesTab 
           processedEmployees={processedEmployees} 
+          departments={departments}
+          onBulkTransfer={handleBulkTransfer}
+          isBulkTransferring={isBulkTransferring}
           handleOpenEmpModal={handleOpenEmpModal} 
           handleDeleteEmp={handleDeleteEmp} 
           onPrintContract={(emp: any) => setPrintEmployee(emp)}   // ← THÊM

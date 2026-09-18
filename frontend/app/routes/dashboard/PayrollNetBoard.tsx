@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useState, useEffect, useMemo } from "react";
 import {
-  Search, FileDown, Wallet, Filter, CheckCircle2, Lock, Landmark, ChevronLeft, ChevronRight, HandCoins, Calculator, Users, TrendingUp, Banknote, Building2, Loader2, FileSpreadsheet, ClipboardList
+  Search, FileDown, Wallet, Filter, CheckCircle2, Lock, Landmark, ChevronLeft, ChevronRight, HandCoins, Calculator, Users, TrendingUp, Banknote, Building2, Loader2, FileSpreadsheet, ClipboardList, Save, X
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -24,9 +24,17 @@ const formatNumberWithDot = (val: string | number) => {
   if (val === undefined || val === null || val === "") return "0";
   return val.toString().replace(/\D/g, "").replace(/\B(?=(\d{3})+(?!\d))/g, ".");
 };
+// Format số có dấu âm: -500.000
+const formatNumberWithDotSigned = (val: string | number) => {
+  if (val === undefined || val === null || val === "") return "0";
+  const num = Number(val);
+  if (isNaN(num)) return "0";
+  const sign = num < 0 ? "-" : "";
+  return sign + Math.abs(num).toString().replace(/\D/g, "").replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+};
 
 // ==========================================
-// COMPONENT DÙNG CHUNG: BỘ LỌC BÁO CÁO (THÁNG/QUÝ/NĂM)
+// BỘ LỌC BÁO CÁO
 // ==========================================
 const ReportFilterBar = ({ 
   reportYear, setReportYear, 
@@ -78,16 +86,17 @@ const ReportFilterBar = ({
 };
 
 // ==========================================
-// THÀNH PHẦN STATS (TỔNG CỤC) DỰA TRÊN DỮ LIỆU TỔNG HỢP GỐC
+// STATS
 // ==========================================
 const TabPayrollStats = ({ reportData, filterProps }: any) => {
   const stats = useMemo(() => {
     return reportData.reduce((acc: any, curr: any) => {
       acc.gross += curr.totalGross;
-      acc.insurance += curr.insurance;
       acc.net += curr.accountingNet;
+      acc.adjustment += curr.adjustment || 0;
+      acc.finalPayment += curr.finalPayment || 0;
       return acc;
-    }, { gross: 0, insurance: 0, net: 0 });
+    }, { gross: 0, net: 0, adjustment: 0, finalPayment: 0 });
   }, [reportData]);
 
   const chartData = useMemo(() => {
@@ -108,8 +117,8 @@ const TabPayrollStats = ({ reportData, filterProps }: any) => {
         <div className="grid gap-4 md:grid-cols-4">
           <Card className="border-l-4 border-l-blue-600 shadow-sm"><CardContent className="p-5"><div className="text-xs font-bold text-slate-400 uppercase mb-1">Nhân sự (Tổng)</div><div className="text-3xl font-black text-slate-800">{reportData.length} <span className="text-sm">người</span></div></CardContent></Card>
           <Card className="border-l-4 border-l-emerald-500 shadow-sm"><CardContent className="p-5"><div className="text-xs font-bold text-slate-400 uppercase mb-1">Tổng Gross</div><div className="text-2xl font-black text-emerald-600">{formatCurrency(stats.gross)}</div></CardContent></Card>
-          <Card className="border-l-4 border-l-rose-500 shadow-sm"><CardContent className="p-5"><div className="text-xs font-bold text-slate-400 uppercase mb-1">Quỹ BHXH (Gốc)</div><div className="text-2xl font-black text-rose-600">{formatCurrency(stats.insurance)}</div></CardContent></Card>
           <Card className="border-l-4 border-l-amber-500 shadow-sm"><CardContent className="p-5"><div className="text-xs font-bold text-slate-400 uppercase mb-1">Tổng Kế Toán (Net Gốc)</div><div className="text-2xl font-black text-amber-600">{formatCurrency(stats.net)}</div></CardContent></Card>
+          <Card className="border-l-4 border-l-rose-500 shadow-sm"><CardContent className="p-5"><div className="text-xs font-bold text-slate-400 uppercase mb-1">Tổng Thanh Toán CK</div><div className="text-2xl font-black text-rose-600">{formatCurrency(stats.finalPayment)}</div></CardContent></Card>
         </div>
         <Card className="p-6 border shadow-sm bg-white">
           <CardHeader className="px-0 pt-0 border-b mb-6 pb-4 flex flex-row items-center justify-between">
@@ -133,7 +142,7 @@ const TabPayrollStats = ({ reportData, filterProps }: any) => {
 };
 
 // ==========================================
-// THÀNH PHẦN KÊ KHAI THUẾ DỰA TRÊN DỮ LIỆU TỔNG HỢP GỐC
+// TAX SUMMARY
 // ==========================================
 const TabTaxSummary = ({ reportData, isReportingFetching, filterProps }: any) => {
   const totals = useMemo(() => {
@@ -152,15 +161,16 @@ const TabTaxSummary = ({ reportData, isReportingFetching, filterProps }: any) =>
       acc.bonus += curr.bonus;
       acc.gross += curr.totalGross;
       acc.advance += curr.advance;
-      acc.insurance += curr.insurance;
       acc.taxTNCN += curr.taxTNCN;
       acc.deductions += curr.accountingDeductions;
       acc.net += curr.accountingNet;
+      acc.adjustment += curr.adjustment || 0;
+      acc.finalPayment += curr.finalPayment || 0;
       return acc;
     }, { 
       actualDays: 0, timeSalary: 0, overtime: 0, miniShowMoney: 0, bigShowMoney: 0, kpiBonus: 0,
       meal: 0, transport: 0, phone: 0, clothing: 0, housing: 0, bonus: 0,
-      gross: 0, advance: 0, insurance: 0, taxTNCN: 0, deductions: 0, net: 0 
+      gross: 0, advance: 0, taxTNCN: 0, deductions: 0, net: 0, adjustment: 0, finalPayment: 0 
     });
   }, [reportData]);
 
@@ -183,7 +193,8 @@ const TabTaxSummary = ({ reportData, isReportingFetching, filterProps }: any) =>
       "Mini Show", "Big Show", "Thưởng N.Công", 
       "Tiền Ăn Ca", "Xăng Xe", "Điện Thoại", "Trang Phục", "Nhà Ở", 
       "Thưởng Mới", "TỔNG GROSS", 
-      "Tạm Ứng", "BHXH (100% Gốc)", "Thuế TNCN (100% Gốc)", "Tổng Khấu Trừ", "THỰC LĨNH"
+      "Tạm Ứng", "Thuế TNCN (100% Gốc)", "Tổng Khấu Trừ", "THỰC LĨNH",
+      "ĐIỀU CHỈNH CP KHÁC", "TỔNG THANH TOÁN CK"
     ];
     
     const dataRows = reportData.map((d: any, i: number) => [
@@ -192,7 +203,8 @@ const TabTaxSummary = ({ reportData, isReportingFetching, filterProps }: any) =>
       Number(d.miniShowMoney) || 0, Number(d.bigShowMoney) || 0, Number(d.kpiBonus) || 0, 
       Number(d.meal) || 0, Number(d.transport) || 0, Number(d.phone) || 0, Number(d.clothing) || 0, Number(d.housing) || 0, 
       Number(d.bonus) || 0, Number(d.totalGross) || 0, 
-      Number(d.advance) || 0, Number(d.insurance) || 0, Number(d.taxTNCN) || 0, Number(d.accountingDeductions) || 0, Number(d.accountingNet) || 0
+      Number(d.advance) || 0, Number(d.taxTNCN) || 0, Number(d.accountingDeductions) || 0, Number(d.accountingNet) || 0,
+      Number(d.adjustment) || 0, Number(d.finalPayment) || 0
     ]);
 
     const totalRow = [
@@ -201,7 +213,8 @@ const TabTaxSummary = ({ reportData, isReportingFetching, filterProps }: any) =>
       Number(totals.miniShowMoney) || 0, Number(totals.bigShowMoney) || 0, Number(totals.kpiBonus) || 0, 
       Number(totals.meal) || 0, Number(totals.transport) || 0, Number(totals.phone) || 0, Number(totals.clothing) || 0, Number(totals.housing) || 0, 
       Number(totals.bonus) || 0, Number(totals.gross) || 0, 
-      Number(totals.advance) || 0, Number(totals.insurance) || 0, Number(totals.taxTNCN) || 0, Number(totals.deductions) || 0, Number(totals.net) || 0
+      Number(totals.advance) || 0, Number(totals.taxTNCN) || 0, Number(totals.deductions) || 0, Number(totals.net) || 0,
+      Number(totals.adjustment) || 0, Number(totals.finalPayment) || 0
     ];
 
     const wsData = [titleRow, emptyRow, headers, ...dataRows, totalRow];
@@ -214,7 +227,6 @@ const TabTaxSummary = ({ reportData, isReportingFetching, filterProps }: any) =>
       alignment: { horizontal: "center", vertical: "center" }
     };
 
-    // Áp dụng định dạng ô và ép type
     for (let r = 2; r <= 3 + dataRows.length; r++) { 
       const isTotalRow = r === 3 + dataRows.length;
       for (let c = 0; c < headers.length; c++) {
@@ -222,7 +234,6 @@ const TabTaxSummary = ({ reportData, isReportingFetching, filterProps }: any) =>
         if (!ws[cellRef]) ws[cellRef] = { v: "", t: "s" };
         
         if (r === 2) {
-          // Format header
           ws[cellRef].s = {
             fill: { fgColor: { rgb: "003366" } },
             font: { name: "Arial", sz: 11, bold: true, color: { rgb: "FFFFFF" } },
@@ -233,7 +244,6 @@ const TabTaxSummary = ({ reportData, isReportingFetching, filterProps }: any) =>
             }
           };
         } else {
-          // Format body & total
           ws[cellRef].s = {
             font: { name: "Arial", sz: 11, bold: isTotalRow }, 
             fill: isTotalRow ? { fgColor: { rgb: "FFF2CC" } } : undefined, 
@@ -244,10 +254,9 @@ const TabTaxSummary = ({ reportData, isReportingFetching, filterProps }: any) =>
             alignment: { vertical: "center", horizontal: (c >= 5 ? "right" : (c === 0 ? "center" : "left")) }
           };
 
-          // Ép chuẩn Type Number (t: 'n') và s.numFmt
           if (typeof ws[cellRef].v === 'number') {
             ws[cellRef].t = 'n';
-            if (c >= 6) { // Cột tiền tệ
+            if (c >= 6) {
               ws[cellRef].s.numFmt = "#,##0";
             }
           }
@@ -260,7 +269,8 @@ const TabTaxSummary = ({ reportData, isReportingFetching, filterProps }: any) =>
       { wch: 10 }, { wch: 14 }, { wch: 14 }, { wch: 12 }, { wch: 12 }, { wch: 14 }, 
       { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, 
       { wch: 14 }, { wch: 16 }, 
-      { wch: 14 }, { wch: 14 }, { wch: 16 }, { wch: 16 }, { wch: 18 }
+      { wch: 14 }, { wch: 16 }, { wch: 16 }, { wch: 18 },
+      { wch: 18 }, { wch: 18 }
     ];
 
     XLSX.utils.book_append_sheet(wb, ws, "Thong_Ke_Thue_Ke_Toan");
@@ -273,7 +283,7 @@ const TabTaxSummary = ({ reportData, isReportingFetching, filterProps }: any) =>
 
       <Card className="border-none shadow-sm rounded-2xl overflow-hidden bg-white flex-1 min-h-0 flex flex-col">
         <div className="w-full h-full overflow-auto custom-scrollbar relative">
-          <table className="w-full text-[11px] border-collapse min-w-[2400px]">
+          <table className="w-full text-[11px] border-collapse min-w-[2450px]">
             <thead className="bg-[#003366] text-white">
               <tr className="h-[40px]">
                 <th rowSpan={2} className="p-2 sticky left-0 top-0 bg-[#003366] z-[60] border-r border-b border-slate-600 text-center w-[45px]">STT</th>
@@ -284,8 +294,10 @@ const TabTaxSummary = ({ reportData, isReportingFetching, filterProps }: any) =>
                 <th colSpan={3} className="p-2 border-r border-b border-slate-600 bg-[#6b21a8] text-center sticky top-0 z-[50]">Hiệu Suất (Show & Công)</th>
                 <th colSpan={6} className="p-2 border-r border-b border-slate-600 bg-[#0f766e] text-center sticky top-0 z-[50]">Các Khoản Phụ Cấp & Thưởng</th>
                 <th rowSpan={2} className="p-2 bg-[#064e3b] text-emerald-300 font-black text-xs w-[110px] text-center sticky top-0 z-[50] border-r border-b border-slate-600">TỔNG GROSS</th>
-                <th colSpan={4} className="p-2 border-r border-b border-slate-600 bg-slate-800 text-center sticky top-0 z-[50]">Các Khoản Khấu Trừ Gốc</th>
-                <th rowSpan={2} className="p-2 bg-amber-700 text-white font-black text-sm w-[130px] text-right sticky right-0 top-0 z-[60] shadow-[-4px_0_10px_rgba(0,0,0,0.3)] border-b border-amber-800">THỰC LĨNH</th>
+                <th colSpan={3} className="p-2 border-r border-b border-slate-600 bg-slate-800 text-center sticky top-0 z-[50]">Các Khoản Khấu Trừ Gốc</th>
+                <th rowSpan={2} className="p-2 bg-amber-700 text-white font-black text-sm w-[130px] text-right sticky top-0 z-[50] border-r border-b border-amber-800">THỰC LĨNH</th>
+                <th rowSpan={2} className="p-2 bg-orange-800 text-white font-black text-xs w-[140px] text-right sticky top-0 z-[50] border-r border-b border-orange-900">ĐIỀU CHỈNH CP KHÁC</th>
+                <th rowSpan={2} className="p-2 bg-indigo-800 text-white font-black text-sm w-[150px] text-right sticky right-0 top-0 z-[60] shadow-[-4px_0_10px_rgba(0,0,0,0.3)] border-b border-indigo-900">TỔNG THANH TOÁN CK</th>
               </tr>
               <tr className="h-[32px] bg-slate-800 text-[10px] text-center text-slate-300">
                 <th className="p-1 border-r border-b border-slate-600 text-white sticky top-[40px] bg-slate-800 z-[50] w-[60px]">N.Công</th>
@@ -300,17 +312,16 @@ const TabTaxSummary = ({ reportData, isReportingFetching, filterProps }: any) =>
                 <th className="p-1 border-r border-b border-slate-600 sticky top-[40px] bg-slate-800 z-[50] w-[80px]">Nhà ở</th>
                 <th className="p-1 border-r border-b border-slate-600 text-teal-300 font-bold sticky top-[40px] bg-slate-800 z-[50] w-[90px]">Thưởng Mới</th>
                 <th className="p-1 border-r border-b border-slate-600 sticky top-[40px] bg-slate-800 z-[50] w-[85px]">Tạm Ứng</th>
-                <th className="p-1 border-r border-b border-slate-600 sticky top-[40px] bg-slate-800 z-[50] w-[85px]">BHXH</th>
                 <th className="p-1 border-r border-b border-slate-600 sticky top-[40px] bg-slate-800 z-[50] w-[85px]">Thuế TNCN</th>
                 <th className="p-1 border-r border-b border-slate-600 text-rose-300 font-bold sticky top-[40px] bg-slate-800 z-[50] w-[95px]">Tổng Trừ</th>
               </tr>
             </thead>
             <tbody className="bg-white">
               {isReportingFetching ? (
-                <tr><td colSpan={23} className="p-16 text-center"><Loader2 className="w-8 h-8 animate-spin mx-auto text-blue-600 mb-2"/><div className="text-slate-400 font-medium">Đang tổng hợp dữ liệu kế toán...</div></td></tr>
+                <tr><td colSpan={24} className="p-16 text-center"><Loader2 className="w-8 h-8 animate-spin mx-auto text-blue-600 mb-2"/><div className="text-slate-400 font-medium">Đang tổng hợp dữ liệu kế toán...</div></td></tr>
               ) : reportData.length === 0 ? (
                 <tr>
-                  <td colSpan={23} className="p-20 text-center flex-col items-center justify-center">
+                  <td colSpan={24} className="p-20 text-center flex-col items-center justify-center">
                     <Building2 className="w-16 h-16 text-slate-200 mx-auto mb-4" />
                     <div className="text-slate-500 font-medium text-base">Chưa có dữ liệu cho kỳ báo cáo này.</div>
                   </td>
@@ -343,10 +354,11 @@ const TabTaxSummary = ({ reportData, isReportingFetching, filterProps }: any) =>
 
                     <td className="p-2 text-right font-black text-emerald-700 bg-emerald-50 border-r border-b border-slate-200">{formatNumberWithDot(d.totalGross)}</td>
                     <td className="p-2 text-right text-slate-600 border-r border-b border-slate-200">{formatNumberWithDot(d.advance)}</td>
-                    <td className="p-2 text-right font-bold text-rose-600 bg-rose-50/10 border-r border-b border-slate-200" title="Bảo hiểm gốc chưa trừ hỗ trợ">{formatNumberWithDot(d.insurance)}</td>
                     <td className="p-2 text-right font-bold text-amber-600 bg-amber-50/10 border-r border-b border-slate-200" title="Thuế phát sinh gốc">{formatNumberWithDot(d.taxTNCN)}</td>
                     <td className="p-2 text-right font-bold text-rose-700 bg-rose-50/30 border-r border-b border-slate-200">{formatNumberWithDot(d.accountingDeductions)}</td>
-                    <td className={`p-2 text-right font-black text-amber-900 bg-amber-50 text-[13px] sticky right-0 z-[40] shadow-[-4px_0_8px_rgba(0,0,0,0.06)] border-l border-b border-amber-200`}>{formatNumberWithDot(d.accountingNet)}</td>
+                    <td className="p-2 text-right font-black text-amber-900 bg-amber-50 text-[13px] border-r border-b border-slate-200">{formatNumberWithDot(d.accountingNet)}</td>
+                    <td className="p-2 text-right font-bold text-orange-700 bg-orange-50/30 border-r border-b border-slate-200">{formatNumberWithDotSigned(d.adjustment || 0)}</td>
+                    <td className="p-2 text-right font-black text-indigo-900 bg-indigo-50 text-[13px] sticky right-0 z-[40] shadow-[-4px_0_8px_rgba(0,0,0,0.06)] border-l border-b border-indigo-200">{formatNumberWithDot(d.finalPayment || 0)}</td>
                   </tr>
                 );
               })}
@@ -367,10 +379,11 @@ const TabTaxSummary = ({ reportData, isReportingFetching, filterProps }: any) =>
                   <td className="p-2 text-right border-r border-slate-600 text-teal-300">{formatNumberWithDot(totals.bonus)}</td>
                   <td className="p-2 text-right border-r border-slate-600 text-emerald-400 font-black">{formatNumberWithDot(totals.gross)}</td>
                   <td className="p-2 text-right border-r border-slate-600 text-slate-300">{formatNumberWithDot(totals.advance)}</td>
-                  <td className="p-2 text-right border-r border-slate-600 text-rose-400 font-black">{formatNumberWithDot(totals.insurance)}</td>
                   <td className="p-2 text-right border-r border-slate-600 text-amber-400 font-black">{formatNumberWithDot(totals.taxTNCN)}</td>
                   <td className="p-2 text-right border-r border-slate-600 text-rose-300 font-black">{formatNumberWithDot(totals.deductions)}</td>
-                  <td className="p-2 text-right text-amber-300 font-black sticky right-0 z-[60] bg-slate-800 border-l border-slate-600 shadow-[-4px_0_8px_rgba(0,0,0,0.5)]">{formatNumberWithDot(totals.net)}</td>
+                  <td className="p-2 text-right text-amber-300 font-black border-r border-slate-600">{formatNumberWithDot(totals.net)}</td>
+                  <td className="p-2 text-right text-orange-300 font-black border-r border-slate-600">{formatNumberWithDotSigned(totals.adjustment)}</td>
+                  <td className="p-2 text-right text-indigo-300 font-black sticky right-0 z-[60] bg-slate-800 border-l border-slate-600 shadow-[-4px_0_8px_rgba(0,0,0,0.5)]">{formatNumberWithDot(totals.finalPayment)}</td>
                 </tr>
               )}
             </tbody>
@@ -382,17 +395,18 @@ const TabTaxSummary = ({ reportData, isReportingFetching, filterProps }: any) =>
 };
 
 // ==========================================
-// THÀNH PHẦN KÊ KHAI NHÂN VIÊN THỰC NHẬN (TAB MỚI YÊU CẦU)
+// EMPLOYEE SUMMARY
 // ==========================================
 const TabEmployeeSummary = ({ reportData, isReportingFetching, filterProps }: any) => {
   const totals = useMemo(() => {
     return reportData.reduce((acc: any, curr: any) => {
       acc.gross += curr.totalGross;
       acc.advance += curr.advance;
-      acc.employeeInsurance += curr.employeeInsurance;
       acc.employeeNet += curr.employeeNet;
+      acc.adjustment += curr.adjustment || 0;
+      acc.finalPayment += curr.finalPayment || 0;
       return acc;
-    }, { gross: 0, advance: 0, employeeInsurance: 0, employeeNet: 0 });
+    }, { gross: 0, advance: 0, employeeNet: 0, adjustment: 0, finalPayment: 0 });
   }, [reportData]);
 
   const handleExportEmployeeSummaryExcel = () => {
@@ -416,14 +430,16 @@ const TabEmployeeSummary = ({ reportData, isReportingFetching, filterProps }: an
 
     const wsData: any[][] = [];
     wsData.push([{ v: `BẢNG TỔNG HỢP THỰC NHẬN NHÂN VIÊN - ${periodLabel} - NĂM ${reportYear}`, s: titleStyle }]);
-    wsData.push([{ v: "Phúc lợi: Đã áp dụng hỗ trợ 88.000 VND BHXH/tháng và 100% Thu Thuế TNCN.", s: { font: { ...FONT, italic: true, color: { rgb: "FF0000" } } } }]);
+    wsData.push([{ v: "Phúc lợi: Công ty hỗ trợ 100% Thuế TNCN.", s: { font: { ...FONT, italic: true, color: { rgb: "FF0000" } } } }]);
     wsData.push([]);
 
     wsData.push([
       { v: "STT", s: headerStyle }, { v: "Mã NV", s: headerStyle }, { v: "Họ và tên", s: headerStyle }, { v: "Bộ phận", s: headerStyle },
       { v: "Tổng Thu Nhập (Gross)", s: headerStyle }, { v: "Tạm Ứng", s: headerStyle }, 
-      { v: "BHXH (Đã trừ hỗ trợ)", s: headerStyle }, { v: "Thuế TNCN", s: headerStyle },
-      { v: "THỰC NHẬN CHUYỂN KHOẢN", s: headerStyle }
+      { v: "Thuế TNCN", s: headerStyle },
+      { v: "THỰC NHẬN CHUYỂN KHOẢN", s: headerStyle },
+      { v: "ĐIỀU CHỈNH CP KHÁC", s: headerStyle },
+      { v: "TỔNG THANH TOÁN CK", s: headerStyle }
     ]);
 
     reportData.forEach((d: any, index: number) => {
@@ -434,9 +450,10 @@ const TabEmployeeSummary = ({ reportData, isReportingFetching, filterProps }: an
         { v: d.department || "", s: cellCenter },
         { v: Number(d.totalGross) || 0, s: {} },
         { v: Number(d.advance) || 0, s: {} },
-        { v: Number(d.employeeInsurance) || 0, s: {} },
         { v: 0, s: {} }, 
-        { v: Number(d.employeeNet) || 0, s: { ...cellRightBold, font: { ...FONT, bold: true, color: { rgb: "9C0006" } }, fill: { fgColor: { rgb: "FFC7CE" } } } } 
+        { v: Number(d.employeeNet) || 0, s: { ...cellRightBold, font: { ...FONT, bold: true, color: { rgb: "9C0006" } }, fill: { fgColor: { rgb: "FFC7CE" } } } },
+        { v: Number(d.adjustment) || 0, s: {} },
+        { v: Number(d.finalPayment) || 0, s: { ...cellRightBold, fill: { fgColor: { rgb: "DBEAFE" } }, font: { ...FONT, bold: true, color: { rgb: "1E3A8A" } } } }
       ]);
     });
 
@@ -444,19 +461,19 @@ const TabEmployeeSummary = ({ reportData, isReportingFetching, filterProps }: an
       { v: "", s: cellCenter }, { v: "", s: cellCenter }, { v: "TỔNG CỘNG", s: { ...cellLeft, font: { ...FONT, bold: true } } }, { v: "", s: cellCenter },
       { v: Number(totals.gross) || 0, s: cellRightBold },
       { v: Number(totals.advance) || 0, s: cellRightBold },
-      { v: Number(totals.employeeInsurance) || 0, s: cellRightBold },
       { v: 0, s: cellRightBold },
-      { v: Number(totals.employeeNet) || 0, s: { ...cellRightBold, fill: { fgColor: { rgb: "FFC7CE" } }, font: { ...FONT, bold: true, color: { rgb: "9C0006" } } } }
+      { v: Number(totals.employeeNet) || 0, s: { ...cellRightBold, fill: { fgColor: { rgb: "FFC7CE" } }, font: { ...FONT, bold: true, color: { rgb: "9C0006" } } } },
+      { v: Number(totals.adjustment) || 0, s: cellRightBold },
+      { v: Number(totals.finalPayment) || 0, s: { ...cellRightBold, fill: { fgColor: { rgb: "DBEAFE" } }, font: { ...FONT, bold: true, color: { rgb: "1E3A8A" } } } }
     ];
     wsData.push(totalRow);
 
     const ws = XLSX.utils.aoa_to_sheet(wsData);
-    ws["!merges"] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 8 } }, { s: { r: 1, c: 0 }, e: { r: 1, c: 8 } }];
-    ws["!cols"] = [{ wch: 5 }, { wch: 10 }, { wch: 25 }, { wch: 15 }, { wch: 22 }, { wch: 14 }, { wch: 22 }, { wch: 15 }, { wch: 26 }];
+    ws["!merges"] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 9 } }, { s: { r: 1, c: 0 }, e: { r: 1, c: 9 } }];
+    ws["!cols"] = [{ wch: 5 }, { wch: 10 }, { wch: 25 }, { wch: 15 }, { wch: 22 }, { wch: 14 }, { wch: 15 }, { wch: 26 }, { wch: 20 }, { wch: 22 }];
 
-    // Áp dụng định dạng ép số
     for (let r = 3; r < wsData.length; r++) {
-      for (let c = 0; c <= 8; c++) {
+      for (let c = 0; c <= 9; c++) {
         const cellRef = XLSX.utils.encode_cell({ r, c });
         if (!ws[cellRef]) continue;
 
@@ -465,7 +482,7 @@ const TabEmployeeSummary = ({ reportData, isReportingFetching, filterProps }: an
           if (c >= 4) {
             if (!ws[cellRef].s) ws[cellRef].s = {};
             ws[cellRef].s.numFmt = "#,##0";
-            if(r < wsData.length - 1 && c !== 8) { // Căn chỉnh các ô số bình thường
+            if(r < wsData.length - 1 && c !== 7 && c !== 9) {
                ws[cellRef].s.font = FONT;
                ws[cellRef].s.alignment = { horizontal: "right", vertical: "center" };
                ws[cellRef].s.border = BORDER;
@@ -485,7 +502,7 @@ const TabEmployeeSummary = ({ reportData, isReportingFetching, filterProps }: an
 
       <Card className="flex-1 overflow-hidden border-none rounded-2xl bg-white shadow-sm flex flex-col min-h-0">
         <div className="overflow-auto h-full custom-scrollbar relative">
-          <table className="w-full text-xs border-collapse min-w-[1000px] bg-white">
+          <table className="w-full text-xs border-collapse min-w-[1250px] bg-white">
             <thead className="bg-[#1e293b] text-white sticky top-0 z-30">
               <tr className="h-[44px]">
                 <th className="p-3 text-center w-[60px] border-b border-slate-700">STT</th>
@@ -494,17 +511,18 @@ const TabEmployeeSummary = ({ reportData, isReportingFetching, filterProps }: an
                 <th className="p-3 text-center w-[130px] border-b border-slate-700">Bộ phận</th>
                 <th className="p-3 text-right text-emerald-300 w-[160px] border-b border-slate-700">Tổng Thu Nhập</th>
                 <th className="p-3 text-right text-rose-300 w-[130px] border-b border-slate-700">Tạm Ứng</th>
-                <th className="p-3 text-right text-rose-300 w-[180px] border-b border-slate-700">BHXH Khấu Trừ (NV)</th>
                 <th className="p-3 text-right text-rose-300 w-[130px] border-b border-slate-700">Thuế TNCN</th>
-                <th className="p-3 text-right text-amber-300 w-[160px] bg-slate-900 font-bold border-b border-slate-950">Thực Nhận</th>
+                <th className="p-3 text-right text-amber-300 w-[150px] bg-slate-900 font-bold border-b border-slate-950">Thực Nhận</th>
+                <th className="p-3 text-right text-orange-300 w-[150px] border-b border-slate-700">Điều Chỉnh CP Khác</th>
+                <th className="p-3 text-right text-indigo-300 w-[160px] bg-indigo-900 font-bold border-b border-indigo-950">Tổng Thanh Toán CK</th>
               </tr>
             </thead>
             <tbody>
               {isReportingFetching ? (
-                <tr><td colSpan={9} className="p-10 text-center"><Loader2 className="w-8 h-8 animate-spin mx-auto text-emerald-600 mb-2"/><div className="text-slate-400 font-medium">Đang tổng hợp dữ liệu nhân viên...</div></td></tr>
+                <tr><td colSpan={10} className="p-10 text-center"><Loader2 className="w-8 h-8 animate-spin mx-auto text-emerald-600 mb-2"/><div className="text-slate-400 font-medium">Đang tổng hợp dữ liệu nhân viên...</div></td></tr>
               ) : reportData.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="p-20 text-center flex-col items-center justify-center">
+                  <td colSpan={10} className="p-20 text-center flex-col items-center justify-center">
                     <Users className="w-16 h-16 text-slate-200 mx-auto mb-4" />
                     <div className="text-slate-500 font-medium text-base">Chưa có dữ liệu cho kỳ báo cáo này.</div>
                   </td>
@@ -519,14 +537,17 @@ const TabEmployeeSummary = ({ reportData, isReportingFetching, filterProps }: an
                     <td className="p-3 text-center border-b border-slate-100 text-slate-600">{d.department}</td>
                     <td className="p-3 text-right border-b border-slate-100 font-medium">{formatNumberWithDot(d.totalGross)}</td>
                     <td className="p-3 text-right border-b border-slate-100 text-rose-600">{formatNumberWithDot(d.advance)}</td>
-                    <td className="p-3 text-right border-b border-slate-100 text-rose-600 flex-col">
-                      <div>{formatNumberWithDot(d.employeeInsurance)}</div>
-                    </td>
                     <td className="p-3 text-right border-b border-slate-100 font-bold text-slate-400">
                       <span className="text-slate-400 text-xs">0 đ</span>
                     </td>
                     <td className="p-3 text-right border-b border-slate-100 font-black text-emerald-700 bg-emerald-50/30 text-sm">
                       {formatNumberWithDot(d.employeeNet)}
+                    </td>
+                    <td className="p-3 text-right border-b border-slate-100 font-bold text-orange-700 bg-orange-50/30">
+                      {formatNumberWithDotSigned(d.adjustment || 0)}
+                    </td>
+                    <td className="p-3 text-right border-b border-slate-100 font-black text-indigo-700 bg-indigo-50/30 text-sm">
+                      {formatNumberWithDot(d.finalPayment || 0)}
                     </td>
                   </tr>
                 );
@@ -537,9 +558,10 @@ const TabEmployeeSummary = ({ reportData, isReportingFetching, filterProps }: an
                   <td className="p-3 text-center border-r border-slate-600"></td>
                   <td className="p-3 text-right border-r border-slate-600 text-emerald-300">{formatNumberWithDot(totals.gross)}</td>
                   <td className="p-3 text-right border-r border-slate-600 text-rose-300">{formatNumberWithDot(totals.advance)}</td>
-                  <td className="p-3 text-right border-r border-slate-600 text-rose-300">{formatNumberWithDot(totals.employeeInsurance)}</td>
                   <td className="p-3 text-right border-r border-slate-600 text-slate-400">0 đ</td>
-                  <td className="p-3 text-right text-amber-300 font-black bg-slate-900 border-t border-slate-950">{formatNumberWithDot(totals.employeeNet)}</td>
+                  <td className="p-3 text-right text-amber-300 font-black bg-slate-900 border-r border-slate-600">{formatNumberWithDot(totals.employeeNet)}</td>
+                  <td className="p-3 text-right text-orange-300 font-black border-r border-slate-600">{formatNumberWithDotSigned(totals.adjustment)}</td>
+                  <td className="p-3 text-right text-indigo-300 font-black bg-indigo-900">{formatNumberWithDot(totals.finalPayment)}</td>
                 </tr>
               )}
             </tbody>
@@ -551,7 +573,7 @@ const TabEmployeeSummary = ({ reportData, isReportingFetching, filterProps }: an
 };
 
 // =========================================================================
-// MAIN COMPONENT: GIAO DIỆN CHÍNH PAYROLL NET BOARD
+// MAIN
 // =========================================================================
 export default function PayrollNetBoard() {
   const [monthsList, setMonthsList] = useState<any[]>([]);
@@ -562,12 +584,22 @@ export default function PayrollNetBoard() {
   const [isLoading, setIsLoading] = useState(false);
   const [isDataLoading, setIsDataLoading] = useState(false);
   
-  // States cho Lọc theo Bảng chi tiết
   const [searchQuery, setSearchQuery] = useState("");
   const [deptFilter, setDeptFilter] = useState<string>("ALL");
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
-  // States cho Lọc Báo Cáo Tổng Hợp
+  // State cho điều chỉnh CP khác (nhập tay)
+  const [editingAdjustments, setEditingAdjustments] = useState<{ [payrollId: string]: number }>({});
+  const [savingIds, setSavingIds] = useState<{ [payrollId: string]: boolean }>({});
+
+  // ===== STATE TOAST =====
+  const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
+
+  const showToast = (message: string, type: "success" | "error" = "success") => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 2500);
+  };
+
   const [reportYear, setReportYear] = useState<number>(new Date().getFullYear());
   const [reportType, setReportType] = useState<string>("MONTH");
   const [reportValue, setReportValue] = useState<number>(new Date().getMonth() + 1);
@@ -579,7 +611,6 @@ export default function PayrollNetBoard() {
     return years.length > 0 ? years.sort((a, b) => b - a) : [new Date().getFullYear()];
   }, [monthsList]);
 
-  // Khởi tạo fetch danh sách tháng
   const fetchMonthsList = async () => {
     setIsLoading(true);
     try {
@@ -595,7 +626,6 @@ export default function PayrollNetBoard() {
     } catch (error) { console.error(error); } finally { setIsLoading(false); }
   };
 
-  // Fetch chi tiết tháng được chọn bên Sidebar
   const fetchPayrollData = async (month: number, year: number) => {
     setIsDataLoading(true);
     try {
@@ -605,11 +635,11 @@ export default function PayrollNetBoard() {
         setPayrolls(data.records || []);
         const depts: string[] = Array.from(new Set((data.records || []).map((a: any) => a.employeeSnapshot?.department).filter(Boolean)));
         setDepartments(depts);
+        setEditingAdjustments({});
       }
     } catch (error) { console.error(error); } finally { setIsDataLoading(false); }
   };
 
-  // Logic Fetch và Tổng Hợp Dữ Liệu Báo Cáo
   const fetchReportData = async () => {
     setIsReportingFetching(true);
     try {
@@ -647,9 +677,11 @@ export default function PayrollNetBoard() {
                 position: snap.position,
                 actualDays: 0, timeSalary: 0, overtime: 0, miniShowMoney: 0, bigShowMoney: 0, kpiBonus: 0,
                 meal: 0, transport: 0, phone: 0, clothing: 0, housing: 0, bonus: 0,
-                totalGross: 0, advance: 0, insurance: 0, taxTNCN: 0,
+                totalGross: 0, advance: 0, taxTNCN: 0,
                 accountingDeductions: 0, accountingNet: 0,
-                employeeInsurance: 0, employeeNet: 0
+                employeeNet: 0,
+                adjustment: 0,
+                finalPayment: 0
               };
             }
             
@@ -671,23 +703,26 @@ export default function PayrollNetBoard() {
 
             const gross = Number(p.incomes?.totalGross || 0);
             const advance = Number(ded.advance || 0);
-            const insurance = Number(ded.insurance?.total || 0);
 
             map[code].totalGross += gross;
             map[code].advance += advance;
-            map[code].insurance += insurance;
             map[code].taxTNCN += Number(ded.taxTNCN || 0);
 
-            const employeeIns = Math.max(0, insurance - 88000);
-            map[code].employeeInsurance += employeeIns;
-            map[code].employeeNet += Number(p.netSalary || (gross - advance - employeeIns));
+            // Cộng dồn điều chỉnh CP khác
+            map[code].adjustment += Number(p.incomes?.adjustment || 0);
+
+            // Thực nhận nhân viên = Gross - Tạm ứng
+            map[code].employeeNet += (gross - advance);
           });
         }
       });
 
       const finalData = Object.values(map).map((d: any) => {
-        d.accountingDeductions = d.advance + d.insurance + d.taxTNCN;
+        // Tổng khấu trừ gốc = Tạm ứng + Thuế
+        d.accountingDeductions = d.advance + d.taxTNCN;
         d.accountingNet = d.totalGross - d.accountingDeductions;
+        // Tổng thanh toán CK = Thực lĩnh + Điều chỉnh CP khác
+        d.finalPayment = d.accountingNet + d.adjustment;
         return d;
       });
 
@@ -720,8 +755,79 @@ export default function PayrollNetBoard() {
     });
   }, [payrolls, searchQuery, deptFilter]);
 
+  // ===== LƯU ĐIỀU CHỈNH CP KHÁC CHO 1 NHÂN SỰ =====
+  const handleSaveAdjustment = async (payrollId: string) => {
+    const value = editingAdjustments[payrollId];
+    if (value === undefined) return;
+    
+    setSavingIds(prev => ({ ...prev, [payrollId]: true }));
+    try {
+      const res = await fetch(`${API_BASE_URL}/${payrollId}/adjustment`, {
+        method: "PUT",
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ adjustment: value })
+      });
+      
+      if (res.ok) {
+        // ===== CẬP NHẬT LOCAL STATE — KHÔNG FETCH LẠI =====
+        const matchedPayroll = payrolls.find(p => p._id === payrollId);
+        const oldAdjustment = Number(matchedPayroll?.incomes?.adjustment || 0);
+
+        // Cập nhật payrolls local
+        setPayrolls(prev => prev.map(p => {
+          if (p._id === payrollId) {
+            return {
+              ...p,
+              incomes: {
+                ...p.incomes,
+                adjustment: value
+              }
+            };
+          }
+          return p;
+        }));
+        
+        // Cập nhật reportData local
+        if (matchedPayroll) {
+          const empCode = matchedPayroll.employeeSnapshot?.employeeCode;
+          setReportData(prev => prev.map(d => {
+            if (d.employeeCode === empCode) {
+              const newAdjustment = d.adjustment + (value - oldAdjustment);
+              return {
+                ...d,
+                adjustment: newAdjustment,
+                finalPayment: d.accountingNet + newAdjustment
+              };
+            }
+            return d;
+          }));
+        }
+        
+        // Xóa khỏi editingAdjustments (đã lưu thành công)
+        setEditingAdjustments(prev => {
+          const next = { ...prev };
+          delete next[payrollId];
+          return next;
+        });
+        
+        showToast("Đã lưu điều chỉnh thành công!");
+      } else {
+        showToast("Lỗi lưu điều chỉnh", "error");
+      }
+    } catch (error) {
+      console.error(error);
+      showToast("Lỗi kết nối", "error");
+    } finally {
+      setSavingIds(prev => {
+        const next = { ...prev };
+        delete next[payrollId];
+        return next;
+      });
+    }
+  };
+
   // ==========================================
-  // XUẤT EXCEL TỔNG HỢP (BẢNG KẾ TOÁN FULL CHI TIẾT - THEO THÁNG HIỆN TẠI TỪ SIDEBAR)
+  // XUẤT EXCEL FULL
   // ==========================================
   const handleExportExcelFull = () => {
     if (filteredPayrolls.length === 0) return alert("Không có dữ liệu để xuất");
@@ -749,8 +855,10 @@ export default function PayrollNetBoard() {
       { v: "Hiệu Suất (Show & Công)", s: headerMainStyle }, { v: "", s: headerMainStyle }, { v: "", s: headerMainStyle },
       { v: "Các Khoản Phụ Cấp", s: headerMainStyle }, { v: "", s: headerMainStyle }, { v: "", s: headerMainStyle }, { v: "", s: headerMainStyle }, { v: "", s: headerMainStyle }, { v: "", s: headerMainStyle },
       { v: "Thưởng Mới", s: headerMainStyle }, { v: "TỔNG GROSS", s: headerMainStyle },
-      { v: "Các Khoản Trích Trừ Vào Lương (Sổ Sách Gốc)", s: headerMainStyle }, { v: "", s: headerMainStyle }, { v: "", s: headerMainStyle }, { v: "", s: headerMainStyle },
-      { v: "THỰC LĨNH ", s: headerMainStyle }
+      { v: "Các Khoản Trích Trừ Vào Lương (Sổ Sách Gốc)", s: headerMainStyle }, { v: "", s: headerMainStyle }, { v: "", s: headerMainStyle },
+      { v: "THỰC LĨNH", s: headerMainStyle },
+      { v: "ĐIỀU CHỈNH CP KHÁC", s: headerMainStyle },
+      { v: "TỔNG THANH TOÁN CK", s: headerMainStyle }
     ]);
 
     wsData.push([
@@ -759,7 +867,9 @@ export default function PayrollNetBoard() {
       { v: "Mini Show", s: headerSubStyle }, { v: "Big Show", s: headerSubStyle }, { v: "Thưởng Công", s: headerSubStyle },
       { v: "Tiền ăn", s: headerSubStyle }, { v: "Xăng xe", s: headerSubStyle }, { v: "Điện thoại", s: headerSubStyle }, { v: "Trang phục", s: headerSubStyle }, { v: "Nhà ở", s: headerSubStyle }, { v: "Tổng PC", s: headerSubStyle },
       { v: "", s: headerSubStyle }, { v: "", s: headerSubStyle },
-      { v: "Tạm Ứng", s: headerSubStyle }, { v: "BHXH (100% gốc)", s: headerSubStyle }, { v: "Thuế TNCN (100%)", s: headerSubStyle }, { v: "Tổng Khấu Trừ Gốc", s: headerSubStyle },
+      { v: "Tạm Ứng", s: headerSubStyle }, { v: "Thuế TNCN (100%)", s: headerSubStyle }, { v: "Tổng Khấu Trừ Gốc", s: headerSubStyle },
+      { v: "", s: headerSubStyle },
+      { v: "", s: headerSubStyle },
       { v: "", s: headerSubStyle }
     ]);
 
@@ -770,29 +880,31 @@ export default function PayrollNetBoard() {
       const totalAllw = Number(allw.meal || 0) + Number(allw.transport || 0) + Number(allw.phone || 0) + Number(allw.clothing || 0) + Number(allw.housing || 0);
 
       const advance = Number(ded.advance || 0);
-      const insuranceTotal = Number(ded.insurance?.total || 0);
       const taxTNCN = Number(ded.taxTNCN || 0);
       const gross = Number(p.incomes?.totalGross || 0);
+      const adjustment = Number(p.incomes?.adjustment || 0);
 
-      const accountingDeductions = advance + insuranceTotal + taxTNCN;
+      const accountingDeductions = advance + taxTNCN;
       const accountingNet = gross - accountingDeductions;
+      const finalPayment = accountingNet + adjustment;
 
-      // Không định dạng ở đây, đổ thẳng số để format ở vòng lặp dưới cùng
       wsData.push([
         { v: Number(index + 1), s: cellCenter }, { v: snap.employeeCode || "", s: cellCenter }, { v: snap.fullName || "", s: cellLeft }, { v: snap.department || "", s: cellCenter }, { v: snap.position || "", s: cellCenter },
         { v: Number(p.baseSalary) || 0, s: {} }, { v: Number(p.actualDays) || 0, s: cellCenter }, { v: Number(p.incomes?.timeSalary) || 0, s: {} }, { v: Number(p.incomes?.overtime) || 0, s: {} },
         { v: Number(p.incomes?.miniShowMoney) || 0, s: {} }, { v: Number(p.incomes?.bigShowMoney) || 0, s: {} }, { v: Number(p.incomes?.kpiBonus) || 0, s: {} },
         { v: Number(allw.meal) || 0, s: {} }, { v: Number(allw.transport) || 0, s: {} }, { v: Number(allw.phone) || 0, s: {} }, { v: Number(allw.clothing) || 0, s: {} }, { v: Number(allw.housing) || 0, s: {} }, { v: totalAllw, s: cellRightBold },
         { v: Number(p.incomes?.bonus) || 0, s: {} }, { v: gross, s: cellRightBold },
-        { v: advance, s: {} }, { v: insuranceTotal, s: {} }, { v: taxTNCN, s: {} }, { v: accountingDeductions, s: cellRightBold },
-        { v: accountingNet, s: { ...cellRightBold, fill: { fgColor: { rgb: "FFF2CC" } } } }
+        { v: advance, s: {} }, { v: taxTNCN, s: {} }, { v: accountingDeductions, s: cellRightBold },
+        { v: accountingNet, s: { ...cellRightBold, fill: { fgColor: { rgb: "FFF2CC" } } } },
+        { v: adjustment, s: {} },
+        { v: finalPayment, s: { ...cellRightBold, fill: { fgColor: { rgb: "DBEAFE" } } } }
       ]);
     });
 
     const ws = XLSX.utils.aoa_to_sheet(wsData);
     
     ws["!merges"] = [
-      { s: { r: 0, c: 0 }, e: { r: 0, c: 24 } },
+      { s: { r: 0, c: 0 }, e: { r: 0, c: 25 } },
       { s: { r: 2, c: 0 }, e: { r: 3, c: 0 } }, 
       { s: { r: 2, c: 1 }, e: { r: 3, c: 1 } }, 
       { s: { r: 2, c: 2 }, e: { r: 3, c: 2 } }, 
@@ -805,22 +917,22 @@ export default function PayrollNetBoard() {
       { s: { r: 2, c: 12 }, e: { r: 2, c: 17 } }, 
       { s: { r: 2, c: 18 }, e: { r: 3, c: 18 } }, 
       { s: { r: 2, c: 19 }, e: { r: 3, c: 19 } }, 
-      { s: { r: 2, c: 20 }, e: { r: 2, c: 23 } }, 
+      { s: { r: 2, c: 20 }, e: { r: 2, c: 22 } }, 
+      { s: { r: 2, c: 23 }, e: { r: 3, c: 23 } }, 
       { s: { r: 2, c: 24 }, e: { r: 3, c: 24 } }, 
+      { s: { r: 2, c: 25 }, e: { r: 3, c: 25 } }, 
     ];
 
-    // --- LOOP CHUẨN XÁC ĐỂ ÉP ĐỊNH DẠNG ---
     for (let r = 4; r < wsData.length; r++) {
-      for (let c = 0; c <= 24; c++) {
+      for (let c = 0; c <= 25; c++) {
         const cellRef = XLSX.utils.encode_cell({ r, c });
         if (!ws[cellRef]) continue;
 
         if (typeof ws[cellRef].v === 'number') {
-          ws[cellRef].t = 'n'; // Ép cứng Type = Number
-          if (c >= 5 && c !== 6) { // Nếu là cột tiền
+          ws[cellRef].t = 'n';
+          if (c >= 5 && c !== 6) {
             if (!ws[cellRef].s) ws[cellRef].s = {};
-            ws[cellRef].s.numFmt = "#,##0"; // Truyền thẳng định dạng ngàn
-            // Apply border & alignment nếu chưa có (những ô {} trống ở trên)
+            ws[cellRef].s.numFmt = "#,##0";
             if(Object.keys(ws[cellRef].s).length === 1) {
               ws[cellRef].s.font = FONT;
               ws[cellRef].s.alignment = { horizontal: "right", vertical: "center" };
@@ -855,22 +967,25 @@ export default function PayrollNetBoard() {
 
     const wsData: any[][] = [];
     wsData.push([{ v: `BẢNG THANH TOÁN LƯƠNG NHÂN VIÊN - THÁNG ${m}/${y}`, s: titleStyle }]);
-    wsData.push([{ v: "Phúc lợi: Công ty hỗ trợ 88.000 VND BHXH và 100% Thu Thuế TNCN phát sinh.", s: { font: { ...FONT, italic: true, color: { rgb: "FF0000" } } } }]);
+    wsData.push([{ v: "Phúc lợi: Công ty hỗ trợ 100% Thuế TNCN phát sinh.", s: { font: { ...FONT, italic: true, color: { rgb: "FF0000" } } } }]);
     wsData.push([]);
 
     wsData.push([
       { v: "STT", s: headerStyle }, { v: "Mã NV", s: headerStyle }, { v: "Họ và tên", s: headerStyle }, { v: "Bộ phận", s: headerStyle },
       { v: "Tổng Thu Nhập (Gross)", s: headerStyle }, { v: "Tạm Ứng", s: headerStyle }, 
-      { v: "BHXH khấu trừ (Đã hỗ trợ 88k)", s: headerStyle }, { v: "Thuế TNCN (Công ty hỗ trợ)", s: headerStyle },
-      { v: "THỰC NHẬN CHUYỂN KHOẢN", s: headerStyle }
+      { v: "Thuế TNCN (Công ty hỗ trợ)", s: headerStyle },
+      { v: "THỰC NHẬN CHUYỂN KHOẢN", s: headerStyle },
+      { v: "ĐIỀU CHỈNH CP KHÁC", s: headerStyle },
+      { v: "TỔNG THANH TOÁN CK", s: headerStyle }
     ]);
 
     filteredPayrolls.forEach((p, index) => {
       const snap = p.employeeSnapshot || {};
       const ded = p.deductions || {};
+      const adjustment = Number(p.incomes?.adjustment || 0);
+      const netSalary = Number(p.netSalary) || 0;
+      const finalPayment = netSalary + adjustment;
       
-      const employeeInsuranceCost = Math.max(0, Number(ded.insurance?.total || 0) - 88000);
-
       wsData.push([
         { v: Number(index + 1), s: cellCenter }, 
         { v: snap.employeeCode || "", s: cellCenter }, 
@@ -878,22 +993,19 @@ export default function PayrollNetBoard() {
         { v: snap.department || "", s: cellCenter },
         { v: Number(p.incomes?.totalGross) || 0, s: {} },
         { v: Number(ded.advance) || 0, s: {} },
-        { v: Number(employeeInsuranceCost) || 0, s: {} },
         { v: 0, s: {} }, 
-        { 
-          v: Number(p.netSalary) || 0, 
-          s: { ...cellRightBold, font: { ...FONT, bold: true, color: { rgb: "9C0006" } }, fill: { fgColor: { rgb: "FFC7CE" } } } 
-        } 
+        { v: netSalary, s: { ...cellRightBold, font: { ...FONT, bold: true, color: { rgb: "9C0006" } }, fill: { fgColor: { rgb: "FFC7CE" } } } },
+        { v: adjustment, s: {} },
+        { v: finalPayment, s: { ...cellRightBold, fill: { fgColor: { rgb: "DBEAFE" } }, font: { ...FONT, bold: true, color: { rgb: "1E3A8A" } } } }
       ]);
     });
 
     const ws = XLSX.utils.aoa_to_sheet(wsData);
-    ws["!merges"] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 8 } }, { s: { r: 1, c: 0 }, e: { r: 1, c: 8 } }];
-    ws["!cols"] = [{ wch: 5 }, { wch: 10 }, { wch: 25 }, { wch: 15 }, { wch: 22 }, { wch: 14 }, { wch: 26 }, { wch: 24 }, { wch: 24 }];
+    ws["!merges"] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 9 } }, { s: { r: 1, c: 0 }, e: { r: 1, c: 9 } }];
+    ws["!cols"] = [{ wch: 5 }, { wch: 10 }, { wch: 25 }, { wch: 15 }, { wch: 22 }, { wch: 14 }, { wch: 24 }, { wch: 24 }, { wch: 20 }, { wch: 22 }];
 
-    // --- LOOP CHUẨN XÁC ĐỂ ÉP ĐỊNH DẠNG ---
     for (let r = 3; r < wsData.length; r++) {
-      for (let c = 0; c <= 8; c++) {
+      for (let c = 0; c <= 9; c++) {
         const cellRef = XLSX.utils.encode_cell({ r, c });
         if (!ws[cellRef]) continue;
 
@@ -902,7 +1014,7 @@ export default function PayrollNetBoard() {
           if (c >= 4) {
             if (!ws[cellRef].s) ws[cellRef].s = {};
             ws[cellRef].s.numFmt = "#,##0";
-            if(r < wsData.length && c !== 8) {
+            if(r < wsData.length && c !== 7 && c !== 9) {
                ws[cellRef].s.font = FONT;
                ws[cellRef].s.alignment = { horizontal: "right", vertical: "center" };
                ws[cellRef].s.border = BORDER;
@@ -967,7 +1079,7 @@ export default function PayrollNetBoard() {
                   <h1 className="text-2xl font-black text-[#0f172a] flex items-center gap-3">
                     <HandCoins className="w-6 h-6 text-amber-600" /> Bảng Đối Soát
                   </h1>
-                  <p className="text-xs text-slate-400 mt-0.5">Bảng Gửi Nhân Viên áp dụng cấu trúc giảm 88.000 VND BHXH và Thuế TNCN đưa về 0.</p>
+                  <p className="text-xs text-slate-400 mt-0.5">Bảng Đối Soát gốc (không trừ BHXH), có cột Điều chỉnh CP khác và Tổng thanh toán CK.</p>
                 </div>
                 
                 <TabsList className="bg-white border p-1 rounded-xl shadow-sm flex flex-wrap shrink-0">
@@ -979,7 +1091,7 @@ export default function PayrollNetBoard() {
                 </TabsList>
               </div>
 
-              {/* TAB 1: BẢNG KẾ TOÁN FULL CHI TIẾT (THEO SIDEBAR) */}
+              {/* TAB 1: BẢNG KẾ TOÁN FULL CHI TIẾT */}
               <TabsContent value="accounting_board" className="flex-1 min-h-0 mt-0 focus-visible:outline-none flex flex-col">
                 <div className="bg-white p-3 rounded-2xl border border-slate-200 shadow-sm flex flex-wrap gap-3 items-center mb-4 shrink-0">
                   <div className="flex items-center gap-2 bg-slate-50 border rounded-xl px-3 py-1.5">
@@ -1001,7 +1113,7 @@ export default function PayrollNetBoard() {
                 </div>
                 <Card className="flex-1 overflow-hidden border border-slate-200 rounded-2xl bg-white shadow-sm">
                   <div className="overflow-auto h-full custom-scrollbar relative">
-                    <table className="w-full text-[11px] border-collapse min-w-[2400px] bg-white">
+                    <table className="w-full text-[11px] border-collapse min-w-[2500px] bg-white">
                       <thead className="bg-[#003366] text-white sticky top-0 z-30">
                         <tr className="h-[44px]">
                           <th rowSpan={2} className="p-2 border-r border-b border-slate-700 text-center sticky left-0 bg-[#003366] z-40 w-[45px]">STT</th>
@@ -1016,8 +1128,10 @@ export default function PayrollNetBoard() {
                           <th colSpan={6} className="p-2 border-r border-b border-slate-700 bg-teal-950 text-center">Các Khoản Phụ Cấp</th>
                           <th rowSpan={2} className="p-2 border-r border-b border-slate-700 bg-rose-950 text-right w-[90px]">Thưởng Mới</th>
                           <th rowSpan={2} className="p-2 border-r border-b border-slate-700 bg-emerald-900 text-emerald-300 font-bold text-right w-[110px]">TỔNG GROSS</th>
-                          <th colSpan={4} className="p-2 border-r border-b border-slate-700 bg-slate-800 text-center">Các Khoản Khấu Trừ Gốc</th>
-                          <th rowSpan={2} className="p-2 bg-amber-700 text-white font-black text-right w-[120px] sticky right-0 z-20 shadow-[-2px_0_5px_rgba(0,0,0,0.1)] border-b border-amber-800">THỰC LĨNH </th>
+                          <th colSpan={3} className="p-2 border-r border-b border-slate-700 bg-slate-800 text-center">Các Khoản Khấu Trừ Gốc</th>
+                          <th rowSpan={2} className="p-2 bg-amber-700 text-white font-black text-right w-[120px] border-b border-amber-800">THỰC LĨNH</th>
+                          <th rowSpan={2} className="p-2 bg-orange-800 text-white font-black text-right w-[140px] border-b border-orange-900">ĐIỀU CHỈNH CP KHÁC</th>
+                          <th rowSpan={2} className="p-2 bg-indigo-800 text-white font-black text-right w-[150px] sticky right-0 z-20 shadow-[-2px_0_5px_rgba(0,0,0,0.1)] border-b border-indigo-900">TỔNG THANH TOÁN CK</th>
                         </tr>
                         <tr className="h-[32px] bg-slate-800 text-[10px] text-slate-300">
                           <th className="p-1 border-r border-b border-slate-700 text-center w-[50px]">Công</th>
@@ -1032,14 +1146,13 @@ export default function PayrollNetBoard() {
                           <th className="p-1 border-r border-b border-slate-700 text-right w-[80px]">Nhà ở</th>
                           <th className="p-1 border-r border-b border-slate-700 text-right w-[90px] text-teal-300 font-bold">Tổng PC</th>
                           <th className="p-1 border-r border-b border-slate-700 text-right w-[85px]">Tạm Ứng</th>
-                          <th className="p-1 border-r border-b border-slate-700 text-right w-[85px]">BHXH</th>
                           <th className="p-1 border-r border-b border-slate-700 text-right w-[85px]">Thuế TNCN</th>
                           <th className="p-1 border-r border-b border-slate-700 text-right w-[95px] font-bold text-rose-300">Tổng Trừ</th>
                         </tr>
                       </thead>
                       <tbody>
                         {isDataLoading ? (
-                          <tr><td colSpan={25} className="p-10 text-center"><Loader2 className="w-8 h-8 animate-spin mx-auto text-blue-600"/></td></tr>
+                          <tr><td colSpan={26} className="p-10 text-center"><Loader2 className="w-8 h-8 animate-spin mx-auto text-blue-600"/></td></tr>
                         ) : filteredPayrolls.map((p, idx) => {
                           const snap = p.employeeSnapshot || {};
                           const allw = p.incomes?.allowances || {};
@@ -1047,8 +1160,16 @@ export default function PayrollNetBoard() {
                           const totalAllw = Number(allw.meal||0) + Number(allw.transport||0) + Number(allw.phone||0) + Number(allw.clothing||0) + Number(allw.housing||0);
                           const rowBg = idx % 2 === 0 ? "bg-white" : "bg-slate-50/60";
 
-                          const accountingDeductions = Number(ded.advance || 0) + Number(ded.insurance?.total || 0) + Number(ded.taxTNCN || 0);
+                          const accountingDeductions = Number(ded.advance || 0) + Number(ded.taxTNCN || 0);
                           const accountingNet = Number(p.incomes?.totalGross || 0) - accountingDeductions;
+                          
+                          const adjustment = editingAdjustments[p._id] !== undefined 
+                            ? editingAdjustments[p._id] 
+                            : Number(p.incomes?.adjustment || 0);
+                          const finalPayment = accountingNet + adjustment;
+                          const isAdjustmentDirty = editingAdjustments[p._id] !== undefined 
+                            && editingAdjustments[p._id] !== Number(p.incomes?.adjustment || 0);
+                          const isSaving = savingIds[p._id];
 
                           return (
                             <tr key={p._id} className={`${rowBg} hover:bg-slate-100/80 transition-colors`}>
@@ -1073,11 +1194,39 @@ export default function PayrollNetBoard() {
                               <td className="p-2 border-r border-b border-slate-200 text-right text-rose-600 font-medium">{formatNumberWithDot(p.incomes?.bonus)}</td>
                               <td className="p-2 border-r border-b border-slate-200 text-right font-black text-emerald-800 bg-emerald-50/20">{formatNumberWithDot(p.incomes?.totalGross)}</td>
                               <td className="p-2 border-r border-b border-slate-200 text-right text-slate-600">{formatNumberWithDot(ded.advance)}</td>
-                              <td className="p-2 border-r border-b border-slate-200 text-right text-slate-600" title="Bảo hiểm gốc chưa trừ hỗ trợ">{formatNumberWithDot(ded.insurance?.total)}</td>
                               <td className="p-2 border-r border-b border-slate-200 text-right text-amber-600" title="Thuế phát sinh gốc">{formatNumberWithDot(ded.taxTNCN)}</td>
                               <td className="p-2 border-r border-b border-slate-200 text-right font-bold text-rose-700 bg-rose-50/20">{formatNumberWithDot(accountingDeductions)}</td>
-                              <td className={`p-2 text-right font-black text-amber-900 bg-amber-50 text-xs sticky right-0 z-10 shadow-[-2px_0_4px_rgba(0,0,0,0.04)] border-b border-amber-200`}>
-                                {formatNumberWithDot(accountingNet)}
+                              <td className="p-2 border-r border-b border-slate-200 text-right font-black text-amber-900 bg-amber-50 text-xs">{formatNumberWithDot(accountingNet)}</td>
+                              
+                              {/* CỘT ĐIỀU CHỈNH CP KHÁC — INPUT NHẬP TAY */}
+                              <td className="p-1 border-r border-b border-slate-200 text-center bg-orange-50/50">
+                                <div className="flex items-center gap-1">
+                                  <input
+                                    type="text"
+                                    className="w-full h-7 text-right text-[11px] font-bold text-orange-700 bg-white border rounded px-1.5 outline-none focus:ring-2 focus:ring-orange-400"
+                                    value={formatNumberWithDotSigned(adjustment)}
+                                    onChange={(e) => {
+                                      const raw = e.target.value.replace(/[^\d-]/g, "");
+                                      const num = raw === "" || raw === "-" ? 0 : Number(raw);
+                                      setEditingAdjustments(prev => ({ ...prev, [p._id]: num }));
+                                    }}
+                                    placeholder="0"
+                                  />
+                                  {isAdjustmentDirty && (
+                                    <button
+                                      onClick={() => handleSaveAdjustment(p._id)}
+                                      disabled={isSaving}
+                                      className="shrink-0 h-7 w-7 flex items-center justify-center rounded bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-50"
+                                      title="Lưu điều chỉnh"
+                                    >
+                                      {isSaving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+                                    </button>
+                                  )}
+                                </div>
+                              </td>
+                              
+                              <td className="p-2 text-right font-black text-indigo-900 bg-indigo-50 text-xs sticky right-0 z-10 shadow-[-2px_0_4px_rgba(0,0,0,0.04)] border-b border-indigo-200">
+                                {formatNumberWithDot(finalPayment)}
                               </td>
                             </tr>
                           );
@@ -1088,7 +1237,7 @@ export default function PayrollNetBoard() {
                 </Card>
               </TabsContent>
 
-              {/* TAB 2: BẢNG LƯƠNG GỬI NHÂN VIÊN (THEO SIDEBAR) */}
+              {/* TAB 2: BẢNG LƯƠNG GỬI NHÂN VIÊN */}
               <TabsContent value="employee_board" className="flex-1 min-h-0 mt-0 focus-visible:outline-none flex flex-col">
                 <div className="bg-white p-3 rounded-2xl border border-slate-200 shadow-sm flex flex-wrap gap-3 items-center mb-4 shrink-0">
                   <div className="flex items-center gap-2 bg-slate-50 border rounded-xl px-3 py-1.5">
@@ -1105,34 +1254,38 @@ export default function PayrollNetBoard() {
                 </div>
 
                 <div className="mb-2 flex justify-between items-center shrink-0">
-                  <span className="text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2 py-1 rounded-md border border-emerald-100 uppercase">Thực nhận nhân viên (Áp dụng phúc lợi) - Tháng {selectedMonthDoc.month}/{selectedMonthDoc.year}</span>
+                  <span className="text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2 py-1 rounded-md border border-emerald-100 uppercase">Thực nhận nhân viên - Tháng {selectedMonthDoc.month}/{selectedMonthDoc.year}</span>
                   <Button size="sm" onClick={handleExportExcelEmployee} className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs h-8"><FileDown className="w-3.5 h-3.5 mr-1" /> Xuất Lương Nhân Viên</Button>
                 </div>
                 <Card className="flex-1 overflow-hidden border border-slate-200 rounded-2xl bg-white shadow-sm">
                   <div className="overflow-auto h-full custom-scrollbar relative">
-                    <table className="w-full text-xs border-collapse min-w-[1200px] bg-white">
+                    <table className="w-full text-xs border-collapse min-w-[1350px] bg-white">
                       <thead className="bg-[#1e293b] text-white sticky top-0 z-30">
                         <tr className="h-[44px]">
                           <th className="p-3 text-center w-[60px] border-b border-slate-700">STT</th>
                           <th className="p-3 text-center w-[110px] border-b border-slate-700">Mã NV</th>
                           <th className="p-3 text-left sticky left-0 bg-[#1e293b] z-20 w-[180px] border-b border-slate-700">Họ và tên</th>
                           <th className="p-3 text-center w-[130px] border-b border-slate-700">Bộ phận</th>
-                          <th className="p-3 text-right text-emerald-300 w-[160px] border-b border-slate-700">Tổng Thu Nhập </th>
-                          <th className="p-3 text-right text-rose-300 w-[130px] border-b border-slate-700">Tạm Ứng </th>
-                          <th className="p-3 text-right text-rose-300 w-[180px] border-b border-slate-700">BHXH Khấu Trừ</th>
-                          <th className="p-3 text-right text-rose-300 w-[180px] border-b border-slate-700">Thuế TNCN</th>
-                          <th className="p-3 text-right text-amber-300 w-[160px] bg-slate-900 font-bold border-b border-slate-950">Thực Nhận </th>
+                          <th className="p-3 text-right text-emerald-300 w-[150px] border-b border-slate-700">Tổng Thu Nhập</th>
+                          <th className="p-3 text-right text-rose-300 w-[120px] border-b border-slate-700">Tạm Ứng</th>
+                          <th className="p-3 text-right text-rose-300 w-[120px] border-b border-slate-700">Thuế TNCN</th>
+                          <th className="p-3 text-right text-amber-300 w-[140px] bg-slate-900 font-bold border-b border-slate-950">Thực Nhận</th>
+                          <th className="p-3 text-right text-orange-300 w-[140px] border-b border-slate-700">Điều Chỉnh CP Khác</th>
+                          <th className="p-3 text-right text-indigo-300 w-[150px] bg-indigo-900 font-bold border-b border-indigo-950">Tổng Thanh Toán CK</th>
                         </tr>
                       </thead>
                       <tbody>
                         {isDataLoading ? (
-                          <tr><td colSpan={9} className="p-10 text-center"><Loader2 className="w-8 h-8 animate-spin mx-auto text-blue-600"/></td></tr>
+                          <tr><td colSpan={10} className="p-10 text-center"><Loader2 className="w-8 h-8 animate-spin mx-auto text-blue-600"/></td></tr>
                         ) : filteredPayrolls.map((p, idx) => {
                           const snap = p.employeeSnapshot || {};
                           const ded = p.deductions || {};
                           const rowBg = idx % 2 === 0 ? "bg-white" : "bg-slate-50/50";
                           
-                          const displayInsuranceCost = Math.max(0, Number(ded.insurance?.total || 0) - 88000);
+                          const adjustment = editingAdjustments[p._id] !== undefined 
+                            ? editingAdjustments[p._id] 
+                            : Number(p.incomes?.adjustment || 0);
+                          const finalPayment = Number(p.netSalary || 0) + adjustment;
 
                           return (
                             <tr key={p._id} className={`${rowBg} hover:bg-emerald-50/40 transition-colors`}>
@@ -1142,10 +1295,6 @@ export default function PayrollNetBoard() {
                               <td className="p-3 text-center border-b border-slate-100 text-slate-600">{snap.department}</td>
                               <td className="p-3 text-right border-b border-slate-100 font-medium">{formatNumberWithDot(p.incomes?.totalGross)}</td>
                               <td className="p-3 text-right border-b border-slate-100 text-rose-600">{formatNumberWithDot(ded.advance)}</td>
-                              <td className="p-3 text-right border-b border-slate-100 text-rose-600 flex-col">
-                                <div>{formatNumberWithDot(displayInsuranceCost)}</div>
-                                {(ded.insurance?.total || 0) > 0 && <span className="text-[9px] text-emerald-600 font-normal block">(Đã giảm 88k)</span>}
-                              </td>
                               <td className="p-3 text-right border-b border-slate-100 font-bold text-slate-400">
                                 {Number(ded.taxTNCN) > 0 ? (
                                   <>
@@ -1158,6 +1307,12 @@ export default function PayrollNetBoard() {
                               </td>
                               <td className="p-3 text-right border-b border-slate-100 font-black text-emerald-700 bg-emerald-50/30 text-sm">
                                 {formatNumberWithDot(p.netSalary)}
+                              </td>
+                              <td className="p-3 text-right border-b border-slate-100 font-bold text-orange-700 bg-orange-50/30">
+                                {formatNumberWithDotSigned(adjustment)}
+                              </td>
+                              <td className="p-3 text-right border-b border-slate-100 font-black text-indigo-700 bg-indigo-50/30 text-sm">
+                                {formatNumberWithDot(finalPayment)}
                               </td>
                             </tr>
                           );
@@ -1173,7 +1328,7 @@ export default function PayrollNetBoard() {
                 <TabPayrollStats reportData={reportData} filterProps={sharedFilterProps} />
               </TabsContent>
 
-              {/* TAB 4: THỐNG KÊ THUẾ (GỐC) NĂM/THÁNG/QUÝ */}
+              {/* TAB 4: THỐNG KÊ THUẾ (GỐC) */}
               <TabsContent value="tax" className="flex-1 min-h-0 mt-0 focus-visible:outline-none overflow-y-auto custom-scrollbar pr-1">
                 <TabTaxSummary reportData={reportData} isReportingFetching={isReportingFetching} filterProps={sharedFilterProps} />
               </TabsContent>
@@ -1192,6 +1347,22 @@ export default function PayrollNetBoard() {
           </div>
         )}
       </main>
+
+      {/* ===== TOAST NOTIFICATION ===== */}
+      {toast && (
+        <div className={`fixed top-6 right-6 z-[9999] flex items-center gap-3 px-5 py-3 rounded-xl shadow-2xl animate-in slide-in-from-top-2 fade-in-0 ${
+          toast.type === "success" 
+            ? "bg-emerald-600 text-white" 
+            : "bg-rose-600 text-white"
+        }`}>
+          {toast.type === "success" ? (
+            <CheckCircle2 className="w-5 h-5" />
+          ) : (
+            <X className="w-5 h-5" />
+          )}
+          <span className="font-bold text-sm">{toast.message}</span>
+        </div>
+      )}
 
       <style>{`
         .custom-scrollbar::-webkit-scrollbar { width: 5px; height: 5px; } 

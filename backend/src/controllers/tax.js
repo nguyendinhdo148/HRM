@@ -3,6 +3,9 @@ import { Employee } from "../models/Employee.js";
 import { PayrollRecord } from "../models/PayrollRecord.js";
 import { InsuranceRecord } from "../models/InsuranceRecord.js";
 
+// ===== HẰNG SỐ =====
+const COMPANY_INSURANCE_SUPPORT = 88000;
+
 export const getTaxMonths = async (req, res) => {
   try {
     const months = await TaxRecord.aggregate([
@@ -27,7 +30,7 @@ export const getTaxByMonth = async (req, res) => {
   }
 };
 
-// LIÊN KẾT CHÉO CÁC MODEL KHỞI TẠO BẢNG THUẾ
+// ===== KHỞI TẠO BẢNG THUẾ =====
 export const initializeTaxMonth = async (req, res) => {
   try {
     const { month, year } = req.body;
@@ -37,14 +40,12 @@ export const initializeTaxMonth = async (req, res) => {
       await TaxRecord.deleteMany({ month, year });
     }
 
-    // Bao gồm nhân viên đang hoạt động và nhân viên đã nghỉ việc nếu nghỉ trong tháng này
     const activeEmployees = await Employee.find({ status: "active" });
     const start = new Date(year, month - 1, 1);
     const end = new Date(year, month, 0, 23, 59, 59);
     const resignedThisMonth = await Employee.find({ status: "resigned", "workInfo.resignationDate": { $gte: start, $lte: end } });
     const allEmployees = [...activeEmployees, ...resignedThisMonth];
 
-    // Kéo dữ liệu từ Bảng Lương và Bảng Bảo Hiểm CÙNG THÁNG/NĂM
     const payrolls = await PayrollRecord.find({ month, year });
     const insurances = await InsuranceRecord.find({ month, year });
 
@@ -52,13 +53,16 @@ export const initializeTaxMonth = async (req, res) => {
       const payroll = payrolls.find(p => p.employee?.toString() === emp._id.toString());
       const insurance = insurances.find(i => i.employee?.toString() === emp._id.toString());
       const payrollAllowances = payroll?.incomes?.allowances || {};
-      const allowanceTotal = [
-        payrollAllowances.meal,
-        payrollAllowances.transport,
-        payrollAllowances.phone,
-        payrollAllowances.clothing,
-        payrollAllowances.housing
-      ].reduce((sum, amount) => sum + (Number(amount) || 0), 0);
+
+      // ===== 1. LƯƠNG GROSS (từ PayrollBoard) =====
+      const grossFromPayroll = payroll ? payroll.incomes.totalGross : 0;
+
+      // ===== 2. BHXH nhân viên đóng (trừ 88k công ty đã hỗ trợ) =====
+      const employeeInsuranceTotal = insurance?.employeePays?.total || 0;
+      const insuranceAfterSupport = Math.max(0, employeeInsuranceTotal - COMPANY_INSURANCE_SUPPORT);
+
+      // ===== 3. Tiền ở =====
+      const housingAllowance = payrollAllowances.housingAllowance || 0;
 
       return {
         month,
@@ -69,28 +73,26 @@ export const initializeTaxMonth = async (req, res) => {
           fullName: emp.fullName,
           position: emp.workInfo?.position || "Chưa có"
         },
-        taxableIncome: payroll ? payroll.incomes.totalGross : (emp.salaryAndBenefits?.baseSalary || 0),
-        allowances: {
-          meal: payrollAllowances.meal || 0,
-          transport: payrollAllowances.transport || 0,
-          phone: payrollAllowances.phone || 0,
-          clothing: payrollAllowances.clothing || 0,
-          housing: payrollAllowances.housing || 0,
-          total: allowanceTotal
-        },
-        dependents: emp.salaryAndBenefits?.dependents || 0,
-        deductions: { insurance: insurance ? insurance.employeePays.total : 0 }
+        taxableIncome: grossFromPayroll,
+        deductions: {
+          personal: 15500000,
+          dependent: 0,
+          insurance: insuranceAfterSupport,    // ← ĐÃ TRỪ 88K
+          housingAllowance: housingAllowance,  // ← TIỀN Ở
+          total: 0,
+        }
       };
     });
 
     const createdRecords = await TaxRecord.insertMany(taxDocs);
     for (const doc of createdRecords) {
       const record = await TaxRecord.findById(doc._id);
-      await record.save(); // Gọi Hook để tính ra kết quả Thuế
+      await record.save();
     }
 
     res.status(201).json({ message: `Đã khởi tạo Bảng Thuế TNCN tháng ${month}/${year} cho ${allEmployees.length} nhân sự.` });
   } catch (error) { 
+    console.error("Lỗi khởi tạo Bảng Thuế:", error);
     res.status(500).json({ message: "Lỗi khởi tạo Bảng Thuế" }); 
   }
 };

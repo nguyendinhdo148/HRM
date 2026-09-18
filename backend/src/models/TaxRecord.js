@@ -6,41 +6,36 @@ const taxRecordSchema = new mongoose.Schema(
     year: { type: Number, required: true },
     employee: { type: mongoose.Schema.Types.ObjectId, ref: "Employee", required: true },
     
-    // Snapshot thông tin cơ bản tại thời điểm chốt thuế
     employeeSnapshot: {
       employeeCode: String,
       fullName: String,
       position: String,
     },
 
-    // Dữ liệu thu nhập
-    taxableIncome: { type: Number, default: 0 }, // Thu nhập chịu thuế (Lương Gross)
-    allowances: {
-      meal: { type: Number, default: 0 }, // Tiền ăn được miễn thuế
-    },
+    // Thu nhập chịu thuế = Lương Gross từ PayrollBoard
+    taxableIncome: { type: Number, default: 0 },
 
-    // Các khoản giảm trừ
     deductions: {
-      personal: { type: Number, default: 15500000 }, // Giảm trừ bản thân cố định 15.5tr
-      dependent: { type: Number, default: 0 },       // Sẽ tính toán: (Số NPT từ bảng Employee x 6.2tr)
-      insurance: { type: Number, default: 0 },       // Bảo hiểm trừ vào lương
+      personal: { type: Number, default: 15500000 },
+      dependent: { type: Number, default: 0 },
+      insurance: { type: Number, default: 0 },              // BHXH đã trừ 88k
+      housingAllowance: { type: Number, default: 0 },       // Tiền ở
       total: { type: Number, default: 0 }
     },
 
-    // Thu nhập tính thuế & Thuế phải nộp
-    assessableIncome: { type: Number, default: 0 }, // Thu nhập tính thuế
-    taxAmount: { type: Number, default: 0 },        // Thuế TNCN phải nộp
+    assessableIncome: { type: Number, default: 0 },
+    taxAmount: { type: Number, default: 0 },
   },
   { timestamps: true }
 );
 
-// HOOK TÍNH THUẾ TỰ ĐỘNG (LŨY TIẾN 5 BẬC MỚI)
+// ===== HOOK TÍNH THUẾ TỰ ĐỘNG =====
 taxRecordSchema.pre("save", async function (next) {
   try {
     const PERSONAL_DEDUCTION = 15500000;
     const DEPENDENT_DEDUCTION = 6200000;
 
-    // TRUY VẤN LẤY TRỰC TIẾP SỐ NPT TỪ MODEL EMPLOYEE RA ĐỂ TÍNH TOÁN
+    // Lấy số NPT từ Employee
     let employeeDependents = 0;
     if (this.employee) {
       const employeeData = await mongoose.model("Employee").findById(this.employee);
@@ -49,28 +44,24 @@ taxRecordSchema.pre("save", async function (next) {
       }
     }
 
-    // Thiết lập các mức giảm trừ dựa trên số lượng lấy được từ bảng nhân sự
+    this.deductions = this.deductions || {};
+
     this.deductions.personal = PERSONAL_DEDUCTION;
     this.deductions.dependent = employeeDependents * DEPENDENT_DEDUCTION;
-    
-    // Đảm bảo object allowances tồn tại
-    this.allowances = this.allowances || {};
 
-    // Tính tổng các khoản giảm trừ
-    this.deductions = this.deductions || {};
-    this.deductions.total = (this.deductions.personal || 0) + (this.deductions.dependent || 0) + (this.deductions.insurance || 0);
+    // ===== TỔNG GIẢM TRỪ = Bản thân + NPT + BHXH + Tiền ở =====
+    this.deductions.total =
+      (this.deductions.personal || 0) +
+      (this.deductions.dependent || 0) +
+      (this.deductions.insurance || 0) +
+      (this.deductions.housingAllowance || 0);
 
-    // Thu nhập tính thuế = Thu nhập chịu thuế - Giảm trừ bản thân - Giảm trừ NPT - Tiền ăn - BHXH
-    let assessable = (this.taxableIncome || 0) 
-                   - (this.deductions.personal || 0) 
-                   - (this.deductions.dependent || 0) 
-                   - (this.allowances.meal || 0) 
-                   - (this.deductions.insurance || 0);
-                   
+    // ===== THU NHẬP TÍNH THUẾ =====
+    let assessable = (this.taxableIncome || 0) - this.deductions.total;
     if (assessable < 0) assessable = 0;
     this.assessableIncome = assessable;
 
-    // TÍNH THUẾ LŨY TIẾN 5 BẬC
+    // ===== THUẾ LŨY TIẾN 5 BẬC =====
     let tax = 0;
     if (assessable <= 0) {
       tax = 0;

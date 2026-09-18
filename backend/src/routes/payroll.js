@@ -9,7 +9,8 @@ import {
   deletePayrollMonth,
   sendPayslipEmail,
   getPayrollRecordById,
-  viewPayrollByCCCD // ✅ Import thêm hàm này
+  viewPayrollByCCCD,
+  updatePayrollAdjustment // ✅ Thêm route điều chỉnh CP khác
 } from "../controllers/payroll.js";
 
 const router = express.Router();
@@ -22,6 +23,9 @@ router.get("/", authMiddleware, getPayrollByMonth);
 
 // Khởi tạo bảng lương tháng mới (Kéo data từ Nhân sự & Chấm công)
 router.post("/init", authMiddleware, initializePayroll);
+
+// ⚠️ ĐIỀU CHỈNH CHI PHÍ KHÁC — PHẢI ĐẶT TRƯỚC ROUTE GENERIC "/:recordId"
+router.put("/:recordId/adjustment", authMiddleware, updatePayrollAdjustment);
 
 // Cập nhật 1 dòng phiếu lương (Nhập thêm giờ, thưởng, thuế TNCN, ...)
 router.put("/:recordId", authMiddleware, updatePayrollRecord);

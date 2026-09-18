@@ -3,10 +3,10 @@ import mongoose from "mongoose";
 const employeeSchema = new mongoose.Schema(
   {
     employeeCode: { type: String, required: true, unique: true, trim: true, description: "Mã nhân viên nội bộ" },
-    idCardNumber: { type: String, trim: true, description: "Số CCCD/CMND" },              // ĐÃ BỎ required
-    fullName: { type: String, trim: true, description: "Họ và tên" },                     // ĐÃ BỎ required
-    email: { type: String, trim: true, lowercase: true },                                 // ĐÃ BỎ required + match
-    phoneNumber: { type: String, trim: true, description: "Số điện thoại" },              // ĐÃ BỎ required
+    idCardNumber: { type: String, trim: true, description: "Số CCCD/CMND" },
+    fullName: { type: String, trim: true, description: "Họ và tên" },
+    email: { type: String, trim: true, lowercase: true },
+    phoneNumber: { type: String, trim: true, description: "Số điện thoại" },
 
     personalInfo: {
       dateOfBirth: { type: Date },
@@ -17,14 +17,12 @@ const employeeSchema = new mongoose.Schema(
       ethnicity: { type: String, trim: true },
       hometown: { type: String, trim: true },
 
-      // ĐỊA CHỈ THƯỜNG TRÚ (KHAI SINH) - TÁCH 3 CỘT
       permanentAddress: {
         houseStreet: { type: String, trim: true, description: "Số nhà + tên đường" },
         ward: { type: String, trim: true, description: "Phường/Xã" },
         province: { type: String, trim: true, description: "Tỉnh/TP" },
       },
 
-      // ĐỊA CHỈ HIỆN TẠI - TÁCH 3 CỘT
       currentAddress: {
         houseStreet: { type: String, trim: true, description: "Số nhà + tên đường" },
         ward: { type: String, trim: true, description: "Phường/Xã" },
@@ -39,7 +37,7 @@ const employeeSchema = new mongoose.Schema(
       profession: { type: String, trim: true },
       jobDescription: { type: String, trim: true },
       workingTime: { type: String, trim: true },
-      joinDate: { type: Date, description: "Ngày chính thức đi làm" },                     // ĐÃ BỎ required
+      joinDate: { type: Date, description: "Ngày chính thức đi làm" },
       resignationDate: { type: Date, description: "Ngày nghỉ việc (nếu có)" },
     },
 
@@ -48,7 +46,7 @@ const employeeSchema = new mongoose.Schema(
       contractType: { 
         type: String, 
         enum: ["PROBATION", "FIXED_TERM", "INDEFINITE", "FREELANCE", "INTERNSHIP"],
-        default: "PROBATION"                                                                // ĐÃ BỎ required, THÊM default
+        default: "PROBATION"
       },
       contractDuration: { type: String, trim: true, description: "Thời hạn HĐ" },
       signDate: { type: Date },
@@ -69,6 +67,20 @@ const employeeSchema = new mongoose.Schema(
       bankName: { type: String, trim: true, description: "Tên ngân hàng" },
       bankAccountNumber: { type: String, trim: true, description: "Số tài khoản" },
       paymentPeriod: { type: String, trim: true },
+
+      // ===== PHỤ CẤP Ở =====
+      housingCost: { type: Number, default: 0, description: "Chi phí ở" },
+      dormitoryDeduction: { type: Number, default: 0, description: "KTX tt VS (khấu trừ KTX)" },
+      housingAllowance: { type: Number, default: 0, description: "Phụ cấp Ở = Chi phí ở - KTX tt VS" },
+
+      // ===== ĐƠN GIÁ SHOW, ĂN CA & CA TẬP =====
+      minishowRate: { type: Number, default: 65000, description: "Đơn giá Mini Show" },
+      bigshowRate: { type: Number, default: 213462, description: "Đơn giá Big Show" },
+      mealRate: { type: Number, default: 0, description: "Tiền ăn/công = 1.800.000/26" },
+      // ===== PHỤ CẤP CA TẬP / CÔNG =====
+      // Nhập đơn giá/công, backend sẽ nhân với actualDays khi gom lương (giống Tiền ăn ca, không trần)
+      trainingAllowanceRate: { type: Number, default: 0, description: "Phụ cấp ca tập / công (VD: 39.000)" },
+      trainingAllowance: { type: Number, default: 0, description: "Phụ cấp ca tập (giá trị cuối = rate × actualDays)" },
       
       bonuses: {
         general: { type: Number, default: 0 },

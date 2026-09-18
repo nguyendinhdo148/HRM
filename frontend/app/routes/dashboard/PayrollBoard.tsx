@@ -3,7 +3,7 @@ import React, { useState, useEffect, useMemo } from "react";
 import {
   Calculator, Save, PlayCircle, RefreshCcw, CheckCircle2, Search, FileDown, 
   Wallet, Filter, Trash2, Lock, Unlock, Loader2, Settings,
-  ChevronLeft, ChevronRight
+  ChevronLeft, ChevronRight, X
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -13,6 +13,9 @@ import { Loader } from "@/components/loader";
 import * as XLSX from "xlsx";
 
 const API_BASE_URL = `${import.meta.env.VITE_API_URL}/payroll`;
+
+const MAX_MEAL_ALLOWANCE = 1800000;
+const DEFAULT_INSURANCE_ADVANCE = 500000;
 
 const getAuthHeaders = () => ({
   "Content-Type": "application/json",
@@ -25,14 +28,36 @@ const formatNumberWithDot = (val: string | number) => {
   return val.toString().replace(/\D/g, "").replace(/\B(?=(\d{3})+(?!\d))/g, ".");
 };
 
+const clampMeal = (val: number) => Math.min(Number(val) || 0, MAX_MEAL_ALLOWANCE);
+
+// ===== INPUT TIỆN DỤNG: clear "0" khi focus =====
+const NumberInput = ({ value, onChange, disabled, className }: any) => {
+  const [isFocused, setIsFocused] = useState(false);
+  
+  const displayValue = isFocused && (value === 0 || value === "0") 
+    ? "" 
+    : formatNumberWithDot(value);
+  
+  return (
+    <Input 
+      className={className}
+      value={displayValue}
+      onChange={onChange}
+      disabled={disabled}
+      onFocus={() => setIsFocused(true)}
+      onBlur={() => setIsFocused(false)}
+    />
+  );
+};
+
 // ==========================================
-// TRANG TÍNH LƯƠNG GROSS
+// BẢNG LƯƠNG GROSS
 // ==========================================
-const TabGrossPayrollTable = ({ filteredPayrolls, editingRecords, isClosed, handleInputChange, handleSaveRow }: any) => {
+const TabGrossPayrollTable = ({ filteredPayrolls, editingRecords, isClosed, handleInputChange, handleSaveRow, savingIds }: any) => {
   return (
     <Card className="border-none shadow-sm rounded-2xl overflow-hidden animate-in fade-in-50">
       <div className="overflow-auto max-h-[calc(100vh-190px)] pb-4 custom-scrollbar relative">
-        <table className="w-full text-[11px] border-collapse min-w-[2200px] bg-white">
+        <table className="w-full text-[11px] border-collapse min-w-[1900px] bg-white">
           <thead className="bg-[#003366] text-white">
             <tr className="h-[48px]">
               <th rowSpan={2} className="p-2 sticky left-0 top-0 bg-[#003366] z-[60] w-[45px] min-w-[45px] max-w-[45px] border-r border-b border-slate-600 text-center">STT</th>
@@ -43,9 +68,11 @@ const TabGrossPayrollTable = ({ filteredPayrolls, editingRecords, isClosed, hand
               <th rowSpan={2} className="p-2 border-r border-b border-slate-600 min-w-[100px] sticky top-0 z-[50] bg-[#003366]">Lương CV</th>
               <th colSpan={2} className="p-2 border-r border-b border-slate-600 bg-[#1e40af] text-center sticky top-0 z-[50]">Lương Thời Gian</th>
               <th rowSpan={2} className="p-2 border-r border-b border-slate-600 bg-[#1d4ed8] text-center max-w-[100px] sticky top-0 z-[50]">Làm Thêm Giờ</th>
-              <th colSpan={3} className="p-2 border-r border-b border-slate-600 bg-[#6b21a8] text-center sticky top-0 z-[50]">Hiệu Suất (Show & Công)</th>
-              <th colSpan={6} className="p-2 border-r border-b border-slate-600 bg-[#0f766e] text-center sticky top-0 z-[50]">Các Khoản Phụ Cấp</th>
+              <th colSpan={3} className="p-2 border-r border-b border-slate-600 bg-[#6b21a8] text-center sticky top-0 z-[50]">Hiệu Suất (Show &amp; Công)</th>
+              <th colSpan={4} className="p-2 border-r border-b border-slate-600 bg-[#0f766e] text-center sticky top-0 z-[50]">Các Khoản Phụ Cấp</th>
               <th rowSpan={2} className="p-2 border-r border-b border-slate-600 bg-[#831843] text-center min-w-[100px] sticky top-0 z-[50]">Thưởng Mới</th>
+              <th rowSpan={2} className="p-2 border-r border-b border-slate-600 bg-[#7c2d12] text-center min-w-[110px] sticky top-0 z-[50]">Tạm ứng BHXH</th>
+              <th rowSpan={2} className="p-2 border-r border-b border-slate-600 bg-[#991b1b] text-center min-w-[100px] sticky top-0 z-[50]">Phạt</th>
               
               <th rowSpan={2} className="p-2 bg-[#064e3b] text-emerald-300 font-black text-xs w-[120px] min-w-[120px] max-w-[120px] text-center sticky right-[55px] top-0 z-[60] shadow-[-4px_0_10px_rgba(0,0,0,0.3)] border-l border-b border-slate-600">TỔNG GROSS</th>
               <th rowSpan={2} className="p-2 bg-[#003366] text-center w-[55px] min-w-[55px] max-w-[55px] sticky right-0 top-0 z-[60] border-l border-b border-slate-600">Lưu</th>
@@ -57,10 +84,8 @@ const TabGrossPayrollTable = ({ filteredPayrolls, editingRecords, isClosed, hand
               <th className="p-1 border-r border-b border-slate-600 text-[#d8b4fe] sticky top-[48px] bg-[#1e293b] z-[50]">Big Show</th>
               <th className="p-1 border-r border-b border-slate-600 text-[#d8b4fe] sticky top-[48px] bg-[#1e293b] z-[50]">Thưởng N.Công</th>
               <th className="p-1 border-r border-b border-slate-600 sticky top-[48px] bg-[#1e293b] z-[50]">Tiền ăn ca</th>
-              <th className="p-1 border-r border-b border-slate-600 sticky top-[48px] bg-[#1e293b] z-[50]">Xăng xe</th>
-              <th className="p-1 border-r border-b border-slate-600 sticky top-[48px] bg-[#1e293b] z-[50]">Điện thoại</th>
-              <th className="p-1 border-r border-b border-slate-600 sticky top-[48px] bg-[#1e293b] z-[50]">Trang phục</th>
               <th className="p-1 border-r border-b border-slate-600 sticky top-[48px] bg-[#1e293b] z-[50]">Nhà ở</th>
+              <th className="p-1 border-r border-b border-slate-600 text-indigo-300 sticky top-[48px] bg-[#1e293b] z-[50]">Ca tập</th>
               <th className="p-1 border-r border-b border-slate-600 text-emerald-200 font-bold bg-[#047857] sticky top-[48px] z-[50]">Tổng PC</th>
             </tr>
           </thead>
@@ -69,8 +94,14 @@ const TabGrossPayrollTable = ({ filteredPayrolls, editingRecords, isClosed, hand
               const edit = editingRecords[p._id] || p;
               const snap = p.employeeSnapshot;
               const allowances = p.incomes?.allowances || {};
-              const totalAllw = (allowances.meal || 0) + (allowances.transport || 0) + (allowances.phone || 0) + (allowances.clothing || 0) + (allowances.housing || 0);
+              const mealDisplay = clampMeal(allowances.meal);
+              const housingDisplay = allowances.housingAllowance || 0;
+              const trainingDisplay = allowances.trainingAllowance || 0;
+              const totalAllw = mealDisplay + housingDisplay + trainingDisplay;
+              const insuranceAdvance = edit?.incomes?.insuranceAdvance ?? DEFAULT_INSURANCE_ADVANCE;
+              const penalty = edit?.incomes?.penalty ?? 0;
               const rowBg = idx % 2 === 0 ? "bg-white" : "bg-[#f8fafc]";
+              const isSaving = savingIds?.[p._id];
               
               return (
                 <tr key={p._id} className={`${rowBg} hover:bg-blue-50 transition-colors`}>
@@ -91,19 +122,37 @@ const TabGrossPayrollTable = ({ filteredPayrolls, editingRecords, isClosed, hand
                   <td className="p-2 border-r border-b border-slate-200 text-right font-bold text-purple-700 bg-purple-50/20">{formatNumberWithDot(p.incomes?.bigShowMoney)}</td>
                   <td className="p-2 border-r border-b border-slate-200 text-right font-bold text-purple-800 bg-purple-100/30">{formatNumberWithDot(p.incomes?.kpiBonus)}</td>
 
-                  <td className="p-2 border-r border-b border-slate-200 text-right text-emerald-600">{formatNumberWithDot(allowances.meal)}</td>
-                  <td className="p-2 border-r border-b border-slate-200 text-right text-emerald-600">{formatNumberWithDot(allowances.transport)}</td>
-                  <td className="p-2 border-r border-b border-slate-200 text-right text-emerald-600">{formatNumberWithDot(allowances.phone)}</td>
-                  <td className="p-2 border-r border-b border-slate-200 text-right text-emerald-600">{formatNumberWithDot(allowances.clothing)}</td>
-                  <td className="p-2 border-r border-b border-slate-200 text-right text-emerald-600">{formatNumberWithDot(allowances.housing)}</td>
+                  <td className="p-2 border-r border-b border-slate-200 text-right text-emerald-600">{formatNumberWithDot(mealDisplay)}</td>
+                  <td className="p-2 border-r border-b border-slate-200 text-right text-emerald-600">{formatNumberWithDot(housingDisplay)}</td>
+                  <td className="p-2 border-r border-b border-slate-200 text-right text-indigo-600 bg-indigo-50/30">{formatNumberWithDot(trainingDisplay)}</td>
                   <td className="p-2 border-r border-b border-slate-200 text-right font-bold text-emerald-700 bg-emerald-50/50">{formatNumberWithDot(totalAllw)}</td>
 
                   <td className="p-1 border-r border-b border-slate-200 text-center bg-rose-50/30">
-                    <Input 
+                    <NumberInput 
                       className="h-7 w-full text-right text-[11px] font-bold text-rose-700 px-2"
-                      value={formatNumberWithDot(edit?.incomes?.bonus ?? 0)}
-                      onChange={(e) => handleInputChange(p._id, "bonus", e.target.value)}
-                      disabled={isClosed}
+                      value={edit?.incomes?.bonus ?? 0}
+                      onChange={(e: any) => handleInputChange(p._id, "bonus", e.target.value)}
+                      disabled={isClosed || isSaving}
+                    />
+                  </td>
+
+                  {/* TẠM ỨNG BHXH */}
+                  <td className="p-1 border-r border-b border-slate-200 text-center bg-orange-50/40">
+                    <NumberInput 
+                      className="h-7 w-full text-right text-[11px] font-bold text-orange-700 px-2"
+                      value={insuranceAdvance}
+                      onChange={(e: any) => handleInputChange(p._id, "insuranceAdvance", e.target.value)}
+                      disabled={isClosed || isSaving}
+                    />
+                  </td>
+
+                  {/* CỘT PHẠT */}
+                  <td className="p-1 border-r border-b border-slate-200 text-center bg-red-50/50">
+                    <NumberInput 
+                      className="h-7 w-full text-right text-[11px] font-bold text-red-700 px-2"
+                      value={penalty}
+                      onChange={(e: any) => handleInputChange(p._id, "penalty", e.target.value)}
+                      disabled={isClosed || isSaving}
                     />
                   </td>
                   
@@ -112,7 +161,14 @@ const TabGrossPayrollTable = ({ filteredPayrolls, editingRecords, isClosed, hand
                   </td>
                   <td className={`p-1.5 sticky right-0 z-[40] ${rowBg} border-l border-b border-slate-200`}>
                     {editingRecords[p._id] && !isClosed ? (
-                      <Button size="sm" onClick={() => handleSaveRow(p._id)} className="w-full h-7 text-[9px] bg-blue-600 px-1">LƯU</Button>
+                      <Button 
+                        size="sm" 
+                        onClick={() => handleSaveRow(p._id)} 
+                        disabled={isSaving}
+                        className="w-full h-7 text-[9px] bg-blue-600 px-1"
+                      >
+                        {isSaving ? <Loader2 className="w-3 h-3 animate-spin" /> : "LƯU"}
+                      </Button>
                     ) : (<div className="text-center opacity-30 text-[10px] font-bold mt-1">---</div>)}
                   </td>
                 </tr>
@@ -126,7 +182,7 @@ const TabGrossPayrollTable = ({ filteredPayrolls, editingRecords, isClosed, hand
 };
 
 // =========================================================================
-// MAIN COMPONENT: GIAO DIỆN CHÍNH
+// MAIN
 // =========================================================================
 export default function PayrollBoard() {
   const [monthsList, setMonthsList] = useState<any[]>([]);
@@ -136,18 +192,22 @@ export default function PayrollBoard() {
   const [isLoading, setIsLoading] = useState(false);
   const [isDataLoading, setIsDataLoading] = useState(false);
   const [editingRecords, setEditingRecords] = useState<{ [recordId: string]: any }>({});
+  const [savingIds, setSavingIds] = useState<{ [recordId: string]: boolean }>({});
   const [searchQuery, setSearchQuery] = useState("");
   const [deptFilter, setDeptFilter] = useState<string>("ALL");
+
+  // ===== STATE TOAST =====
+  const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
+  const showToast = (message: string, type: "success" | "error" = "success") => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 2500);
+  };
 
   const currentDate = new Date();
   const [newMonth, setNewMonth] = useState(currentDate.getMonth() + 1);
   const [newYear, setNewYear] = useState(currentDate.getFullYear());
 
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-
-  const [configRates, setConfigRates] = useState({
-    minishow:  40800, bigshow:  130500, meal: 35000, transport: 30000, housingUnder15: 425000, housingOver15: 850000
-  });
 
   const fetchMonthsList = async () => {
     setIsLoading(true);
@@ -198,10 +258,10 @@ export default function PayrollBoard() {
       return;
     }
 
-    if (!window.confirm("Bắt đầu Đồng Bộ Tự Động?\nHệ thống sẽ tính toán lại dựa trên các tham số cấu hình phụ cấp và KPIs.")) return;
+    if (!window.confirm("Bắt đầu Đồng Bộ Tự Động?\nHệ thống sẽ tính toán lại dựa trên đơn giá Show, tiền ăn ca và ca tập của từng nhân sự.")) return;
     setIsLoading(true);
     try {
-      const payload = { month: newMonth, year: newYear, standardDays: 26, rates: configRates };
+      const payload = { month: newMonth, year: newYear, standardDays: 26 };
       const res = await fetch(`${API_BASE_URL}/init`, { method: "POST", headers: getAuthHeaders(), body: JSON.stringify(payload) });
       const result = await res.json();
       if (res.ok) {
@@ -242,31 +302,90 @@ export default function PayrollBoard() {
     } catch (error) { console.error(error); }
   };
 
-  const handleInputChange = (recordId: string, field: "bonus", value: string) => {
+  // ===== XỬ LÝ THAY ĐỔI Ô INPUT =====
+  const handleInputChange = (recordId: string, field: "bonus" | "insuranceAdvance" | "penalty", value: string) => {
     const numValue = value.replace(/\D/g, "");
     setEditingRecords((prev) => {
       const currentEdit = prev[recordId] ? { ...prev[recordId] } : JSON.parse(JSON.stringify(payrolls.find((p) => p._id === recordId)));
       if (!currentEdit.incomes) currentEdit.incomes = {};
       currentEdit.incomes[field] = Number(numValue);
-      
-      const allw = currentEdit.incomes.allowances || {};
-      const totalAllw = (allw.meal||0) + (allw.transport||0) + (allw.phone||0) + (allw.clothing||0) + (allw.housing||0) + (allw.other||0);
-      currentEdit.incomes.totalGross = currentEdit.incomes.timeSalary + totalAllw + currentEdit.incomes.overtime + currentEdit.incomes.bonus + currentEdit.incomes.miniShowMoney + currentEdit.incomes.bigShowMoney + currentEdit.incomes.kpiBonus;
 
-      return { ...prev, [recordId] : currentEdit };
+      const allw = currentEdit.incomes.allowances || {};
+      const totalAllw = clampMeal(allw.meal) + (allw.housingAllowance || 0) + (allw.trainingAllowance || 0);
+      const insuranceAdvance = Number(currentEdit.incomes.insuranceAdvance) || 0;
+      const penalty = Number(currentEdit.incomes.penalty) || 0;
+
+      currentEdit.incomes.totalGross = Math.max(0,
+        (currentEdit.incomes.timeSalary || 0) +
+        totalAllw +
+        (currentEdit.incomes.overtime || 0) +
+        (currentEdit.incomes.bonus || 0) +
+        (currentEdit.incomes.miniShowMoney || 0) +
+        (currentEdit.incomes.bigShowMoney || 0) +
+        (currentEdit.incomes.kpiBonus || 0) -
+        insuranceAdvance -
+        penalty
+      );
+
+      return { ...prev, [recordId]: currentEdit };
     });
   };
 
+  // ===== LƯU ROW — KHÔNG FETCH LẠI =====
   const handleSaveRow = async (recordId: string) => {
     const updatedData = editingRecords[recordId];
     if (!updatedData) return;
+
+    setSavingIds(prev => ({ ...prev, [recordId]: true }));
     try {
-      const res = await fetch(`${API_BASE_URL}/${recordId}`, { method: "PUT", headers: getAuthHeaders(), body: JSON.stringify({ bonus: updatedData.incomes.bonus }) });
-      if (res.ok) fetchPayrollData(selectedMonthDoc.month, selectedMonthDoc.year);
-    } catch (error) { console.error(error); }
+      const res = await fetch(`${API_BASE_URL}/${recordId}`, {
+        method: "PUT",
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ 
+          bonus: updatedData.incomes.bonus,
+          insuranceAdvance: updatedData.incomes.insuranceAdvance,
+          penalty: updatedData.incomes.penalty,
+        }),
+      });
+
+      if (res.ok) {
+        // ✅ Cập nhật local state — KHÔNG fetch lại
+        setPayrolls(prev => prev.map(p => {
+          if (p._id === recordId) {
+            return {
+              ...p,
+              incomes: {
+                ...p.incomes,
+                ...updatedData.incomes
+              }
+            };
+          }
+          return p;
+        }));
+        
+        // Xóa khỏi editingRecords (đã lưu thành công)
+        setEditingRecords(prev => {
+          const next = { ...prev };
+          delete next[recordId];
+          return next;
+        });
+        
+        showToast("Đã lưu thành công!");
+      } else {
+        showToast("Lỗi lưu dữ liệu", "error");
+      }
+    } catch (error) {
+      console.error(error);
+      showToast("Lỗi kết nối", "error");
+    } finally {
+      setSavingIds(prev => {
+        const next = { ...prev };
+        delete next[recordId];
+        return next;
+      });
+    }
   };
 
-  // HÀM XUẤT EXCEL (ĐÃ ÁP DỤNG formatNumberWithDot)
   const handleExportExcel = () => {
     if (!filteredPayrolls || filteredPayrolls.length === 0) {
       alert("Không có dữ liệu để xuất!");
@@ -276,9 +395,13 @@ export default function PayrollBoard() {
     const exportData = filteredPayrolls.map((p, index) => {
       const snap = p.employeeSnapshot || {};
       const allowances = p.incomes?.allowances || {};
-      const totalAllw = (allowances.meal || 0) + (allowances.transport || 0) + (allowances.phone || 0) + (allowances.clothing || 0) + (allowances.housing || 0);
+      const mealDisplay = clampMeal(allowances.meal);
+      const housingDisplay = allowances.housingAllowance || 0;
+      const trainingDisplay = allowances.trainingAllowance || 0;
+      const totalAllw = mealDisplay + housingDisplay + trainingDisplay;
+      const insuranceAdvance = p.incomes?.insuranceAdvance ?? DEFAULT_INSURANCE_ADVANCE;
+      const penalty = p.incomes?.penalty ?? 0;
 
-      // Sử dụng formatNumberWithDot cho TẤT CẢ các trường liên quan đến tiền tệ
       return {
         "STT": index + 1,
         "Họ và tên": snap.fullName || "",
@@ -292,41 +415,24 @@ export default function PayrollBoard() {
         "Mini Show": formatNumberWithDot(p.incomes?.miniShowMoney || 0),
         "Big Show": formatNumberWithDot(p.incomes?.bigShowMoney || 0),
         "Thưởng N.Công": formatNumberWithDot(p.incomes?.kpiBonus || 0),
-        "Tiền ăn ca": formatNumberWithDot(allowances.meal || 0),
-        "Xăng xe": formatNumberWithDot(allowances.transport || 0),
-        "Điện thoại": formatNumberWithDot(allowances.phone || 0),
-        "Trang phục": formatNumberWithDot(allowances.clothing || 0),
-        "Nhà ở": formatNumberWithDot(allowances.housing || 0),
+        "Tiền ăn ca": formatNumberWithDot(mealDisplay),
+        "Nhà ở": formatNumberWithDot(housingDisplay),
+        "Ca tập": formatNumberWithDot(trainingDisplay),
         "Tổng Phụ Cấp": formatNumberWithDot(totalAllw),
         "Thưởng Mới": formatNumberWithDot(p.incomes?.bonus || 0),
+        "Tạm ứng BHXH": formatNumberWithDot(insuranceAdvance),
+        "Phạt": formatNumberWithDot(penalty),
         "TỔNG GROSS": formatNumberWithDot(p.incomes?.totalGross || 0),
       };
     });
 
     const ws = XLSX.utils.json_to_sheet(exportData);
     
-    // Auto-size độ rộng các cột
     const wscols = [
-      { wch: 5 },  // STT
-      { wch: 25 }, // Ho ten
-      { wch: 15 }, // Ma NV
-      { wch: 15 }, // Chuc vu
-      { wch: 20 }, // Bo phan
-      { wch: 15 }, // Luong CB
-      { wch: 10 }, // Ngay cong
-      { wch: 15 }, // Luong TG
-      { wch: 15 }, // OT
-      { wch: 15 }, // Mini
-      { wch: 15 }, // Big
-      { wch: 15 }, // Thuong N.Cong
-      { wch: 12 }, // Tien an
-      { wch: 12 }, // Xang
-      { wch: 12 }, // Dien thoai
-      { wch: 12 }, // Trang phuc
-      { wch: 12 }, // Nha o
-      { wch: 15 }, // Tong PC
-      { wch: 15 }, // Thuong moi
-      { wch: 18 }, // TONG GROSS
+      { wch: 5 }, { wch: 25 }, { wch: 15 }, { wch: 15 }, { wch: 20 },
+      { wch: 15 }, { wch: 10 }, { wch: 15 }, { wch: 15 }, { wch: 15 },
+      { wch: 15 }, { wch: 15 }, { wch: 12 }, { wch: 12 }, { wch: 12 },
+      { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 12 }, { wch: 18 },
     ];
     ws['!cols'] = wscols;
 
@@ -346,17 +452,12 @@ export default function PayrollBoard() {
         <div className={`w-[320px] h-full p-5 space-y-4 overflow-y-auto no-scrollbar ${isSidebarOpen ? 'block' : 'hidden'}`}>
           <Card className="shadow-sm border-none bg-white">
             <CardHeader className="p-4 pb-2">
-              <CardTitle className="text-sm flex items-center gap-2"><Calculator className="w-4 h-4 text-blue-600" /> Đồng Bộ & Tính Lương</CardTitle>
+              <CardTitle className="text-sm flex items-center gap-2"><Calculator className="w-4 h-4 text-blue-600" /> Đồng Bộ &amp; Tính Lương</CardTitle>
             </CardHeader>
             <CardContent className="p-4 pt-0 space-y-3">
-              <div className="bg-slate-50 p-3 rounded-xl border space-y-2 mb-2">
-                <div className="flex items-center gap-1 mb-2 font-bold text-xs text-slate-600"><Settings className="w-3 h-3"/> Thông số tính toán</div>
-                <div className="grid grid-cols-2 gap-2 text-[10px]">
-                  <div><label className="text-slate-500">Minishow</label><Input type="number" value={configRates.minishow} onChange={(e) => setConfigRates({...configRates, minishow: Number(e.target.value)})} className="h-6 text-[10px] px-1" /></div>
-                  <div><label className="text-slate-500">Bigshow</label><Input type="number" value={configRates.bigshow} onChange={(e) => setConfigRates({...configRates, bigshow: Number(e.target.value)})} className="h-6 text-[10px] px-1" /></div>
-                  <div><label className="text-slate-500">Ăn / Công</label><Input type="number" value={configRates.meal} onChange={(e) => setConfigRates({...configRates, meal: Number(e.target.value)})} className="h-6 text-[10px] px-1" /></div>
-                  <div><label className="text-slate-500">Đi lại / Công</label><Input type="number" value={configRates.transport} onChange={(e) => setConfigRates({...configRates, transport: Number(e.target.value)})} className="h-6 text-[10px] px-1" /></div>
-                </div>
+              <div className="bg-blue-50 p-3 rounded-xl border border-blue-100 text-[10px] text-blue-700 leading-relaxed">
+                <div className="font-bold mb-1 flex items-center gap-1"><Settings className="w-3 h-3"/> Ghi chú</div>
+                Đơn giá <b>Mini Show</b>, <b>Big Show</b>, <b>Tiền ăn/công</b> và <b>Ca tập/công</b> được lấy từ hồ sơ từng nhân sự. Vui lòng cập nhật trong mục <b>Lương &amp; Bảo hiểm</b> của nhân viên trước khi đồng bộ.
               </div>
               <div className="flex gap-2">
                 <select className="border rounded-md p-2 text-xs w-full bg-slate-50" value={newMonth} onChange={(e) => setNewMonth(Number(e.target.value))}>{[...Array(12)].map((_, i) => (<option key={i + 1} value={i + 1}>Tháng {i + 1}</option>))}</select>
@@ -420,13 +521,23 @@ export default function PayrollBoard() {
                   )}
                 </div>
               </div>
-              {isDataLoading ? (<div className="bg-white h-64 rounded-2xl flex items-center justify-center"><Loader /></div>) : (<TabGrossPayrollTable filteredPayrolls={filteredPayrolls} editingRecords={editingRecords} isClosed={selectedMonthDoc.status !== "draft"} handleInputChange={handleInputChange} handleSaveRow={handleSaveRow} />)}
+              {isDataLoading ? (<div className="bg-white h-64 rounded-2xl flex items-center justify-center"><Loader /></div>) : (<TabGrossPayrollTable filteredPayrolls={filteredPayrolls} editingRecords={editingRecords} isClosed={selectedMonthDoc.status !== "draft"} handleInputChange={handleInputChange} handleSaveRow={handleSaveRow} savingIds={savingIds} />)}
             </div>
           </div>
         ) : (
           <div className="h-[600px] flex flex-col items-center justify-center text-slate-400 bg-white/50 rounded-3xl border-2 border-dashed border-slate-200 shadow-sm"><Calculator className="w-20 h-20 mb-4 opacity-20" /><p className="font-bold text-lg uppercase tracking-widest opacity-60">Vui lòng khởi tạo một bảng lương</p></div>
         )}
       </main>
+
+      {/* ===== TOAST ===== */}
+      {toast && (
+        <div className={`fixed top-6 right-6 z-[9999] flex items-center gap-3 px-5 py-3 rounded-xl shadow-2xl animate-in slide-in-from-top-2 fade-in-0 ${
+          toast.type === "success" ? "bg-emerald-600 text-white" : "bg-rose-600 text-white"
+        }`}>
+          {toast.type === "success" ? <CheckCircle2 className="w-5 h-5" /> : <X className="w-5 h-5" />}
+          <span className="font-bold text-sm">{toast.message}</span>
+        </div>
+      )}
 
       <style>{`.custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; } .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; } .no-scrollbar::-webkit-scrollbar { display: none; } .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }`}</style>
     </div>

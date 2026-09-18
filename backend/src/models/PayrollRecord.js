@@ -28,12 +28,22 @@ const payrollRecordSchema = new mongoose.Schema(
       kpiBonus: { type: Number, default: 0 },
       bonus: { type: Number, default: 0 },
       totalGross: { type: Number, default: 0 },
+      // ===== TẠM ỨNG BHXH (mặc định 500.000) =====
+      insuranceAdvance: { type: Number, default: 500000 },
+      // ===== PHẠT (mặc định 0, trừ vào tổng gross) =====
+      penalty: { type: Number, default: 0 },
+      // ===== ĐIỀU CHỈNH CP KHÁC (nhập tay, cộng vào thực lĩnh) =====
+      adjustment: { type: Number, default: 0 },
       allowances: {
         meal: { type: Number, default: 0 },
         transport: { type: Number, default: 0 },
         phone: { type: Number, default: 0 },
         clothing: { type: Number, default: 0 },
         housing: { type: Number, default: 0 },
+        // ===== PHỤ CẤP Ở =====
+        housingAllowance: { type: Number, default: 0 },
+        // ===== PHỤ CẤP CA TẬP =====
+        trainingAllowance: { type: Number, default: 0 },
         other: { type: Number, default: 0 }
       }
     },
@@ -46,7 +56,6 @@ const payrollRecordSchema = new mongoose.Schema(
         bhtn: { type: Number, default: 0 },
         total: { type: Number, default: 0 }, 
       },
-      // Nếu true: nhân sự không đóng BH do làm < 15 ngày
       excludedFromInsurance: { type: Boolean, default: false },
       taxTNCN: { type: Number, default: 0 }, 
       totalDeductions: { type: Number, default: 0 },
