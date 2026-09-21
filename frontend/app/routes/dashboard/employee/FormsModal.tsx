@@ -392,7 +392,8 @@ export const EmployeeModal = ({ isOpen, onClose, selectedEmp, empForm, setEmpFor
               <div className="grid grid-cols-3 gap-4">
                 <div className="bg-amber-50 p-2 rounded border border-amber-200">
                   <label className="block text-sm font-bold text-amber-800 mb-1">Chi phí ở (VNĐ)</label>
-                  <input type="number" className="w-full border border-amber-300 rounded-md p-2" value={empForm.salaryAndBenefits.housingCost} onChange={(e) => handleHousingChange("housingCost", Number(e.target.value))}/>
+                  <input type="number" className="w-full border border-amber-300 rounded-md p-2" value={empForm.salaryAndBenefits.housingCost ?? 1200000} onChange={(e) => handleHousingChange("housingCost", Number(e.target.value))}/>
+                  <p className="text-[10px] text-amber-600 mt-1 leading-tight">Mặc định: 1.200.000</p>
                 </div>
                 <div className="bg-amber-50 p-2 rounded border border-amber-200">
                   <label className="block text-sm font-bold text-amber-800 mb-1">KTX tt VS (VNĐ)</label>
