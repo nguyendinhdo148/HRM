@@ -51,14 +51,6 @@ export const EmployeeModal = ({ isOpen, onClose, selectedEmp, empForm, setEmpFor
       }
     }
 
-    if (!empForm.workInfo.joinDate) {
-      if (empFormTab !== "work") {
-        alert("Vui lòng điền 'Ngày Bắt Đầu Đi Làm' ở mục Công việc & Hợp đồng!");
-        setEmpFormTab("work");
-        return;
-      }
-    }
-
     // ===== Tính giá trị cuối của Phụ cấp ca tập trước khi lưu =====
     // CHỈ tính FIXED. PER_SESSION sẽ được tính ở backend khi gom lương (vì cần số buổi từ chấm công).
     const sb = empForm.salaryAndBenefits || {};
@@ -211,8 +203,8 @@ export const EmployeeModal = ({ isOpen, onClose, selectedEmp, empForm, setEmpFor
                 <h4 className="flex items-center gap-2 font-bold text-amber-900 mb-4"><Calendar className="w-4 h-4"/> Mốc thời gian làm việc</h4>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-bold text-amber-800">Ngày Bắt Đầu Đi Làm (Join Date) *</label>
-                    <input required type="date" className="w-full border-amber-200 border rounded-md p-2 bg-white" value={empForm.workInfo.joinDate} onChange={(e) => setEmpForm({...empForm, workInfo: {...empForm.workInfo, joinDate: e.target.value}})}/>
+                    <label className="block text-sm font-bold text-amber-800">Ngày Bắt Đầu Đi Làm (Join Date)</label>
+                    <input type="date" className="w-full border-amber-200 border rounded-md p-2 bg-white" value={empForm.workInfo.joinDate} onChange={(e) => setEmpForm({...empForm, workInfo: {...empForm.workInfo, joinDate: e.target.value}})}/>
                   </div>
                   <div>
                     <label className="block text-sm font-medium mb-1">Phòng ban</label>
