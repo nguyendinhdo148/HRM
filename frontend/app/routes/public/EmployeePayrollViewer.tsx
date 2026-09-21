@@ -60,8 +60,26 @@ const handleFetchPayroll = async (e: React.FormEvent) => {
   };
 
   const formatMoney = (amount: number) => {
-    return new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(amount);
+    if (!amount || Number(amount) === 0) return "0 ₫";
+    return new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(Number(amount));
   };
+
+  const hasValue = (value: number | string | undefined | null) => {
+    if (typeof value === "string") return value.trim() !== "";
+    return Number(value || 0) > 0;
+  };
+
+  const incomeRows = [
+    { label: "Lương cơ bản", value: payrollData?.incomes?.baseSalary },
+    { label: "Phụ cấp & thưởng", value: payrollData?.incomes?.allowances },
+    { label: "Tổng thu nhập (Gross)", value: payrollData?.incomes?.totalGross },
+  ].filter((row) => hasValue(row.value));
+
+  const deductionRows = [
+    { label: "BH & Thuế", value: payrollData?.deductions?.insurance },
+    { label: "Thuế TNCN", value: payrollData?.deductions?.tax },
+    { label: "Khấu trừ tổng", value: payrollData?.deductions?.totalDeductions },
+  ].filter((row) => hasValue(row.value));
 
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
@@ -134,22 +152,19 @@ const handleFetchPayroll = async (e: React.FormEvent) => {
               </div>
 
               <div className="space-y-3">
-                <div className="flex justify-between items-center p-3 bg-gray-50/80 rounded-lg">
-                  <span className="text-gray-600 text-sm">Lương cơ bản</span>
-                  <span className="font-medium text-gray-900">{formatMoney(payrollData.incomes.baseSalary)}</span>
-                </div>
-                <div className="flex justify-between items-center p-3 bg-gray-50/80 rounded-lg">
-                  <span className="text-gray-600 text-sm">Phụ cấp & Thưởng</span>
-                  <span className="font-medium text-gray-900">{formatMoney(payrollData.incomes.allowances)}</span>
-                </div>
-                <div className="flex justify-between items-center p-3 bg-blue-50/50 rounded-lg border border-blue-100 text-blue-900 font-medium">
-                  <span className="text-sm">Tổng thu nhập (Gross)</span>
-                  <span>{formatMoney(payrollData.incomes.totalGross)}</span>
-                </div>
-                <div className="flex justify-between items-center p-3 bg-red-50/60 rounded-lg text-red-700 text-sm">
-                  <span>Khấu trừ (BH, Thuế...)</span>
-                  <span className="font-medium">-{formatMoney(payrollData.deductions.totalDeductions)}</span>
-                </div>
+                {incomeRows.map((row) => (
+                  <div key={row.label} className="flex justify-between items-center p-3 bg-gray-50/80 rounded-lg">
+                    <span className="text-gray-600 text-sm">{row.label}</span>
+                    <span className="font-medium text-gray-900">{formatMoney(Number(row.value || 0))}</span>
+                  </div>
+                ))}
+
+                {deductionRows.length > 0 && (
+                  <div className="flex justify-between items-center p-3 bg-red-50/60 rounded-lg text-red-700 text-sm">
+                    <span>Khấu trừ (BH, Thuế...)</span>
+                    <span className="font-medium">-{formatMoney(Number(payrollData.deductions.totalDeductions || 0))}</span>
+                  </div>
+                )}
               </div>
 
               <div className="pt-4 border-t border-gray-200">

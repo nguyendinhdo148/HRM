@@ -15,7 +15,7 @@ import { API_BASE_URL, getAuthHeaders, EMPLOYEE_STATUSES, CONTRACT_TYPES, GENDER
 import { DepartmentsTab, EmployeesTab, ContractsTab } from "./TabsUI";
 import { DepartmentModal, EmployeeModal } from "./FormsModal";
 import { ImportExcelModal } from "./ImportExcelModal";
-import { PrintContractModal } from "./PrintContractModal";   // ← THÊM
+import { PrintContractModal } from "./PrintContractModal";
 
 export default function HRMDashboard() {
   const [departments, setDepartments] = useState<any[]>([]);
@@ -175,13 +175,49 @@ export default function HRMDashboard() {
     setIsEmpModalOpen(true);
   };
 
+  // ✅ CHỈ SỬA DUY NHẤT CHỖ NÀY:
+  // - Bỏ fetchData() (nguyên nhân gây "load 1 vòng rồi về đầu danh sách").
+  // - Update state employees tại chỗ để danh sách tự cập nhật mà không mất vị trí cuộn.
+  // - Mọi thứ khác giữ nguyên.
   const handleSaveEmployee = async (e: React.FormEvent) => {
     e.preventDefault();
     const url = selectedEmp ? `${API_BASE_URL}/employees/${selectedEmp._id}` : `${API_BASE_URL}/employees`;
     try {
-      const res = await fetch(url, { method: selectedEmp ? "PUT" : "POST", headers: getAuthHeaders(), body: JSON.stringify(empForm) });
-      if (res.ok) { setIsEmpModalOpen(false); fetchData(); } else { const err = await res.json(); alert(err.message); }
-    } catch (error) { console.error(error); }
+      const res = await fetch(url, {
+        method: selectedEmp ? "PUT" : "POST",
+        headers: getAuthHeaders(),
+        body: JSON.stringify(empForm),
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        alert(err.message || "Có lỗi xảy ra khi lưu hồ sơ!");
+        return;
+      }
+
+      // Backend có thể trả về employee đã lưu, hoặc chỉ { success: true }
+      const saved = await res.json().catch(() => null);
+      const updatedEmployee =
+        saved && saved._id
+          ? saved
+          : { ...empForm, _id: selectedEmp?._id };
+
+      // ✅ Update state tại chỗ — KHÔNG fetchData(), KHÔNG setIsLoading(true)
+      setEmployees((prev) => {
+        if (selectedEmp) {
+          return prev.map((emp) =>
+            emp._id === selectedEmp._id ? { ...emp, ...updatedEmployee } : emp
+          );
+        }
+        return [updatedEmployee, ...prev];
+      });
+
+      setIsEmpModalOpen(false);
+      setSelectedEmp(null);
+    } catch (error) {
+      console.error(error);
+      alert("Có lỗi xảy ra khi lưu hồ sơ!");
+    }
   };
 
   const handleDeleteEmp = async (id: string) => {
@@ -402,13 +438,13 @@ export default function HRMDashboard() {
           isBulkTransferring={isBulkTransferring}
           handleOpenEmpModal={handleOpenEmpModal} 
           handleDeleteEmp={handleDeleteEmp} 
-          onPrintContract={(emp: any) => setPrintEmployee(emp)}   // ← THÊM
+          onPrintContract={(emp: any) => setPrintEmployee(emp)}
         />
         
         <ContractsTab 
           processedEmployees={processedEmployees} 
           handleOpenEmpModal={handleOpenEmpModal} 
-          onPrintContract={(emp: any) => setPrintEmployee(emp)}   // ← THÊM
+          onPrintContract={(emp: any) => setPrintEmployee(emp)}
         />
       </Tabs>
 

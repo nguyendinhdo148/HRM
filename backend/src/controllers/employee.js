@@ -159,15 +159,13 @@ export const updateEmployee = async (req, res) => {
     }
 
     // 2. Cập nhật dữ liệu
-    const updatedEmployee = await Employee.findByIdAndUpdate(
-      employeeId, 
-      updates, 
-      { new: true, runValidators: true } // Bắt buộc có runValidators để nó check lại Enum Hợp đồng
-    );
-
-    if (!updatedEmployee) {
+    const employee = await Employee.findById(employeeId);
+    if (!employee) {
       return res.status(404).json({ message: "Không tìm thấy hồ sơ nhân viên này" });
     }
+
+    Object.assign(employee, updates);
+    const updatedEmployee = await employee.save();
 
     res.status(200).json(updatedEmployee);
   } catch (error) {

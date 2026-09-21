@@ -2,9 +2,9 @@
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import axios from "axios";
-import XLSX from "xlsx-js-style"; // THAY ĐỔI IMPORT THƯ VIỆN NÀY
+import XLSX from "xlsx-js-style";
 import toast from "react-hot-toast";
-import { FileSpreadsheet, Loader2, ArrowLeft } from "lucide-react";
+import { FileSpreadsheet, Loader2, ArrowLeft, Printer } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 const API = import.meta.env.VITE_API_URL;
@@ -34,17 +34,48 @@ const PayslipDetail = () => {
   }, [id]);
 
   const formatMoney = (amount: number) => {
-    if (!amount) return "-";
-    return amount.toLocaleString("vi-VN");
+    if (!amount || Number(amount) === 0) return "-";
+    return Number(amount).toLocaleString("vi-VN");
   };
 
+  const hasValue = (value: any) => {
+    if (typeof value === "string") return value.trim() !== "";
+    if (typeof value === "number") return Number(value) > 0;
+    return Boolean(value);
+  };
+
+  const getPayslipCode = (employeeCode: string, monthValue: number, yearValue: number) => {
+    const safeCode = String(employeeCode || "").trim();
+    return `${yearValue}${String(monthValue).padStart(2, "0")}${safeCode}`;
+  };
+
+  // ===== XUẤT EXCEL (giữ nguyên logic, chỉ đổi style cho đẹp) =====
   const handleExportSingleExcel = () => {
     if (!record) return;
     const { employeeSnapshot, incomes, deductions, month, year, actualDays, netSalary } = record;
     const allw = incomes.allowances || {};
     const ins = deductions.insurance || {};
+    const housingValue = Number(allw.housingAllowance ?? allw.housing ?? 0);
+    const payslipCode = getPayslipCode(employeeSnapshot?.employeeCode || "", month, year);
 
-    // --- ĐỊNH NGHĨA STYLE CHO EXCEL ---
+    const incomeRows = [
+      ["Số công làm việc ngày thường", actualDays],
+      ["Tiền lương làm việc ngày thường", incomes.timeSalary],
+      ["Tiền lương làm thêm giờ", incomes.overtime],
+      ["Tiền ăn ca", allw.meal],
+      ["Phụ cấp xăng xe", allw.transport],
+      ["Phụ cấp điện thoại", allw.phone],
+      ["Phụ cấp trang phục", allw.clothing],
+      ["Phụ cấp nhà ở", housingValue],
+    ].filter(([_, value]) => hasValue(value));
+
+    const deductionRows = [
+      ["Bảo hiểm", ins.total],
+      ["Thuế TNCN", deductions.taxTNCN],
+      ["Tạm ứng", deductions.advance],
+    ].filter(([_, value]) => hasValue(value));
+
+    // --- STYLE ---
     const FONT_NAME = "Times New Roman";
     const BORDER_ALL = {
       top: { style: "thin", color: { auto: 1 } },
@@ -54,71 +85,108 @@ const PayslipDetail = () => {
     };
 
     const titleStyle = { font: { name: FONT_NAME, sz: 14, bold: true }, alignment: { horizontal: "center" } };
-    const headerStyle = { font: { name: FONT_NAME, sz: 16, bold: true }, alignment: { horizontal: "center" } };
+    const headerStyle = { font: { name: FONT_NAME, sz: 16, bold: true, color: { rgb: "1E40AF" } }, alignment: { horizontal: "center" } };
     const dateStyle = { font: { name: FONT_NAME, sz: 12, italic: true }, alignment: { horizontal: "center" } };
     const rightBoldStyle = { font: { name: FONT_NAME, sz: 11, bold: true }, alignment: { horizontal: "right" } };
-    
-    // Style trong bảng (Bỏ numFmt vì giờ mình truyền chuỗi String đã format dấu chấm)
-    const tblHeader = { font: { name: FONT_NAME, sz: 12, bold: true }, border: BORDER_ALL };
-    const cellLeft = { font: { name: FONT_NAME, sz: 12 }, border: BORDER_ALL };
-    const cellRight = { font: { name: FONT_NAME, sz: 12 }, alignment: { horizontal: "right" }, border: BORDER_ALL }; 
-    
-    const cellLeftBold = { font: { name: FONT_NAME, sz: 12, bold: true }, border: BORDER_ALL };
-    const cellRightBold = { font: { name: FONT_NAME, sz: 12, bold: true }, alignment: { horizontal: "right" }, border: BORDER_ALL };
 
-    // --- XÂY DỰNG DATA VÀ ÉP DẤU CHẤM BẰNG formatMoney() ---
-    const wsData = [
+    const tblHeader = {
+      font: { name: FONT_NAME, sz: 12, bold: true, color: { rgb: "FFFFFF" } },
+      fill: { fgColor: { rgb: "1E40AF" } },
+      alignment: { horizontal: "center", vertical: "center" },
+      border: BORDER_ALL
+    };
+    const cellLeft = { font: { name: FONT_NAME, sz: 12 }, border: BORDER_ALL };
+    const cellRight = { font: { name: FONT_NAME, sz: 12 }, alignment: { horizontal: "right" }, border: BORDER_ALL };
+
+    // Dòng Tổng thu nhập - nền vàng nhạt
+    const cellLeftBoldAmber = {
+      font: { name: FONT_NAME, sz: 12, bold: true, color: { rgb: "92400E" } },
+      fill: { fgColor: { rgb: "FEF3C7" } },
+      border: BORDER_ALL
+    };
+    const cellRightBoldAmber = {
+      font: { name: FONT_NAME, sz: 12, bold: true, color: { rgb: "92400E" } },
+      alignment: { horizontal: "right" },
+      fill: { fgColor: { rgb: "FEF3C7" } },
+      border: BORDER_ALL
+    };
+
+    // Dòng Thực lĩnh - nền xanh lá nhạt
+    const cellLeftBoldGreen = {
+      font: { name: FONT_NAME, sz: 13, bold: true, color: { rgb: "065F46" } },
+      fill: { fgColor: { rgb: "D1FAE5" } },
+      border: BORDER_ALL
+    };
+    const cellRightBoldGreen = {
+      font: { name: FONT_NAME, sz: 13, bold: true, color: { rgb: "065F46" } },
+      alignment: { horizontal: "right" },
+      fill: { fgColor: { rgb: "D1FAE5" } },
+      border: BORDER_ALL
+    };
+
+    // --- BUILD DATA ---
+    const wsData: any[] = [
       [{ v: "CÔNG TY CỔ PHẦN XYZ", s: titleStyle }, { v: "", s: titleStyle }],
       [{ v: "PHIẾU LƯƠNG NHÂN VIÊN", s: headerStyle }, { v: "", s: headerStyle }],
-      [{ v: `Tháng ${month < 10 ? '0'+month : month} năm ${year}`, s: dateStyle }, { v: "", s: dateStyle }],
-      [{ v: "", s: {} }, { v: `Phiếu số: ${month}${year}`, s: rightBoldStyle }],
-      
+      [{ v: `Tháng ${month < 10 ? '0' + month : month} năm ${year}`, s: dateStyle }, { v: "", s: dateStyle }],
+      [{ v: "", s: {} }, { v: `Phiếu số: ${payslipCode}`, s: rightBoldStyle }],
+
       [{ v: "Thông tin người lĩnh", s: tblHeader }, { v: "", s: tblHeader }],
-      [{ v: "Họ và tên:", s: cellLeft }, { v: employeeSnapshot.fullName, s: cellLeft }],
-      [{ v: "Mã nhân viên:", s: cellLeft }, { v: employeeSnapshot.employeeCode, s: cellLeft }],
-      
-      [{ v: "Tiền lương chi tiết (1)", s: cellLeftBold }, { v: formatMoney(incomes.totalGross), s: cellRightBold }],
-      [{ v: "Số công làm việc ngày thường", s: cellLeft }, { v: actualDays || 0, s: cellRight }],
-      [{ v: "Tiền lương làm việc ngày thường", s: cellLeft }, { v: formatMoney(incomes.timeSalary), s: cellRight }],
-      [{ v: "Tiền lương làm thêm giờ", s: cellLeft }, { v: formatMoney(incomes.overtime), s: cellRight }],
-      [{ v: "Tiền ăn ca", s: cellLeft }, { v: formatMoney(allw.meal), s: cellRight }],
-      [{ v: "Phụ cấp xăng xe", s: cellLeft }, { v: formatMoney(allw.transport), s: cellRight }],
-      [{ v: "Phụ cấp điện thoại", s: cellLeft }, { v: formatMoney(allw.phone), s: cellRight }],
-      [{ v: "Phụ cấp trang phục", s: cellLeft }, { v: formatMoney(allw.clothing), s: cellRight }],
-      [{ v: "Phụ cấp nhà ở", s: cellLeft }, { v: formatMoney(allw.housing), s: cellRight }],
-      
-      [{ v: "Các khoản giảm trừ (2)", s: cellLeftBold }, { v: formatMoney(deductions.totalDeductions), s: cellRightBold }],
-      [{ v: "Bảo hiểm", s: cellLeft }, { v: formatMoney(ins.total), s: cellRight }],
-      [{ v: "Thuế TNCN", s: cellLeft }, { v: formatMoney(deductions.taxTNCN), s: cellRight }],
-      [{ v: "Tạm ứng", s: cellLeft }, { v: formatMoney(deductions.advance), s: cellRight }],
-      
-      [{ v: "Tổng số thực lĩnh (3) = (1) - (2)", s: { ...cellLeftBold, font: { name: FONT_NAME, sz: 13, bold: true } } }, { v: formatMoney(netSalary), s: { ...cellRightBold, font: { name: FONT_NAME, sz: 13, bold: true } } }],
-      
+      [{ v: "Họ và tên:", s: cellLeft }, { v: employeeSnapshot.fullName || "-", s: cellLeft }],
+      [{ v: "Mã nhân viên:", s: cellLeft }, { v: employeeSnapshot.employeeCode || "-", s: cellLeft }],
+
+      // Header bảng thu nhập
+      [{ v: "Khoản thu nhập", s: tblHeader }, { v: "Số tiền (VNĐ)", s: tblHeader }],
+      ...incomeRows.map(([label, value]) => [
+        { v: label, s: cellLeft },
+        { v: typeof value === "number" ? formatMoney(value) : value, s: cellRight }
+      ]),
+
+      // Header bảng giảm trừ
+      [{ v: "Các khoản giảm trừ", s: tblHeader }, { v: "Số tiền (VNĐ)", s: tblHeader }],
+      ...deductionRows.map(([label, value]) => [
+        { v: label, s: cellLeft },
+        { v: typeof value === "number" ? formatMoney(value) : value, s: cellRight }
+      ]),
+
+      [{ v: "TỔNG THU NHẬP (1)", s: cellLeftBoldAmber }, { v: formatMoney(incomes.totalGross || 0), s: cellRightBoldAmber }],
+      [{ v: "TỔNG GIẢM TRỪ (2)", s: cellLeftBoldAmber }, { v: formatMoney(deductions.totalDeductions || 0), s: cellRightBoldAmber }],
+      [{ v: "TỔNG THỰC LĨNH (3) = (1) - (2)", s: cellLeftBoldGreen }, { v: formatMoney(netSalary), s: cellRightBoldGreen }],
+
       [{ v: "Ghi chú:", s: { font: { name: FONT_NAME, sz: 12, bold: true, italic: true }, border: BORDER_ALL } }, { v: "", s: { border: BORDER_ALL } }],
       [{ v: "", s: { border: BORDER_ALL } }, { v: "", s: { border: BORDER_ALL } }]
     ];
 
     const ws = XLSX.utils.aoa_to_sheet(wsData);
 
+    // Số dòng cần merge
+    const lastRow = wsData.length - 1;
+    const noteRowIdx = lastRow - 1;
+
     ws["!merges"] = [
       { s: { r: 0, c: 0 }, e: { r: 0, c: 1 } },
       { s: { r: 1, c: 0 }, e: { r: 1, c: 1 } },
       { s: { r: 2, c: 0 }, e: { r: 2, c: 1 } },
       { s: { r: 4, c: 0 }, e: { r: 4, c: 1 } },
-      { s: { r: 21, c: 0 }, e: { r: 21, c: 1 } },
-      { s: { r: 22, c: 0 }, e: { r: 22, c: 1 } }
+      { s: { r: noteRowIdx, c: 0 }, e: { r: noteRowIdx, c: 1 } },
+      { s: { r: lastRow, c: 0 }, e: { r: lastRow, c: 1 } }
     ];
 
     ws["!cols"] = [{ wch: 45 }, { wch: 25 }];
     ws["!rows"] = [];
-    ws["!rows"][22] = { hpt: 40 };
+    ws["!rows"][lastRow] = { hpt: 40 };
 
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "PhieuLuong");
-    XLSX.writeFile(wb, `PhieuLuong_${employeeSnapshot.employeeCode}_T${month}_${year}.xlsx`);
+    XLSX.writeFile(wb, `PhieuLuong_${payslipCode}.xlsx`);
   };
+
   if (isLoading) {
-    return <div className="flex h-screen items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-gray-500" /></div>;
+    return (
+      <div className="flex h-screen items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-gray-500" />
+      </div>
+    );
   }
 
   if (!record) return <div className="text-center p-10 text-xl font-bold">Không tìm thấy phiếu lương</div>;
@@ -128,123 +196,217 @@ const PayslipDetail = () => {
   const ded = record.deductions;
   const allw = inc.allowances || {};
   const ins = ded.insurance || {};
+  const housingValue = Number(allw.housingAllowance ?? allw.housing ?? 0);
+  const payslipCode = getPayslipCode(emp?.employeeCode || "", record.month, record.year);
 
+  const incomeRows = [
+    { label: "Số công làm việc ngày thường", value: record.actualDays },
+    { label: "Tiền lương làm việc ngày thường", value: inc.timeSalary },
+    { label: "Tiền lương làm thêm giờ", value: inc.overtime },
+    { label: "Tiền ăn ca", value: allw.meal },
+    { label: "Phụ cấp xăng xe", value: allw.transport },
+    { label: "Phụ cấp điện thoại", value: allw.phone },
+    { label: "Phụ cấp trang phục", value: allw.clothing },
+    { label: "Phụ cấp nhà ở", value: housingValue },
+  ].filter((row) => hasValue(row.value));
+
+  const deductionRows = [
+    { label: "Bảo hiểm", value: ins.total },
+    { label: "Thuế TNCN", value: ded.taxTNCN },
+    { label: "Tạm ứng", value: ded.advance },
+  ].filter((row) => hasValue(row.value));
+
+  // ==================== RENDER ====================
   return (
-    <div className="min-h-screen bg-gray-100 p-4 sm:p-8 flex justify-center">
-      <div className="w-full max-w-2xl bg-white shadow-2xl p-6 sm:p-10 relative border border-gray-300">
-        
-        {/* Thanh công cụ */}
-        <div className="flex justify-between items-center mb-8 print:hidden">
-          <Button variant="ghost" onClick={() => window.close()} className="text-gray-600 hover:text-gray-900 cursor-pointer">
+    <div className="min-h-screen bg-gradient-to-br from-slate-100 to-slate-200 p-4 sm:p-8 flex justify-center print:bg-white print:p-0">
+      <div className="w-full max-w-3xl bg-white shadow-2xl rounded-2xl overflow-hidden border border-slate-200 print:shadow-none print:rounded-none print:border-0">
+
+        {/* Toolbar */}
+        <div className="flex justify-between items-center px-6 py-4 bg-slate-50 border-b border-slate-200 print:hidden">
+          <Button variant="ghost" onClick={() => window.close()} className="text-slate-600 hover:text-slate-900 cursor-pointer">
             <ArrowLeft className="w-4 h-4 mr-2" /> Đóng tab
           </Button>
-          <Button onClick={handleExportSingleExcel} className="bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer">
-            <FileSpreadsheet className="w-4 h-4 mr-2" /> Xuất Excel
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => window.print()} className="border-slate-300 cursor-pointer">
+              <Printer className="w-4 h-4 mr-2" /> In phiếu
+            </Button>
+            <Button onClick={handleExportSingleExcel} className="bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer">
+              <FileSpreadsheet className="w-4 h-4 mr-2" /> Xuất Excel
+            </Button>
+          </div>
         </div>
 
-        {/* NỘI DUNG PHIẾU LƯƠNG - Ép font Times New Roman */}
-        <div style={{ fontFamily: "'Times New Roman', Times, serif" }} className="text-black">
-          <div className="uppercase text-lg font-bold">CÔNG TY CỔ PHẦN XYZ</div>
-          
-          <div className="text-center mt-6 mb-8">
-            <h1 className="text-2xl font-bold uppercase tracking-wider m-0">PHIẾU LƯƠNG NHÂN VIÊN</h1>
-            <div className="text-md italic mt-1">
-              Tháng {record.month < 10 ? '0'+record.month : record.month} năm {record.year}
+        {/* Phiếu lương */}
+        <div
+          style={{ fontFamily: "'Times New Roman', Times, serif" }}
+          className="text-black px-10 py-8 print:px-8 print:py-6"
+        >
+          {/* Header */}
+          <div className="flex items-start justify-between mb-6">
+            <div>
+              <div className="text-lg font-bold uppercase tracking-wide">CÔNG TY CỔ PHẦN XYZ</div>
+              <div className="text-xs text-slate-500 italic mt-1">Hệ thống quản lý nhân sự &amp; tiền lương</div>
+            </div>
+            <div className="text-right">
+              <div className="text-xs text-slate-500 uppercase font-semibold">Phiếu số</div>
+              <div className="text-sm font-bold text-blue-700">{payslipCode}</div>
             </div>
           </div>
-          
-          <div className="text-right font-bold mb-2">
-            Phiếu số: {record.month}{record.year}
+
+          {/* Tiêu đề */}
+          <div className="text-center my-6">
+            <h1 className="text-3xl font-bold uppercase tracking-wider m-0 text-blue-800">
+              PHIẾU LƯƠNG NHÂN VIÊN
+            </h1>
+            <div className="text-sm italic mt-2 text-slate-600">
+              Tháng {record.month < 10 ? '0' + record.month : record.month} năm {record.year}
+            </div>
+            <div className="w-24 h-1 bg-blue-600 mx-auto mt-3 rounded-full" />
           </div>
 
-          {/* Bảng */}
-          <table className="w-full border-collapse border border-black text-[15px]">
-            <tbody>
-              {/* Info */}
-              <tr className="border border-black font-bold">
-                <td colSpan={2} className="p-2">Thông tin người lĩnh</td>
-              </tr>
-              <tr className="border-x border-black">
-                <td colSpan={2} className="p-1.5 pl-2">Họ và tên: {emp.fullName}</td>
-              </tr>
-              <tr className="border border-black">
-                <td colSpan={2} className="p-1.5 pl-2">Mã nhân viên: {emp.employeeCode}</td>
-              </tr>
+          {/* Thông tin nhân viên */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6 text-[15px]">
+            <div className="flex">
+              <span className="font-bold w-32 shrink-0">Họ và tên:</span>
+              <span className="flex-1">{emp.fullName || "-"}</span>
+            </div>
+            <div className="flex">
+              <span className="font-bold w-32 shrink-0">Mã nhân viên:</span>
+              <span className="flex-1">{emp.employeeCode || "-"}</span>
+            </div>
+            {emp?.workInfo?.department && (
+              <div className="flex">
+                <span className="font-bold w-32 shrink-0">Phòng ban:</span>
+                <span className="flex-1">{emp.workInfo.department}</span>
+              </div>
+            )}
+            {emp?.workInfo?.position && (
+              <div className="flex">
+                <span className="font-bold w-32 shrink-0">Chức vụ:</span>
+                <span className="flex-1">{emp.workInfo.position}</span>
+              </div>
+            )}
+          </div>
 
-              {/* Incomes */}
-              <tr className="border-b border-black font-bold bg-gray-50/50">
-                <td className="p-2 border-r border-black">Tiền lương chi tiết (1)</td>
-                <td className="p-2 text-right">{formatMoney(inc.totalGross)}</td>
-              </tr>
-              <tr>
-                <td className="p-1.5 pl-2 border-r border-black">Số công làm việc ngày thường</td>
-                <td className="p-1.5 pr-2 text-right">{record.actualDays || 0}</td>
-              </tr>
-              <tr>
-                <td className="p-1.5 pl-2 border-r border-black">Tiền lương làm việc ngày thường</td>
-                <td className="p-1.5 pr-2 text-right">{formatMoney(inc.timeSalary)}</td>
-              </tr>
-              <tr>
-                <td className="p-1.5 pl-2 border-r border-black">Tiền lương làm thêm giờ</td>
-                <td className="p-1.5 pr-2 text-right">{formatMoney(inc.overtime || 0)}</td>
-              </tr>
-              <tr>
-                <td className="p-1.5 pl-2 border-r border-black">Tiền ăn ca.</td>
-                <td className="p-1.5 pr-2 text-right">{formatMoney(allw.meal || 0)}</td>
-              </tr>
-              <tr>
-                <td className="p-1.5 pl-2 border-r border-black">Phụ cấp xăng xe.</td>
-                <td className="p-1.5 pr-2 text-right">{formatMoney(allw.transport || 0)}</td>
-              </tr>
-              <tr>
-                <td className="p-1.5 pl-2 border-r border-black">Phụ cấp điện thoại.</td>
-                <td className="p-1.5 pr-2 text-right">{formatMoney(allw.phone || 0)}</td>
-              </tr>
-              <tr>
-                <td className="p-1.5 pl-2 border-r border-black">Phụ cấp trang phục.</td>
-                <td className="p-1.5 pr-2 text-right">{formatMoney(allw.clothing || 0)}</td>
-              </tr>
-              <tr className="border-b border-black">
-                <td className="p-1.5 pl-2 border-r border-black">Phụ cấp nhà ở.</td>
-                <td className="p-1.5 pr-2 text-right">{formatMoney(allw.housing || 0)}</td>
-              </tr>
+          {/* Bảng lương */}
+          <div className="overflow-hidden rounded-lg border border-slate-300">
+            <table className="w-full border-collapse text-[15px]">
+              <thead>
+                <tr className="bg-blue-700 text-white">
+                  <th className="text-left px-4 py-3 font-bold uppercase text-sm tracking-wide">
+                    Khoản thu nhập
+                  </th>
+                  <th className="text-right px-4 py-3 font-bold uppercase text-sm tracking-wide w-1/3">
+                    Số tiền (VNĐ)
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {/* Tổng thu nhập */}
+                {incomeRows.length > 0 && (
+                  <tr className="bg-amber-50">
+                    <td className="px-4 py-3 font-bold text-amber-800 border-b border-amber-200">
+                      Tổng thu nhập (1)
+                    </td>
+                    <td className="px-4 py-3 text-right font-bold text-amber-800 border-b border-amber-200">
+                      {formatMoney(inc.totalGross || 0)}
+                    </td>
+                  </tr>
+                )}
 
-              {/* Deductions */}
-              <tr className="border-b border-black font-bold bg-gray-50/50">
-                <td className="p-2 border-r border-black">Các khoản giảm trừ (2)</td>
-                <td className="p-2 text-right">{formatMoney(ded.totalDeductions || 0)}</td>
-              </tr>
-              <tr>
-                <td className="p-1.5 pl-2 border-r border-black">Bảo hiểm</td>
-                <td className="p-1.5 pr-2 text-right">{formatMoney(ins.total || 0)}</td>
-              </tr>
-              <tr>
-                <td className="p-1.5 pl-2 border-r border-black">Thuế TNCN</td>
-                <td className="p-1.5 pr-2 text-right">{formatMoney(ded.taxTNCN || 0)}</td>
-              </tr>
-              <tr className="border-b border-black">
-                <td className="p-1.5 pl-2 border-r border-black">Tạm ứng</td>
-                <td className="p-1.5 pr-2 text-right">{formatMoney(ded.advance || 0)}</td>
-              </tr>
+                {/* Chi tiết thu nhập */}
+                {incomeRows.map((row, idx) => (
+                  <tr key={row.label} className={idx % 2 === 0 ? "bg-white" : "bg-slate-50"}>
+                    <td className="px-4 py-2.5 border-b border-slate-200 text-slate-800 pl-8">
+                      {row.label}
+                    </td>
+                    <td className="px-4 py-2.5 text-right border-b border-slate-200 font-medium">
+                      {typeof row.value === "number" ? formatMoney(row.value) : row.value}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
 
-              {/* Net Salary */}
-              <tr className="border-b border-black font-bold text-[16px]">
-                <td className="p-3 border-r border-black">Tổng số thực lĩnh (3) = (1) - (2)</td>
-                <td className="p-3 text-right">{formatMoney(record.netSalary)}</td>
-              </tr>
+          {/* Bảng giảm trừ */}
+          {deductionRows.length > 0 && (
+            <div className="overflow-hidden rounded-lg border border-slate-300 mt-4">
+              <table className="w-full border-collapse text-[15px]">
+                <thead>
+                  <tr className="bg-rose-700 text-white">
+                    <th className="text-left px-4 py-3 font-bold uppercase text-sm tracking-wide">
+                      Các khoản giảm trừ
+                    </th>
+                    <th className="text-right px-4 py-3 font-bold uppercase text-sm tracking-wide w-1/3">
+                      Số tiền (VNĐ)
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {/* Tổng giảm trừ */}
+                  <tr className="bg-rose-50">
+                    <td className="px-4 py-3 font-bold text-rose-800 border-b border-rose-200">
+                      Tổng giảm trừ (2)
+                    </td>
+                    <td className="px-4 py-3 text-right font-bold text-rose-800 border-b border-rose-200">
+                      {formatMoney(ded.totalDeductions || 0)}
+                    </td>
+                  </tr>
 
-              {/* Note */}
-              <tr className="border-b border-black font-bold italic">
-                <td colSpan={2} className="p-2">Ghi chú:</td>
-              </tr>
-              <tr>
-                <td colSpan={2} className="h-20"></td>
-              </tr>
-            </tbody>
-          </table>
-          
-          <div className="mt-8 text-center text-xs text-gray-500 italic">
+                  {/* Chi tiết giảm trừ */}
+                  {deductionRows.map((row, idx) => (
+                    <tr key={row.label} className={idx % 2 === 0 ? "bg-white" : "bg-slate-50"}>
+                      <td className="px-4 py-2.5 border-b border-slate-200 text-slate-800 pl-8">
+                        {row.label}
+                      </td>
+                      <td className="px-4 py-2.5 text-right border-b border-slate-200 font-medium">
+                        {typeof row.value === "number" ? formatMoney(row.value) : row.value}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {/* Thực lĩnh */}
+          <div className="mt-4 overflow-hidden rounded-lg border-2 border-emerald-400 bg-gradient-to-r from-emerald-50 to-emerald-100">
+            <table className="w-full text-[16px]">
+              <tbody>
+                <tr>
+                  <td className="px-4 py-4 font-bold text-emerald-900">
+                    TỔNG THỰC LĨNH (3) = (1) - (2)
+                  </td>
+                  <td className="px-4 py-4 text-right font-bold text-emerald-700 text-lg">
+                    {formatMoney(record.netSalary)} VNĐ
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          {/* Bằng chữ */}
+          <div className="mt-4 text-[15px] italic text-slate-700">
+            <span className="font-bold not-italic">Số tiền bằng chữ: </span>
+            ................................................
+          </div>
+
+          {/* Chữ ký */}
+          <div className="grid grid-cols-2 gap-8 mt-10 text-center text-[15px]">
+            <div>
+              <div className="font-bold uppercase">Người lập phiếu</div>
+              <div className="text-xs italic text-slate-500 mb-16">(Ký, ghi rõ họ tên)</div>
+              <div className="border-t border-slate-300 w-40 mx-auto pt-1" />
+            </div>
+            <div>
+              <div className="font-bold uppercase">Người nhận</div>
+              <div className="text-xs italic text-slate-500 mb-16">(Ký, ghi rõ họ tên)</div>
+              <div className="border-t border-slate-300 w-40 mx-auto pt-1" />
+            </div>
+          </div>
+
+          <div className="mt-8 text-center text-xs text-slate-400 italic">
             (Phiếu lương được trích xuất tự động từ hệ thống)
           </div>
         </div>

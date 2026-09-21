@@ -2,16 +2,16 @@
 import { useState, useEffect } from "react";
 import axios from "axios";
 import toast from "react-hot-toast";
-import XLSX from "xlsx-js-style"; // ĐỔI SANG DÙNG THƯ VIỆN CÓ STYLE
-import { 
-  Mail, 
-  Mails, 
-  Printer, 
-  Search, 
-  FileText, 
-  CheckCircle2, 
+import XLSX from "xlsx-js-style";
+import {
+  Mail,
+  Mails,
+  Search,
+  FileText,
+  CheckCircle2,
   AlertCircle,
-  FileSpreadsheet
+  FileSpreadsheet,
+  RefreshCw,
 } from "lucide-react";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -37,12 +37,10 @@ interface PayrollRecordType {
   };
   incomes: {
     totalGross: number;
+    adjustment?: number;   // ✅ Điều chỉnh CP khác
   };
   netSalary: number;
-  deductions?: {
-    excludedFromInsurance?: boolean;
-  };
-  isEmailSent?: boolean; 
+  isEmailSent?: boolean;
 }
 
 const PayrollManager = () => {
@@ -51,17 +49,26 @@ const PayrollManager = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [sendingId, setSendingId] = useState<string | null>(null);
   const [isSendingAll, setIsSendingAll] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
 
   const [filterMonth, setFilterMonth] = useState(new Date().getMonth() + 1);
   const [filterYear, setFilterYear] = useState(new Date().getFullYear());
 
+  // ✅ Helper: Thực lĩnh = Net + Điều chỉnh CP khác (TỔNG THANH TOÁN CK)
+  const getFinalPayment = (record: PayrollRecordType) => {
+    return Number(record.netSalary || 0) + Number(record.incomes?.adjustment || 0);
+  };
+
+  // ==========================================
+  // GỌI DATA LÊN — KHÔNG TÍNH TOÁN
+  // ==========================================
   const fetchPayrollRecords = async () => {
     setIsLoading(true);
     try {
-      const token = localStorage.getItem("token"); 
+      const token = localStorage.getItem("token");
       const res = await axios.get(`${API}/payroll?month=${filterMonth}&year=${filterYear}`, {
         withCredentials: true,
-        headers: { Authorization: `Bearer ${token}` }
+        headers: { Authorization: `Bearer ${token}` },
       });
       if (res.data.success) {
         setRecords(res.data.records || res.data.data || []);
@@ -69,7 +76,7 @@ const PayrollManager = () => {
     } catch (error: any) {
       console.error("Lỗi lấy dữ liệu lương:", error);
       toast.error(error.response?.data?.message || "Lỗi xác thực: Vui lòng đăng nhập lại!");
-      setRecords([]); 
+      setRecords([]);
     } finally {
       setIsLoading(false);
     }
@@ -80,24 +87,64 @@ const PayrollManager = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filterMonth, filterYear]);
 
+  // ==========================================
+  // ĐỒNG BỘ LẠI BẢNG LƯƠNG
+  // ==========================================
+  const handleSyncPayroll = async () => {
+    const confirm = window.confirm(
+      `Đồng bộ lại toàn bộ bảng lương tháng ${filterMonth}/${filterYear}?\n\n` +
+      `⚠️ Lưu ý: Thao tác này sẽ XOÁ và TÍNH LẠI toàn bộ phiếu lương của tháng. ` +
+      `Các điều chỉnh CP khác đã nhập tay sẽ bị mất.`
+    );
+    if (!confirm) return;
+
+    setIsSyncing(true);
+    try {
+      const token = localStorage.getItem("token");
+      const res = await axios.post(
+        `${API}/payroll/init`,
+        { month: filterMonth, year: filterYear, standardDays: 26 },
+        {
+          withCredentials: true,
+          headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        }
+      );
+      if (res.data.success) {
+        toast.success(res.data.message || "Đồng bộ bảng lương thành công!");
+        await fetchPayrollRecords();
+      } else {
+        toast.error(res.data.message || "Đồng bộ thất bại!");
+      }
+    } catch (error: any) {
+      console.error("Lỗi đồng bộ bảng lương:", error);
+      toast.error(error.response?.data?.message || "Lỗi khi đồng bộ bảng lương!");
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
   const formatMoney = (amount: number) => {
-    return new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(amount);
+    return new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(amount || 0);
   };
 
   // ==========================================
-  // XỬ LÝ GỬI EMAIL CÁ NHÂN
+  // GỬI EMAIL CÁ NHÂN
   // ==========================================
   const handleSendEmail = async (recordId: string) => {
     setSendingId(recordId);
     try {
       const token = localStorage.getItem("token");
-      const res = await axios.post(`${API}/payroll/send-email/${recordId}`, {}, { 
-        withCredentials: true,
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const res = await axios.post(
+        `${API}/payroll/send-email/${recordId}`,
+        {},
+        {
+          withCredentials: true,
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
       if (res.data.success) {
         toast.success(res.data.message || "Gửi email thành công!");
-        setRecords(prev => prev.map(r => r._id === recordId ? { ...r, isEmailSent: true } : r));
+        setRecords((prev) => prev.map((r) => (r._id === recordId ? { ...r, isEmailSent: true } : r)));
       }
     } catch (error: any) {
       toast.error(error.response?.data?.message || "Lỗi khi gửi email");
@@ -107,12 +154,12 @@ const PayrollManager = () => {
   };
 
   // ==========================================
-  // XỬ LÝ GỬI EMAIL TẤT CẢ (Hàng loạt)
+  // GỬI EMAIL TẤT CẢ
   // ==========================================
   const handleSendAllEmails = async () => {
     if (records.length === 0) return toast.error("Không có dữ liệu để gửi");
-    
-    const validRecords = records.filter(r => r.employee?.email && !r.isEmailSent);
+
+    const validRecords = records.filter((r) => r.employee?.email && !r.isEmailSent);
     if (validRecords.length === 0) return toast.error("Tất cả nhân viên hợp lệ đều đã được gửi mail.");
 
     const confirm = window.confirm(`Bạn chuẩn bị gửi phiếu lương cho ${validRecords.length} nhân viên. Tiếp tục?`);
@@ -124,12 +171,16 @@ const PayrollManager = () => {
 
     for (const record of validRecords) {
       try {
-        await axios.post(`${API}/payroll/send-email/${record._id}`, {}, { 
-          withCredentials: true,
-          headers: { Authorization: `Bearer ${token}` }
-        });
+        await axios.post(
+          `${API}/payroll/send-email/${record._id}`,
+          {},
+          {
+            withCredentials: true,
+            headers: { Authorization: `Bearer ${token}` },
+          }
+        );
         successCount++;
-        setRecords(prev => prev.map(r => r._id === record._id ? { ...r, isEmailSent: true } : r));
+        setRecords((prev) => prev.map((r) => (r._id === record._id ? { ...r, isEmailSent: true } : r)));
       } catch (err) {
         console.error(`Lỗi gửi mail cho ID ${record._id}`, err);
       }
@@ -140,31 +191,38 @@ const PayrollManager = () => {
   };
 
   // ==========================================
-  // XUẤT EXCEL DANH SÁCH BẢNG LƯƠNG (CÓ STYLE ĐẸP)
+  // XUẤT EXCEL
   // ==========================================
   const handleExportExcel = () => {
     if (filteredRecords.length === 0) {
       return toast.error("Không có dữ liệu để xuất Excel");
     }
 
-    // 1. ĐỊNH NGHĨA STYLE CHUẨN
     const FONT = { name: "Arial", sz: 11 };
-    const BORDER = { top: { style: "thin" }, bottom: { style: "thin" }, left: { style: "thin" }, right: { style: "thin" } };
-    
+    const BORDER = {
+      top: { style: "thin" },
+      bottom: { style: "thin" },
+      left: { style: "thin" },
+      right: { style: "thin" },
+    };
+
     const titleStyle = { font: { name: "Arial", sz: 14, bold: true }, alignment: { horizontal: "center" } };
-    const headerStyle = { font: { ...FONT, bold: true, color: { rgb: "FFFFFF" } }, fill: { fgColor: { rgb: "4B5563" } }, border: BORDER, alignment: { horizontal: "center" } };
+    const headerStyle = {
+      font: { ...FONT, bold: true, color: { rgb: "FFFFFF" } },
+      fill: { fgColor: { rgb: "4B5563" } },
+      border: BORDER,
+      alignment: { horizontal: "center" },
+    };
     const cellStyle = { font: FONT, border: BORDER, alignment: { horizontal: "center" } };
     const cellLeft = { font: FONT, border: BORDER, alignment: { horizontal: "left" } };
-    
-    // ĐỊNH DẠNG SỐ (CỰC KỲ QUAN TRỌNG: t: "n" và numFmt: "#,##0")
     const moneyStyle = { font: FONT, border: BORDER, alignment: { horizontal: "right" }, numFmt: "#,##0" };
 
     const wsData: any[] = [];
     wsData.push([{ v: `DANH SÁCH BẢNG LƯƠNG THÁNG ${filterMonth}/${filterYear}`, s: titleStyle }]);
-    wsData.push([]); 
+    wsData.push([]);
 
     const headers = ["STT", "Mã NV", "Họ và tên", "Phòng ban", "Email", "Tổng thu nhập", "Thực lĩnh", "Trạng thái Mail"];
-    wsData.push(headers.map(h => ({ v: h, s: headerStyle })));
+    wsData.push(headers.map((h) => ({ v: h, s: headerStyle })));
 
     filteredRecords.forEach((r, index) => {
       wsData.push([
@@ -173,22 +231,24 @@ const PayrollManager = () => {
         { v: r.employeeSnapshot.fullName || "", s: cellLeft },
         { v: r.employeeSnapshot.department || "", s: cellStyle },
         { v: r.employee?.email || "Chưa có", s: cellLeft },
-        // Ép kiểu Number thuần túy, KHÔNG dùng toLocaleString ở đây
         { v: Number(r.incomes.totalGross || 0), t: "n", s: moneyStyle },
-        { v: Number(r.netSalary || 0), t: "n", s: moneyStyle },
-        { v: r.isEmailSent ? "Đã gửi" : "Chưa gửi", s: cellStyle }
+        // ✅ Xuất luôn "Thực lĩnh = Net + Adjustment"
+        { v: getFinalPayment(r), t: "n", s: moneyStyle },
+        { v: r.isEmailSent ? "Đã gửi" : "Chưa gửi", s: cellStyle },
       ]);
     });
 
     const worksheet = XLSX.utils.aoa_to_sheet(wsData);
-
-    // Gộp ô tiêu đề
     worksheet["!merges"] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 7 } }];
-
-    // Độ rộng cột
     worksheet["!cols"] = [
-      { wch: 6 }, { wch: 12 }, { wch: 25 }, { wch: 15 }, 
-      { wch: 30 }, { wch: 18 }, { wch: 18 }, { wch: 15 }
+      { wch: 6 },
+      { wch: 12 },
+      { wch: 25 },
+      { wch: 15 },
+      { wch: 30 },
+      { wch: 18 },
+      { wch: 18 },
+      { wch: 15 },
     ];
 
     const workbook = XLSX.utils.book_new();
@@ -196,9 +256,10 @@ const PayrollManager = () => {
     XLSX.writeFile(workbook, `BangLuong_T${filterMonth}_${filterYear}.xlsx`);
   };
 
-  const filteredRecords = records.filter(r => 
-    r.employeeSnapshot.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    r.employeeSnapshot.employeeCode.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredRecords = records.filter(
+    (r) =>
+      r.employeeSnapshot.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      r.employeeSnapshot.employeeCode.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   return (
@@ -206,39 +267,61 @@ const PayrollManager = () => {
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Quản lý Bảng Lương</h1>
-          <p className="text-gray-500 mt-1">Quản lý, xuất Excel và gửi phiếu lương tự động qua email</p>
+          <p className="text-gray-500 mt-1">Gửi phiếu lương tự động qua email và xuất danh sách</p>
         </div>
 
-        <div className="flex gap-3">
-          <Input 
-            type="month" 
-            value={`${filterYear}-${filterMonth < 10 ? '0'+filterMonth : filterMonth}`}
+        <div className="flex flex-wrap gap-3">
+          <Input
+            type="month"
+            value={`${filterYear}-${filterMonth < 10 ? "0" + filterMonth : filterMonth}`}
             onChange={(e) => {
-              const [y, m] = e.target.value.split('-');
-              if(y && m) {
+              const [y, m] = e.target.value.split("-");
+              if (y && m) {
                 setFilterYear(Number(y));
                 setFilterMonth(Number(m));
               }
             }}
             className="w-40"
           />
-          <Button 
-            onClick={handleExportExcel} 
-            variant="outline" 
+
+          <Button
+            onClick={handleSyncPayroll}
+            disabled={isSyncing}
+            variant="outline"
+            className="border-blue-500 text-blue-700 hover:bg-blue-50 cursor-pointer"
+          >
+            {isSyncing ? (
+              <span className="flex items-center gap-2">
+                <RefreshCw className="w-4 h-4 animate-spin" /> Đang đồng bộ...
+              </span>
+            ) : (
+              <span className="flex items-center gap-2">
+                <RefreshCw className="w-4 h-4" /> Đồng bộ bảng lương
+              </span>
+            )}
+          </Button>
+
+          <Button
+            onClick={handleExportExcel}
+            variant="outline"
             className="border-emerald-500 text-emerald-700 hover:bg-emerald-50 cursor-pointer"
           >
             <FileSpreadsheet className="w-4 h-4 mr-2" /> Xuất Excel
           </Button>
 
-          <Button 
-            onClick={handleSendAllEmails} 
+          <Button
+            onClick={handleSendAllEmails}
             disabled={isSendingAll || records.length === 0}
             className="bg-blue-600 hover:bg-blue-700 text-white cursor-pointer"
           >
             {isSendingAll ? (
-              <span className="flex items-center gap-2"><Mails className="w-4 h-4 animate-bounce" /> Đang gửi...</span>
+              <span className="flex items-center gap-2">
+                <Mails className="w-4 h-4 animate-bounce" /> Đang gửi...
+              </span>
             ) : (
-              <span className="flex items-center gap-2"><Mails className="w-4 h-4" /> Gửi mail tất cả</span>
+              <span className="flex items-center gap-2">
+                <Mails className="w-4 h-4" /> Gửi mail tất cả
+              </span>
             )}
           </Button>
         </div>
@@ -251,8 +334,8 @@ const PayrollManager = () => {
           </CardTitle>
           <div className="relative w-72">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-            <Input 
-              placeholder="Tìm theo tên, mã NV..." 
+            <Input
+              placeholder="Tìm theo tên, mã NV..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="pl-9 bg-white"
@@ -295,9 +378,6 @@ const PayrollManager = () => {
                       <TableCell>
                         <div className="font-semibold text-gray-900">{record.employeeSnapshot.fullName}</div>
                         <div className="text-xs text-gray-500">{record.employee?.email || "Chưa có email"}</div>
-                        {record.deductions?.excludedFromInsurance && (
-                          <div className="text-xs text-red-600 font-medium mt-1">Không tham gia BH (làm &lt; 15 ngày)</div>
-                        )}
                       </TableCell>
                       <TableCell>
                         <Badge variant="secondary" className="bg-blue-50 text-blue-700">
@@ -307,8 +387,9 @@ const PayrollManager = () => {
                       <TableCell className="text-right font-medium text-gray-600">
                         {formatMoney(record.incomes.totalGross)}
                       </TableCell>
+                      {/* ✅ Thực lĩnh = Net + Điều chỉnh CP khác (TỔNG THANH TOÁN CK) */}
                       <TableCell className="text-right font-bold text-emerald-600">
-                        {formatMoney(record.netSalary)}
+                        {formatMoney(getFinalPayment(record))}
                       </TableCell>
                       <TableCell className="text-center">
                         {record.isEmailSent ? (
@@ -323,24 +404,32 @@ const PayrollManager = () => {
                       </TableCell>
                       <TableCell>
                         <div className="flex justify-center gap-2">
-                          <Button 
-                            variant="outline" 
+                          <Button
+                            variant="outline"
                             size="sm"
                             className="h-8 text-gray-600 border-gray-200 hover:bg-gray-100 cursor-pointer"
-                            onClick={() => window.open(`/payroll/slip/${record._id}`, '_blank')}
+                            onClick={() => window.open(`/payroll/slip/${record._id}`, "_blank")}
                           >
                             <FileText className="w-4 h-4 mr-1" /> Xem phiếu
                           </Button>
-                          <Button 
+                          <Button
                             size="sm"
                             disabled={!record.employee?.email || sendingId === record._id}
-                            className={`h-8 ${record.isEmailSent ? 'bg-green-600 hover:bg-green-700' : 'bg-orange-500 hover:bg-orange-600'} text-white cursor-pointer`}
+                            className={`h-8 ${
+                              record.isEmailSent
+                                ? "bg-green-600 hover:bg-green-700"
+                                : "bg-orange-500 hover:bg-orange-600"
+                            } text-white cursor-pointer`}
                             onClick={() => handleSendEmail(record._id)}
                           >
                             {sendingId === record._id ? (
-                              <span className="flex items-center gap-1"><Mail className="w-4 h-4 animate-pulse" /> Đang gửi...</span>
+                              <span className="flex items-center gap-1">
+                                <Mail className="w-4 h-4 animate-pulse" /> Đang gửi...
+                              </span>
                             ) : (
-                              <span className="flex items-center gap-1"><Mail className="w-4 h-4" /> Gửi mail</span>
+                              <span className="flex items-center gap-1">
+                                <Mail className="w-4 h-4" /> Gửi mail
+                              </span>
                             )}
                           </Button>
                         </div>

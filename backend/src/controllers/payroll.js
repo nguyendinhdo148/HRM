@@ -13,14 +13,11 @@ const MEAL_RATE = Math.round(MAX_MEAL_ALLOWANCE / STANDARD_MEAL_DAYS);
 const DEFAULT_INSURANCE_ADVANCE = 500000;
 
 const calculateNetWithCompanySupport = (record, taxTNCN, advancePayment, insuranceTotal) => {
-  const companyInsuranceSupport = 88000;
-  const employeeInsuranceDeduction = Math.max(0, insuranceTotal - companyInsuranceSupport);
-  const employeeTaxDeduction = 0; 
-
+  // ✅ KHÔNG trừ BHXH nữa — vì đã trừ 500k vào totalGross rồi
   record.deductions.advance = advancePayment;
   record.deductions.taxTNCN = taxTNCN;
-  record.deductions.totalDeductions = advancePayment + employeeInsuranceDeduction + employeeTaxDeduction;
-  
+  record.deductions.totalDeductions = advancePayment + taxTNCN;
+
   const totalGross = record.incomes.totalGross || 0;
   record.netSalary = Math.max(0, totalGross - record.deductions.totalDeductions);
 };
@@ -182,6 +179,13 @@ export const initializePayroll = async (req, res) => {
     const { month, year, standardDays } = req.body;
     const stdDays = Number(standardDays) || 26;
 
+    const previousRecords = await PayrollRecord.find({ month, year }).select("employee incomes.adjustment");
+    const previousAdjustmentsByEmployee = new Map(
+      previousRecords
+        .filter((r) => r.employee && r.incomes?.adjustment !== undefined)
+        .map((r) => [r.employee.toString(), Number(r.incomes.adjustment) || 0])
+    );
+
     const activeEmployees = await Employee.find({ status: "active" });
     const start = new Date(year, month - 1, 1);
     const end = new Date(year, month, 0, 23, 59, 59);
@@ -220,6 +224,7 @@ export const initializePayroll = async (req, res) => {
       const meal = calcMealAllowance(actualDays);
       const trainingAllowance = calcTrainingAllowance(emp, bigshowCount);
 
+      const previousAdjustment = previousAdjustmentsByEmployee.get(emp._id.toString()) || 0;
       const taxTNCN = tax?.taxAmount || 0;
       const insTotal = ins?.employeePays?.total || 0;
       const advancePayment = att?.advancePayment || 0;
@@ -233,7 +238,7 @@ export const initializePayroll = async (req, res) => {
           timeSalary, overtime: ot?.amounts?.totalMoney || 0, miniShowMoney, bigShowMoney, kpiBonus,
           insuranceAdvance: DEFAULT_INSURANCE_ADVANCE,
           penalty: 0,
-          adjustment: 0,
+          adjustment: previousAdjustment,
           allowances: { 
             meal, housingAllowance, trainingAllowance,
             transport: 0, housing: 0, phone: 0, clothing: 0,

@@ -1,7 +1,43 @@
-import React from "react";
+import React, { useState } from "react";
 import { X, Info, Briefcase, DollarSign, Calendar, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { EMPLOYEE_STATUSES, CONTRACT_TYPES, GENDER_OPTIONS, PAYMENT_METHODS } from "./utils";
+
+/**
+ * Input số: khi focus vào mà giá trị đang là 0 thì tự xoá để user nhập luôn.
+ * Khi blur mà để trống thì trả về 0.
+ */
+const NumberInput = ({ value, onChange, className, ...rest }: any) => {
+  const [focused, setFocused] = useState(false);
+
+  const displayValue =
+    focused && (value === 0 || value === "0" || value === null || value === undefined)
+      ? ""
+      : (value ?? "");
+
+  return (
+    <input
+      type="number"
+      className={className}
+      value={displayValue}
+      onFocus={(e) => {
+        setFocused(true);
+        e.target.select?.();
+      }}
+      onBlur={(e) => {
+        setFocused(false);
+        if (e.target.value === "" || e.target.value === "-") {
+          onChange(0);
+        }
+      }}
+      onChange={(e) => {
+        const v = e.target.value;
+        onChange(v === "" ? 0 : Number(v));
+      }}
+      {...rest}
+    />
+  );
+};
 
 export const DepartmentModal = ({ isOpen, onClose, selectedDept, deptForm, setDeptForm, handleSaveDepartment }: any) => {
   if (!isOpen) return null;
@@ -43,7 +79,8 @@ export const EmployeeModal = ({ isOpen, onClose, selectedEmp, empForm, setEmpFor
       return;
     }
 
-    if (!empForm.employeeCode || !empForm.fullName || !empForm.idCardNumber || !empForm.phoneNumber || !empForm.email) {
+    // ✅ ĐÃ BỎ điều kiện !empForm.email — Email không còn bắt buộc
+    if (!empForm.employeeCode || !empForm.fullName || !empForm.idCardNumber || !empForm.phoneNumber) {
       if (empFormTab !== "personal") {
         alert("Vui lòng điền đầy đủ các trường bắt buộc (*) ở mục Định danh & Cá nhân!");
         setEmpFormTab("personal");
@@ -51,40 +88,46 @@ export const EmployeeModal = ({ isOpen, onClose, selectedEmp, empForm, setEmpFor
       }
     }
 
-    // ===== Tính giá trị cuối của Phụ cấp ca tập trước khi lưu =====
-    // CHỈ tính FIXED. PER_SESSION sẽ được tính ở backend khi gom lương (vì cần số buổi từ chấm công).
     const sb = empForm.salaryAndBenefits || {};
+
     let trainingAllowance = 0;
     if (sb.trainingAllowanceType === "FIXED") {
       trainingAllowance = Number(sb.trainingAllowanceFixed) || 0;
     }
+
+    const housingCost = sb.housingCost || 1200000;
+    const dormitoryDeduction = sb.dormitoryDeduction || 0;
+    const housingAllowance = housingCost - dormitoryDeduction;
+
     const finalForm = {
       ...empForm,
-      salaryAndBenefits: { ...sb, trainingAllowance }
+      salaryAndBenefits: {
+        ...sb,
+        housingCost,
+        dormitoryDeduction,
+        housingAllowance,
+        trainingAllowance,
+      }
     };
     setEmpForm(finalForm);
 
     handleSaveEmployee(e, finalForm);
   };
 
-  // ===== Hàm tính Phụ cấp Ở =====
   const handleHousingChange = (field: "housingCost" | "dormitoryDeduction", value: number) => {
     const newSalary = { ...empForm.salaryAndBenefits, [field]: value };
-    const cost = field === "housingCost" ? value : (newSalary.housingCost || 0);
-    const deduction = field === "dormitoryDeduction" ? value : (newSalary.dormitoryDeduction || 0);
-    newSalary.housingAllowance = (cost || 0) - (deduction || 0);
+    const cost = field === "housingCost" ? (value || 1200000) : (newSalary.housingCost || 1200000);
+    const deduction = field === "dormitoryDeduction" ? (value || 0) : (newSalary.dormitoryDeduction || 0);
+    newSalary.housingAllowance = cost - deduction;
     setEmpForm({ ...empForm, salaryAndBenefits: newSalary });
   };
 
-  // ===== Cập nhật trường Phụ cấp ca tập =====
-  // CHỈ preview giá trị cho FIXED. PER_SESSION để trống (backend tính khi gom lương).
   const handleTrainingChange = (field: string, value: any) => {
     const sb = { ...empForm.salaryAndBenefits, [field]: value };
     let trainingAllowance = 0;
     if (sb.trainingAllowanceType === "FIXED") {
       trainingAllowance = Number(sb.trainingAllowanceFixed) || 0;
     }
-    // PER_SESSION: để trainingAllowance = 0, sẽ được tính lại ở backend
     sb.trainingAllowance = trainingAllowance;
     setEmpForm({ ...empForm, salaryAndBenefits: sb });
   };
@@ -116,7 +159,8 @@ export const EmployeeModal = ({ isOpen, onClose, selectedEmp, empForm, setEmpFor
                 <div><label className="block text-sm font-medium mb-1 text-blue-600">Số CCCD/CMND *</label><input required type="text" className="w-full border rounded-md p-2" value={empForm.idCardNumber} onChange={(e) => setEmpForm({ ...empForm, idCardNumber: e.target.value })} placeholder="Số định danh..."/></div>
                 <div><label className="block text-sm font-medium mb-1 text-blue-600">Số điện thoại *</label><input required type="text" className="w-full border rounded-md p-2" value={empForm.phoneNumber} onChange={(e) => setEmpForm({ ...empForm, phoneNumber: e.target.value })} placeholder="VD: 0987654321"/></div>
               </div>
-              <div><label className="block text-sm font-bold text-slate-700">Email (*)</label><input required type="email" className="w-full border rounded-md p-2" value={empForm.email} onChange={(e) => setEmpForm({ ...empForm, email: e.target.value })} placeholder="example@gmail.com"/></div>
+              {/* ✅ EMAIL: đã bỏ required và bỏ dấu (*) trên label */}
+              <div><label className="block text-sm font-bold text-slate-700">Email</label><input type="email" className="w-full border rounded-md p-2" value={empForm.email} onChange={(e) => setEmpForm({ ...empForm, email: e.target.value })} placeholder="example@gmail.com"/></div>
               
               <div className="grid grid-cols-3 gap-4">
                 <div><label className="block text-sm font-medium mb-1">Ngày sinh</label><input type="date" className="w-full border rounded-md p-2" value={empForm.personalInfo.dateOfBirth} onChange={(e) => setEmpForm({...empForm, personalInfo: {...empForm.personalInfo, dateOfBirth: e.target.value}})}/></div>
@@ -243,7 +287,7 @@ export const EmployeeModal = ({ isOpen, onClose, selectedEmp, empForm, setEmpFor
                   <div>
                     <label className="block text-sm font-bold text-indigo-900 mb-1">Thời gian hiệu lực</label>
                     <div className="flex gap-2">
-                      <input type="number" min="1" className="w-20 border rounded-md p-2 bg-white" value={durationValue} onChange={(e) => setDurationValue(Number(e.target.value))}/>
+                      <NumberInput min="1" className="w-20 border rounded-md p-2 bg-white" value={durationValue} onChange={(v: number) => setDurationValue(v)}/>
                       <select className="flex-1 border rounded-md p-2 bg-white font-medium text-slate-700" value={durationUnit} onChange={(e) => setDurationUnit(e.target.value as any)}>
                         <option value="months">Tháng</option>
                         <option value="years">Năm</option>
@@ -284,13 +328,13 @@ export const EmployeeModal = ({ isOpen, onClose, selectedEmp, empForm, setEmpFor
               </div>
 
               <div className="grid grid-cols-2 gap-4">
-                <div><label className="block text-sm font-medium mb-1">Lương cơ bản (VNĐ)</label><input type="number" className="w-full border rounded-md p-2" value={empForm.salaryAndBenefits.baseSalary} onChange={(e) => setEmpForm({...empForm, salaryAndBenefits: {...empForm.salaryAndBenefits, baseSalary: Number(e.target.value)}})}/></div>
-                <div><label className="block text-sm font-medium mb-1">Lương tham gia BH (VNĐ)</label><input type="number" className="w-full border rounded-md p-2" value={empForm.salaryAndBenefits.insuranceSalary} onChange={(e) => setEmpForm({...empForm, salaryAndBenefits: {...empForm.salaryAndBenefits, insuranceSalary: Number(e.target.value)}})}/></div>
+                <div><label className="block text-sm font-medium mb-1">Lương cơ bản (VNĐ)</label><NumberInput className="w-full border rounded-md p-2" value={empForm.salaryAndBenefits.baseSalary} onChange={(v: number) => setEmpForm({...empForm, salaryAndBenefits: {...empForm.salaryAndBenefits, baseSalary: v}})}/></div>
+                <div><label className="block text-sm font-medium mb-1">Lương tham gia BH (VNĐ)</label><NumberInput className="w-full border rounded-md p-2" value={empForm.salaryAndBenefits.insuranceSalary} onChange={(v: number) => setEmpForm({...empForm, salaryAndBenefits: {...empForm.salaryAndBenefits, insuranceSalary: v}})}/></div>
               </div>
 
               <div className="grid grid-cols-3 gap-4">
                 <div><label className="block text-sm font-medium mb-1">Mã số thuế</label><input type="text" className="w-full border rounded-md p-2" value={empForm.salaryAndBenefits.taxCode} onChange={(e) => setEmpForm({...empForm, salaryAndBenefits: {...empForm.salaryAndBenefits, taxCode: e.target.value}})}/></div>
-                <div><label className="block text-sm font-medium mb-1">Số người phụ thuộc</label><input type="number" min="0" className="w-full border rounded-md p-2" value={empForm.salaryAndBenefits.dependents || ''} onChange={(e) => setEmpForm({...empForm, salaryAndBenefits: {...empForm.salaryAndBenefits, dependents: Number(e.target.value)}})}/></div>
+                <div><label className="block text-sm font-medium mb-1">Số người phụ thuộc</label><NumberInput min="0" className="w-full border rounded-md p-2" value={empForm.salaryAndBenefits.dependents ?? 0} onChange={(v: number) => setEmpForm({...empForm, salaryAndBenefits: {...empForm.salaryAndBenefits, dependents: v}})}/></div>
                 <div><label className="block text-sm font-medium mb-1">Sổ BHXH</label><input type="text" className="w-full border rounded-md p-2" value={empForm.salaryAndBenefits.socialInsuranceNumber} onChange={(e) => setEmpForm({...empForm, salaryAndBenefits: {...empForm.salaryAndBenefits, socialInsuranceNumber: e.target.value}})}/></div>
               </div>
               
@@ -304,27 +348,25 @@ export const EmployeeModal = ({ isOpen, onClose, selectedEmp, empForm, setEmpFor
                 <div><label className="block text-sm font-medium mb-1">Thời gian trả lương</label><input type="text" className="w-full border rounded-md p-2" value={empForm.salaryAndBenefits.paymentPeriod} onChange={(e) => setEmpForm({...empForm, salaryAndBenefits: {...empForm.salaryAndBenefits, paymentPeriod: e.target.value}})} placeholder="VD: Mùng 5 hàng tháng"/></div>
               </div>
 
-              {/* ===== ĐƠN GIÁ SHOW & ĂN CA ===== */}
               <h4 className="font-semibold text-slate-800 border-b pb-2 mt-8">Đơn giá Show &amp; Tiền Ăn Ca</h4>
               <div className="grid grid-cols-3 gap-4">
                 <div className="bg-purple-50 p-2 rounded border border-purple-200">
                   <label className="block text-sm font-bold text-purple-800 mb-1">Đơn giá Mini Show (VNĐ)</label>
-                  <input type="number" className="w-full border border-purple-300 rounded-md p-2" value={empForm.salaryAndBenefits.minishowRate ?? 65000} onChange={(e) => setEmpForm({...empForm, salaryAndBenefits: {...empForm.salaryAndBenefits, minishowRate: Number(e.target.value)}})}/>
+                  <NumberInput className="w-full border border-purple-300 rounded-md p-2" value={empForm.salaryAndBenefits.minishowRate || 65000} onChange={(v: number) => setEmpForm({...empForm, salaryAndBenefits: {...empForm.salaryAndBenefits, minishowRate: v}})}/>
                   <p className="text-[10px] text-purple-600 mt-1 leading-tight">Mặc định: 65.000</p>
                 </div>
                 <div className="bg-purple-50 p-2 rounded border border-purple-200">
                   <label className="block text-sm font-bold text-purple-800 mb-1">Đơn giá Big Show (VNĐ)</label>
-                  <input type="number" className="w-full border border-purple-300 rounded-md p-2" value={empForm.salaryAndBenefits.bigshowRate ?? 213462} onChange={(e) => setEmpForm({...empForm, salaryAndBenefits: {...empForm.salaryAndBenefits, bigshowRate: Number(e.target.value)}})}/>
+                  <NumberInput className="w-full border border-purple-300 rounded-md p-2" value={empForm.salaryAndBenefits.bigshowRate || 213462} onChange={(v: number) => setEmpForm({...empForm, salaryAndBenefits: {...empForm.salaryAndBenefits, bigshowRate: v}})}/>
                   <p className="text-[10px] text-purple-600 mt-1 leading-tight">Mặc định: 213.462</p>
                 </div>
                 <div className="bg-emerald-50 p-2 rounded border border-emerald-200">
                   <label className="block text-sm font-bold text-emerald-800 mb-1">Tiền ăn / Công (VNĐ)</label>
-                  <input type="number" className="w-full border border-emerald-300 rounded-md p-2" value={empForm.salaryAndBenefits.mealRate ?? 0} onChange={(e) => setEmpForm({...empForm, salaryAndBenefits: {...empForm.salaryAndBenefits, mealRate: Number(e.target.value)}})}/>
+                  <NumberInput className="w-full border border-emerald-300 rounded-md p-2" value={empForm.salaryAndBenefits.mealRate ?? 0} onChange={(v: number) => setEmpForm({...empForm, salaryAndBenefits: {...empForm.salaryAndBenefits, mealRate: v}})}/>
                   <p className="text-[10px] text-emerald-600 mt-1 leading-tight">Để 0 = dùng mặc định 1.800.000/26 ≈ 69.231</p>
                 </div>
               </div>
 
-              {/* ===== PHỤ CẤP CA TẬP ===== */}
               <h4 className="font-semibold text-slate-800 border-b pb-2 mt-8">Phụ cấp Ca tập</h4>
               <div className="grid grid-cols-4 gap-4 items-end">
                 <div className="col-span-1">
@@ -343,11 +385,10 @@ export const EmployeeModal = ({ isOpen, onClose, selectedEmp, empForm, setEmpFor
                 {empForm.salaryAndBenefits.trainingAllowanceType === "FIXED" && (
                   <div className="col-span-2 bg-indigo-50 p-2 rounded border border-indigo-200">
                     <label className="block text-sm font-bold text-indigo-800 mb-1">Số tiền (VNĐ)</label>
-                    <input 
-                      type="number" 
+                    <NumberInput 
                       className="w-full border border-indigo-300 rounded-md p-2" 
                       value={empForm.salaryAndBenefits.trainingAllowanceFixed || 0} 
-                      onChange={(e) => handleTrainingChange("trainingAllowanceFixed", Number(e.target.value))}
+                      onChange={(v: number) => handleTrainingChange("trainingAllowanceFixed", v)}
                       placeholder="VD: 500000"
                     />
                   </div>
@@ -356,11 +397,10 @@ export const EmployeeModal = ({ isOpen, onClose, selectedEmp, empForm, setEmpFor
                 {empForm.salaryAndBenefits.trainingAllowanceType === "PER_SESSION" && (
                   <div className="col-span-2 bg-indigo-50 p-2 rounded border border-indigo-200">
                     <label className="block text-sm font-bold text-indigo-800 mb-1">Đơn giá / buổi (VNĐ)</label>
-                    <input 
-                      type="number" 
+                    <NumberInput 
                       className="w-full border border-indigo-300 rounded-md p-2" 
                       value={empForm.salaryAndBenefits.trainingAllowanceRate || 0} 
-                      onChange={(e) => handleTrainingChange("trainingAllowanceRate", Number(e.target.value))}
+                      onChange={(v: number) => handleTrainingChange("trainingAllowanceRate", v)}
                       placeholder="VD: 39000"
                     />
                     <p className="text-[10px] text-indigo-600 mt-1 leading-tight">
@@ -387,21 +427,33 @@ export const EmployeeModal = ({ isOpen, onClose, selectedEmp, empForm, setEmpFor
                 </div>
               </div>
 
-              {/* ===== PHỤ CẤP Ở ===== */}
               <h4 className="font-semibold text-slate-800 border-b pb-2 mt-8">Phụ cấp Ở</h4>
               <div className="grid grid-cols-3 gap-4">
                 <div className="bg-amber-50 p-2 rounded border border-amber-200">
                   <label className="block text-sm font-bold text-amber-800 mb-1">Chi phí ở (VNĐ)</label>
-                  <input type="number" className="w-full border border-amber-300 rounded-md p-2" value={empForm.salaryAndBenefits.housingCost ?? 1200000} onChange={(e) => handleHousingChange("housingCost", Number(e.target.value))}/>
+                  <NumberInput
+                    className="w-full border border-amber-300 rounded-md p-2"
+                    value={empForm.salaryAndBenefits.housingCost || 1200000}
+                    onChange={(v: number) => handleHousingChange("housingCost", v)}
+                  />
                   <p className="text-[10px] text-amber-600 mt-1 leading-tight">Mặc định: 1.200.000</p>
                 </div>
                 <div className="bg-amber-50 p-2 rounded border border-amber-200">
                   <label className="block text-sm font-bold text-amber-800 mb-1">KTX tt VS (VNĐ)</label>
-                  <input type="number" className="w-full border border-amber-300 rounded-md p-2" value={empForm.salaryAndBenefits.dormitoryDeduction} onChange={(e) => handleHousingChange("dormitoryDeduction", Number(e.target.value))}/>
+                  <NumberInput
+                    className="w-full border border-amber-300 rounded-md p-2"
+                    value={empForm.salaryAndBenefits.dormitoryDeduction || 0}
+                    onChange={(v: number) => handleHousingChange("dormitoryDeduction", v)}
+                  />
                 </div>
                 <div className="bg-green-50 p-2 rounded border border-green-200">
                   <label className="block text-sm font-bold text-green-800 mb-1">Phụ cấp Ở (VNĐ)</label>
-                  <input type="number" readOnly className="w-full border border-green-300 rounded-md p-2 bg-slate-100 text-slate-700 font-semibold" value={empForm.salaryAndBenefits.housingAllowance} />
+                  <input
+                    type="number"
+                    readOnly
+                    className="w-full border border-green-300 rounded-md p-2 bg-slate-100 text-slate-700 font-semibold"
+                    value={(empForm.salaryAndBenefits.housingCost || 1200000) - (empForm.salaryAndBenefits.dormitoryDeduction || 0)}
+                  />
                   <p className="text-[10px] text-green-600 mt-1 leading-tight">= Chi phí ở - KTX tt VS</p>
                 </div>
               </div>
@@ -410,7 +462,7 @@ export const EmployeeModal = ({ isOpen, onClose, selectedEmp, empForm, setEmpFor
               <div className="grid grid-cols-3 gap-4">
                 <div className="bg-teal-50 p-2 rounded border border-teal-200">
                   <label className="block text-sm font-bold text-teal-800 mb-1">Mức thưởng Trách nhiệm</label>
-                  <input type="number" className="w-full border border-teal-300 rounded-md p-2" value={empForm.salaryAndBenefits.bonuses.responsibility} onChange={(e) => setEmpForm({...empForm, salaryAndBenefits: {...empForm.salaryAndBenefits, bonuses: {...empForm.salaryAndBenefits.bonuses, responsibility: Number(e.target.value)}}})}/>
+                  <NumberInput className="w-full border border-teal-300 rounded-md p-2" value={empForm.salaryAndBenefits.bonuses.responsibility || 0} onChange={(v: number) => setEmpForm({...empForm, salaryAndBenefits: {...empForm.salaryAndBenefits, bonuses: {...empForm.salaryAndBenefits.bonuses, responsibility: v}}})}/>
                   <p className="text-[10px] text-teal-600 mt-1 leading-tight">Dùng để tính ra Thưởng T.Nhiệm thực nhận dựa trên KPI (Mini/Big Show)</p>
                 </div>
               </div>

@@ -1,5 +1,19 @@
 import mongoose from "mongoose";
 
+export const calculateHousingAllowance = (salaryAndBenefits = {}) => {
+  const rawCost = Number(salaryAndBenefits.housingCost ?? 1200000);
+  const rawDeduction = Number(salaryAndBenefits.dormitoryDeduction ?? 0);
+
+  const housingCost = Number.isFinite(rawCost) && rawCost > 0 ? rawCost : 1200000;
+  const dormitoryDeduction = Number.isFinite(rawDeduction) && rawDeduction >= 0 ? rawDeduction : 0;
+
+  return {
+    housingCost,
+    dormitoryDeduction,
+    housingAllowance: housingCost - dormitoryDeduction,
+  };
+};
+
 const employeeSchema = new mongoose.Schema(
   {
     employeeCode: { type: String, required: true, unique: true, trim: true, description: "Mã nhân viên nội bộ" },
@@ -101,6 +115,17 @@ const employeeSchema = new mongoose.Schema(
     toObject: { virtuals: true }
   }
 );
+
+employeeSchema.pre("save", function (next) {
+  const sb = this.salaryAndBenefits || {};
+  const normalized = calculateHousingAllowance(sb);
+
+  sb.housingCost = normalized.housingCost;
+  sb.dormitoryDeduction = normalized.dormitoryDeduction;
+  sb.housingAllowance = normalized.housingAllowance;
+
+  next();
+});
 
 employeeSchema.virtual("workingDuration").get(function () {
   if (!this.workInfo?.joinDate) return null;

@@ -23,6 +23,7 @@ router.get("/", authMiddleware, getPayrollByMonth);
 
 // Khởi tạo bảng lương tháng mới (Kéo data từ Nhân sự & Chấm công)
 router.post("/init", authMiddleware, initializePayroll);
+router.post("/initialize", authMiddleware, initializePayroll); // backward compatibility for older client calls
 
 // ⚠️ ĐIỀU CHỈNH CHI PHÍ KHÁC — PHẢI ĐẶT TRƯỚC ROUTE GENERIC "/:recordId"
 router.put("/:recordId/adjustment", authMiddleware, updatePayrollAdjustment);
