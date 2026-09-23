@@ -41,7 +41,9 @@ router.put(
 router.get("/employees/:employeeId", authMiddleware, getEmployeeDetails);
 
 // BỔ SUNG 2 CHỨC NĂNG UPDATE VÀ DELETE CHO NHÂN VIÊN
+// Hỗ trợ cả PUT và PATCH để tương thích với các client khác nhau (ví dụ inline save trong TabsUI)
 router.put("/employees/:employeeId", authMiddleware, updateEmployee);
+router.patch("/employees/:employeeId", authMiddleware, updateEmployee);
 router.delete("/employees/:employeeId", authMiddleware, deleteEmployee);
 
 // ==========================================

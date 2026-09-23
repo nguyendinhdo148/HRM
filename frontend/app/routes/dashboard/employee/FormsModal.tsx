@@ -93,6 +93,8 @@ export const EmployeeModal = ({ isOpen, onClose, selectedEmp, empForm, setEmpFor
     let trainingAllowance = 0;
     if (sb.trainingAllowanceType === "FIXED") {
       trainingAllowance = Number(sb.trainingAllowanceFixed) || 0;
+    } else if (sb.trainingAllowanceType === "PER_SESSION") {
+      trainingAllowance = Number(sb.trainingAllowanceRate) || 0;
     }
 
     const housingCost = sb.housingCost || 1200000;
@@ -127,6 +129,8 @@ export const EmployeeModal = ({ isOpen, onClose, selectedEmp, empForm, setEmpFor
     let trainingAllowance = 0;
     if (sb.trainingAllowanceType === "FIXED") {
       trainingAllowance = Number(sb.trainingAllowanceFixed) || 0;
+    } else if (sb.trainingAllowanceType === "PER_SESSION") {
+      trainingAllowance = Number(sb.trainingAllowanceRate) || 0;
     }
     sb.trainingAllowance = trainingAllowance;
     setEmpForm({ ...empForm, salaryAndBenefits: sb });

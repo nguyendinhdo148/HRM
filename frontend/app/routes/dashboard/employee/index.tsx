@@ -220,6 +220,33 @@ export default function HRMDashboard() {
     }
   };
 
+  const handleInlineUpdateEmployee = async (empId: string, finalSalary: any) => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/employees/${empId}`, {
+        method: "PATCH",
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ salaryAndBenefits: finalSalary }),
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.message || "Lưu thất bại");
+      }
+
+      const saved = await res.json().catch(() => null);
+      const updatedSalary = saved?.salaryAndBenefits || finalSalary;
+
+      setEmployees((prev) =>
+        prev.map((emp) =>
+          emp._id === empId ? { ...emp, salaryAndBenefits: updatedSalary } : emp
+        )
+      );
+    } catch (error: any) {
+      console.error("Inline update failed:", error);
+      throw error;
+    }
+  };
+
   const handleDeleteEmp = async (id: string) => {
     if (!window.confirm("Bạn có chắc muốn xóa nhân sự này?")) return;
     try { const res = await fetch(`${API_BASE_URL}/employees/${id}`, { method: "DELETE", headers: getAuthHeaders() }); if (res.ok) fetchData(); } catch (error) { console.error(error); }
@@ -439,6 +466,7 @@ export default function HRMDashboard() {
           handleOpenEmpModal={handleOpenEmpModal} 
           handleDeleteEmp={handleDeleteEmp} 
           onPrintContract={(emp: any) => setPrintEmployee(emp)}
+          onInlineUpdate={handleInlineUpdateEmployee}
         />
         
         <ContractsTab 
