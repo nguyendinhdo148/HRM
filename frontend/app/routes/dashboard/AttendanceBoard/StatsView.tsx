@@ -1,3 +1,4 @@
+// src/AttendanceReport/StatsView.jsx
 import React from "react";
 import { Users, Briefcase, Clock, TimerOff, BarChart3, Building2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -15,7 +16,6 @@ interface StatsViewProps {
 export const StatsView: React.FC<StatsViewProps> = ({ stats, departmentStats, chartData, selectedDept }) => {
   return (
     <div className="space-y-5 mt-4 animate-in slide-in-from-bottom-2">
-      {/* Stats Cards */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card className="border-l-4 border-l-blue-500 shadow-md hover:shadow-lg transition-shadow rounded-xl overflow-hidden">
           <CardContent className="p-5">
@@ -62,7 +62,6 @@ export const StatsView: React.FC<StatsViewProps> = ({ stats, departmentStats, ch
         </Card>
       </div>
 
-      {/* Biểu đồ */}
       <div className="grid gap-5 lg:grid-cols-3">
         <Card className="lg:col-span-2 shadow-md rounded-xl overflow-hidden border-slate-200/80">
           <CardHeader className="border-b bg-gradient-to-r from-slate-50 to-blue-50/50 px-6 py-4">
@@ -71,9 +70,7 @@ export const StatsView: React.FC<StatsViewProps> = ({ stats, departmentStats, ch
                 <CardTitle className="text-lg font-bold flex items-center gap-2">
                   <BarChart3 className="w-5 h-5 text-blue-600" /> Top 15 nhân sự theo ngày công
                 </CardTitle>
-                <CardDescription>
-                  Đã lọc theo phòng ban: {selectedDept === "ALL" ? "Tất cả" : selectedDept}
-                </CardDescription>
+                <CardDescription>Đã lọc theo phòng ban: {selectedDept === "ALL" ? "Tất cả" : selectedDept}</CardDescription>
               </div>
               {selectedDept !== "ALL" && (
                 <Badge className="bg-blue-100 text-blue-700 shadow-none font-medium">{selectedDept}</Badge>
@@ -94,7 +91,7 @@ export const StatsView: React.FC<StatsViewProps> = ({ stats, departmentStats, ch
                     labelFormatter={(label: any) => `Nhân sự: ${label}`}
                   />
                   <Bar dataKey="total" radius={[8, 8, 0, 0]} maxBarSize={50} animationDuration={1200}>
-                    {chartData.map((entry, index) => (
+                    {chartData.map((_entry, index) => (
                       <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} fillOpacity={0.85} />
                     ))}
                   </Bar>
@@ -104,7 +101,6 @@ export const StatsView: React.FC<StatsViewProps> = ({ stats, departmentStats, ch
           </CardContent>
         </Card>
 
-        {/* Thống kê phòng ban */}
         <Card className="shadow-md rounded-xl overflow-hidden border-slate-200/80">
           <CardHeader className="border-b bg-gradient-to-r from-slate-50 to-emerald-50/50 px-5 py-4">
             <CardTitle className="text-base font-bold flex items-center gap-2">

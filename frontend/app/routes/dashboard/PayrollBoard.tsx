@@ -14,7 +14,6 @@ import * as XLSX from "xlsx";
 
 const API_BASE_URL = `${import.meta.env.VITE_API_URL}/payroll`;
 
-const MAX_MEAL_ALLOWANCE = 1800000;
 const DEFAULT_INSURANCE_ADVANCE = 500000;
 
 const getAuthHeaders = () => ({
@@ -28,7 +27,40 @@ const formatNumberWithDot = (val: string | number) => {
   return val.toString().replace(/\D/g, "").replace(/\B(?=(\d{3})+(?!\d))/g, ".");
 };
 
-const clampMeal = (val: number) => Math.min(Number(val) || 0, MAX_MEAL_ALLOWANCE);
+const clampMeal = (val: number, cap: number | null = null) => {
+  const numericVal = Number(val) || 0;
+  if (!cap || cap <= 0) return numericVal;
+  return Math.min(numericVal, cap);
+};
+
+// ===== HELPER: Lấy giá trị Ca tập theo chế độ của nhân viên =====
+const getTrainingAllowance = (p: any) => {
+  const incomeAllw = p?.incomes?.allowances || {};
+  const sb = p?.employee?.salaryAndBenefits || p?.employeeSnapshot?.salaryAndBenefits || {};
+  const type = sb.trainingAllowanceType || "NONE";
+
+  if (type === "FIXED") {
+    return Number(incomeAllw.trainingAllowance ?? sb.trainingAllowanceFixed ?? sb.trainingAllowance ?? 0) || 0;
+  }
+
+  if (type === "PER_SESSION") {
+    const rate = Number(sb.trainingAllowanceRate || 0);
+    const bigCount = Number(p?.stats?.totalBigshow ?? p?.actualBigShow ?? 0) || 0;
+    return Number(incomeAllw.trainingAllowance ?? ((rate ?? 0) * (bigCount ?? 0))) || 0;
+  }
+
+  return Number(incomeAllw.trainingAllowance ?? sb.trainingAllowance ?? sb.trainingAllowanceFixed ?? sb.trainingAllowanceRate ?? 0) || 0;
+};
+
+// ===== HELPER: Lấy Tạm ứng lương (từ deductions.advance — field có sẵn trong schema PayrollRecord) =====
+const getAdvancePayment = (p: any) => {
+  return Number(
+    p?.deductions?.advance ??
+    p?.advancePayment ??
+    p?.attendanceSnapshot?.advancePayment ??
+    0
+  ) || 0;
+};
 
 // ===== INPUT TIỆN DỤNG: clear "0" khi focus =====
 const NumberInput = ({ value, onChange, disabled, className }: any) => {
@@ -53,11 +85,11 @@ const NumberInput = ({ value, onChange, disabled, className }: any) => {
 // ==========================================
 // BẢNG LƯƠNG GROSS
 // ==========================================
-const TabGrossPayrollTable = ({ filteredPayrolls, editingRecords, isClosed, handleInputChange, handleSaveRow, savingIds }: any) => {
+const TabGrossPayrollTable = ({ filteredPayrolls, editingRecords, isClosed, handleInputChange, handleSaveRow, savingIds, onSyncRow }: any) => {
   return (
     <Card className="border-none shadow-sm rounded-2xl overflow-hidden animate-in fade-in-50">
       <div className="overflow-auto max-h-[calc(100vh-190px)] pb-4 custom-scrollbar relative">
-        <table className="w-full text-[11px] border-collapse min-w-[1900px] bg-white">
+        <table className="w-full text-[11px] border-collapse min-w-[2080px] bg-white">
           <thead className="bg-[#003366] text-white">
             <tr className="h-[48px]">
               <th rowSpan={2} className="p-2 sticky left-0 top-0 bg-[#003366] z-[60] w-[45px] min-w-[45px] max-w-[45px] border-r border-b border-slate-600 text-center">STT</th>
@@ -65,6 +97,8 @@ const TabGrossPayrollTable = ({ filteredPayrolls, editingRecords, isClosed, hand
               
               <th rowSpan={2} className="p-2 border-r border-b border-slate-600 min-w-[100px] sticky top-0 z-[50] bg-[#003366]">Chức vụ</th>
               <th rowSpan={2} className="p-2 border-r border-b border-slate-600 min-w-[100px] sticky top-0 z-[50] bg-[#003366]">Bộ phận</th>
+              {/* ✅ CỘT: TẠM ỨNG LƯƠNG */}
+              <th rowSpan={2} className="p-2 border-r border-b border-slate-600 bg-[#be123c] text-center min-w-[110px] sticky top-0 z-[50]">Tạm Ứng Lương</th>
               <th rowSpan={2} className="p-2 border-r border-b border-slate-600 min-w-[100px] sticky top-0 z-[50] bg-[#003366]">Lương CV</th>
               <th colSpan={2} className="p-2 border-r border-b border-slate-600 bg-[#1e40af] text-center sticky top-0 z-[50]">Lương Thời Gian</th>
               <th rowSpan={2} className="p-2 border-r border-b border-slate-600 bg-[#1d4ed8] text-center max-w-[100px] sticky top-0 z-[50]">Làm Thêm Giờ</th>
@@ -74,8 +108,8 @@ const TabGrossPayrollTable = ({ filteredPayrolls, editingRecords, isClosed, hand
               <th rowSpan={2} className="p-2 border-r border-b border-slate-600 bg-[#7c2d12] text-center min-w-[110px] sticky top-0 z-[50]">Tạm ứng BHXH</th>
               <th rowSpan={2} className="p-2 border-r border-b border-slate-600 bg-[#991b1b] text-center min-w-[100px] sticky top-0 z-[50]">Phạt</th>
               
-              <th rowSpan={2} className="p-2 bg-[#064e3b] text-emerald-300 font-black text-xs w-[120px] min-w-[120px] max-w-[120px] text-center sticky right-[55px] top-0 z-[60] shadow-[-4px_0_10px_rgba(0,0,0,0.3)] border-l border-b border-slate-600">TỔNG GROSS</th>
-              <th rowSpan={2} className="p-2 bg-[#003366] text-center w-[55px] min-w-[55px] max-w-[55px] sticky right-0 top-0 z-[60] border-l border-b border-slate-600">Lưu</th>
+              <th rowSpan={2} className="p-2 bg-[#064e3b] text-emerald-300 font-black text-xs w-[120px] min-w-[120px] max-w-[120px] text-center sticky right-[130px] top-0 z-[60] shadow-[-4px_0_10px_rgba(0,0,0,0.3)] border-l border-b border-slate-600">TỔNG GROSS</th>
+              <th rowSpan={2} className="p-2 bg-[#003366] text-center w-[130px] min-w-[130px] max-w-[130px] sticky right-0 top-0 z-[60] border-l border-b border-slate-600">Thao tác</th>
             </tr>
             <tr className="h-[36px] bg-[#1e293b] text-[10px] text-center text-slate-300">
               <th className="p-1 border-r border-b border-slate-600 text-white sticky top-[48px] bg-[#1e293b] z-[50]">Ngày công</th>
@@ -94,14 +128,17 @@ const TabGrossPayrollTable = ({ filteredPayrolls, editingRecords, isClosed, hand
               const edit = editingRecords[p._id] || p;
               const snap = p.employeeSnapshot;
               const allowances = p.incomes?.allowances || {};
-              const mealDisplay = clampMeal(allowances.meal);
+              const mealCap = Number(p.employee?.salaryAndBenefits?.mealRate) || null;
+              const mealDisplay = clampMeal(allowances.meal, mealCap);
               const housingDisplay = allowances.housingAllowance || 0;
-              const trainingDisplay = allowances.trainingAllowance || 0;
+              const trainingDisplay = getTrainingAllowance(p);
               const totalAllw = mealDisplay + housingDisplay + trainingDisplay;
               const insuranceAdvance = edit?.incomes?.insuranceAdvance ?? DEFAULT_INSURANCE_ADVANCE;
               const penalty = edit?.incomes?.penalty ?? 0;
+              const advancePayment = getAdvancePayment(p);
               const rowBg = idx % 2 === 0 ? "bg-white" : "bg-[#f8fafc]";
               const isSaving = savingIds?.[p._id];
+              const hasChanges = !!editingRecords[p._id];
               
               return (
                 <tr key={p._id} className={`${rowBg} hover:bg-blue-50 transition-colors`}>
@@ -113,6 +150,9 @@ const TabGrossPayrollTable = ({ filteredPayrolls, editingRecords, isClosed, hand
                   
                   <td className="p-2 border-r border-b border-slate-200 text-slate-600">{snap?.position}</td>
                   <td className="p-2 border-r border-b border-slate-200 text-slate-600">{snap?.department}</td>
+                  <td className="p-2 border-r border-b border-slate-200 text-right font-bold text-rose-700 bg-rose-50/30">
+                    {formatNumberWithDot(advancePayment)}
+                  </td>
                   <td className="p-2 border-r border-b border-slate-200 text-right font-medium text-slate-700">{formatNumberWithDot(p.baseSalary)}</td>
                   <td className="p-2 border-r border-b border-slate-200 text-center font-bold text-blue-700 bg-blue-50/30">{p.actualDays}</td>
                   <td className="p-2 border-r border-b border-slate-200 text-right font-bold text-blue-800 bg-blue-50/30">{formatNumberWithDot(p.incomes?.timeSalary)}</td>
@@ -136,7 +176,6 @@ const TabGrossPayrollTable = ({ filteredPayrolls, editingRecords, isClosed, hand
                     />
                   </td>
 
-                  {/* TẠM ỨNG BHXH */}
                   <td className="p-1 border-r border-b border-slate-200 text-center bg-orange-50/40">
                     <NumberInput 
                       className="h-7 w-full text-right text-[11px] font-bold text-orange-700 px-2"
@@ -146,7 +185,6 @@ const TabGrossPayrollTable = ({ filteredPayrolls, editingRecords, isClosed, hand
                     />
                   </td>
 
-                  {/* CỘT PHẠT */}
                   <td className="p-1 border-r border-b border-slate-200 text-center bg-red-50/50">
                     <NumberInput 
                       className="h-7 w-full text-right text-[11px] font-bold text-red-700 px-2"
@@ -156,20 +194,42 @@ const TabGrossPayrollTable = ({ filteredPayrolls, editingRecords, isClosed, hand
                     />
                   </td>
                   
-                  <td className="p-2 text-right font-black text-emerald-700 bg-emerald-50 text-[13px] sticky right-[55px] z-[40] shadow-[-4px_0_8px_rgba(0,0,0,0.06)] border-l border-b border-emerald-200">
+                  <td className="p-2 text-right font-black text-emerald-700 bg-emerald-50 text-[13px] sticky right-[130px] z-[40] shadow-[-4px_0_8px_rgba(0,0,0,0.06)] border-l border-b border-emerald-200">
                     {formatNumberWithDot(edit?.incomes?.totalGross)}
                   </td>
+
+                  {/* CỘT THAO TÁC: 2 nút — Cập nhật (sync) + Lưu */}
                   <td className={`p-1.5 sticky right-0 z-[40] ${rowBg} border-l border-b border-slate-200`}>
-                    {editingRecords[p._id] && !isClosed ? (
-                      <Button 
-                        size="sm" 
-                        onClick={() => handleSaveRow(p._id)} 
-                        disabled={isSaving}
-                        className="w-full h-7 text-[9px] bg-blue-600 px-1"
-                      >
-                        {isSaving ? <Loader2 className="w-3 h-3 animate-spin" /> : "LƯU"}
-                      </Button>
-                    ) : (<div className="text-center opacity-30 text-[10px] font-bold mt-1">---</div>)}
+                    <div className="flex items-center justify-center gap-1">
+                      {/* Nút CẬP NHẬT — luôn hiện khi chưa khóa sổ */}
+                      {!isClosed && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => onSyncRow && onSyncRow(p._id)}
+                          disabled={isSaving}
+                          className="h-7 w-7 p-0 border-blue-400 text-blue-600 hover:bg-blue-50"
+                          title="Cập nhật lại số liệu chấm công cho nhân sự này (giữ nguyên Thưởng Mới, Tạm ứng BHXH, Phạt)"
+                        >
+                          {isSaving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCcw className="w-3.5 h-3.5" />}
+                        </Button>
+                      )}
+
+                      {/* Nút LƯU — chỉ hiện khi có thay đổi */}
+                      {hasChanges && !isClosed ? (
+                        <Button 
+                          size="sm" 
+                          onClick={() => handleSaveRow(p._id)} 
+                          disabled={isSaving}
+                          className="h-7 text-[9px] bg-blue-600 px-2"
+                          title="Lưu các giá trị đã nhập"
+                        >
+                          {isSaving ? <Loader2 className="w-3 h-3 animate-spin" /> : "LƯU"}
+                        </Button>
+                      ) : (
+                        !isClosed && <div className="w-[38px] text-center opacity-30 text-[9px] font-bold">---</div>
+                      )}
+                    </div>
                   </td>
                 </tr>
               );
@@ -193,6 +253,7 @@ export default function PayrollBoard() {
   const [isDataLoading, setIsDataLoading] = useState(false);
   const [editingRecords, setEditingRecords] = useState<{ [recordId: string]: any }>({});
   const [savingIds, setSavingIds] = useState<{ [recordId: string]: boolean }>({});
+  const [syncingIds, setSyncingIds] = useState<{ [recordId: string]: boolean }>({});
   const [searchQuery, setSearchQuery] = useState("");
   const [deptFilter, setDeptFilter] = useState<string>("ALL");
 
@@ -310,10 +371,15 @@ export default function PayrollBoard() {
       if (!currentEdit.incomes) currentEdit.incomes = {};
       currentEdit.incomes[field] = Number(numValue);
 
+      const sourceRecord = payrolls.find((p) => p._id === recordId);
       const allw = currentEdit.incomes.allowances || {};
-      const totalAllw = clampMeal(allw.meal) + (allw.housingAllowance || 0) + (allw.trainingAllowance || 0);
+      const totalAllw =
+        clampMeal(allw.meal) +
+        (allw.housingAllowance || 0) +
+        getTrainingAllowance(sourceRecord || currentEdit);
       const insuranceAdvance = Number(currentEdit.incomes.insuranceAdvance) || 0;
       const penalty = Number(currentEdit.incomes.penalty) || 0;
+      const advancePayment = getAdvancePayment(sourceRecord || currentEdit);
 
       currentEdit.incomes.totalGross = Math.max(0,
         (currentEdit.incomes.timeSalary || 0) +
@@ -324,14 +390,15 @@ export default function PayrollBoard() {
         (currentEdit.incomes.bigShowMoney || 0) +
         (currentEdit.incomes.kpiBonus || 0) -
         insuranceAdvance -
-        penalty
+        penalty -
+        advancePayment
       );
 
       return { ...prev, [recordId]: currentEdit };
     });
   };
 
-  // ===== LƯU ROW — KHÔNG FETCH LẠI =====
+  // ===== LƯU ROW =====
   const handleSaveRow = async (recordId: string) => {
     const updatedData = editingRecords[recordId];
     if (!updatedData) return;
@@ -349,21 +416,16 @@ export default function PayrollBoard() {
       });
 
       if (res.ok) {
-        // ✅ Cập nhật local state — KHÔNG fetch lại
         setPayrolls(prev => prev.map(p => {
           if (p._id === recordId) {
             return {
               ...p,
-              incomes: {
-                ...p.incomes,
-                ...updatedData.incomes
-              }
+              incomes: { ...p.incomes, ...updatedData.incomes }
             };
           }
           return p;
         }));
         
-        // Xóa khỏi editingRecords (đã lưu thành công)
         setEditingRecords(prev => {
           const next = { ...prev };
           delete next[recordId];
@@ -386,6 +448,68 @@ export default function PayrollBoard() {
     }
   };
 
+  // ===== SYNC 1 ROW — Cập nhật lại số liệu chấm công cho 1 nhân sự =====
+  const handleSyncRow = async (recordId: string) => {
+    const record = payrolls.find(p => p._id === recordId);
+    const empName = record?.employeeSnapshot?.fullName || "nhân sự này";
+
+    if (!window.confirm(
+      `Cập nhật lại số liệu chấm công cho: ${empName}?\n\n` +
+      `✅ Sẽ cập nhật: Ngày công, Lương thời gian, Làm thêm giờ, Show, Phụ cấp (ăn ca, nhà ở, ca tập), Tạm ứng lương\n` +
+      `🔒 Giữ nguyên: Thưởng Mới, Tạm ứng BHXH, Phạt`
+    )) return;
+
+    setSyncingIds(prev => ({ ...prev, [recordId]: true }));
+    // Đồng thời set savingIds để disable input trong lúc sync
+    setSavingIds(prev => ({ ...prev, [recordId]: true }));
+
+    try {
+      const res = await fetch(`${API_BASE_URL}/${recordId}/sync`, {
+        method: "POST",
+        headers: getAuthHeaders(),
+      });
+      const result = await res.json().catch(() => ({}));
+
+      if (res.ok) {
+        // ✅ Update local state với record mới từ BE
+        const newRecord = result.record || result.data;
+        if (newRecord) {
+          setPayrolls(prev => prev.map(p => 
+            p._id === recordId ? { ...p, ...newRecord } : p
+          ));
+        } else {
+          // Fallback: fetch lại toàn bộ list
+          await fetchPayrollData(selectedMonthDoc.month, selectedMonthDoc.year);
+        }
+
+        // Xóa editingRecords của record này (vì đã có data mới từ BE)
+        setEditingRecords(prev => {
+          const next = { ...prev };
+          delete next[recordId];
+          return next;
+        });
+
+        showToast("Đã cập nhật số liệu!");
+      } else {
+        showToast(result.message || "Lỗi cập nhật", "error");
+      }
+    } catch (error) {
+      console.error(error);
+      showToast("Lỗi kết nối", "error");
+    } finally {
+      setSyncingIds(prev => {
+        const next = { ...prev };
+        delete next[recordId];
+        return next;
+      });
+      setSavingIds(prev => {
+        const next = { ...prev };
+        delete next[recordId];
+        return next;
+      });
+    }
+  };
+
   const handleExportExcel = () => {
     if (!filteredPayrolls || filteredPayrolls.length === 0) {
       alert("Không có dữ liệu để xuất!");
@@ -397,10 +521,11 @@ export default function PayrollBoard() {
       const allowances = p.incomes?.allowances || {};
       const mealDisplay = clampMeal(allowances.meal);
       const housingDisplay = allowances.housingAllowance || 0;
-      const trainingDisplay = allowances.trainingAllowance || 0;
+      const trainingDisplay = getTrainingAllowance(p);
       const totalAllw = mealDisplay + housingDisplay + trainingDisplay;
       const insuranceAdvance = p.incomes?.insuranceAdvance ?? DEFAULT_INSURANCE_ADVANCE;
       const penalty = p.incomes?.penalty ?? 0;
+      const advancePayment = getAdvancePayment(p);
 
       return {
         "STT": index + 1,
@@ -408,6 +533,7 @@ export default function PayrollBoard() {
         "Mã NV": snap.employeeCode || "",
         "Chức vụ": snap.position || "",
         "Bộ phận": snap.department || "",
+        "Tạm Ứng Lương": formatNumberWithDot(advancePayment),
         "Lương Cơ Bản": formatNumberWithDot(p.baseSalary || 0),
         "Ngày công": p.actualDays || 0,
         "Lương Thời Gian": formatNumberWithDot(p.incomes?.timeSalary || 0),
@@ -430,9 +556,10 @@ export default function PayrollBoard() {
     
     const wscols = [
       { wch: 5 }, { wch: 25 }, { wch: 15 }, { wch: 15 }, { wch: 20 },
-      { wch: 15 }, { wch: 10 }, { wch: 15 }, { wch: 15 }, { wch: 15 },
-      { wch: 15 }, { wch: 15 }, { wch: 12 }, { wch: 12 }, { wch: 12 },
-      { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 12 }, { wch: 18 },
+      { wch: 15 }, { wch: 15 }, { wch: 10 }, { wch: 15 }, { wch: 15 },
+      { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 12 }, { wch: 12 },
+      { wch: 12 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 12 },
+      { wch: 18 },
     ];
     ws['!cols'] = wscols;
 
@@ -521,7 +648,19 @@ export default function PayrollBoard() {
                   )}
                 </div>
               </div>
-              {isDataLoading ? (<div className="bg-white h-64 rounded-2xl flex items-center justify-center"><Loader /></div>) : (<TabGrossPayrollTable filteredPayrolls={filteredPayrolls} editingRecords={editingRecords} isClosed={selectedMonthDoc.status !== "draft"} handleInputChange={handleInputChange} handleSaveRow={handleSaveRow} savingIds={savingIds} />)}
+              {isDataLoading ? (
+                <div className="bg-white h-64 rounded-2xl flex items-center justify-center"><Loader /></div>
+              ) : (
+                <TabGrossPayrollTable 
+                  filteredPayrolls={filteredPayrolls} 
+                  editingRecords={editingRecords} 
+                  isClosed={selectedMonthDoc.status !== "draft"} 
+                  handleInputChange={handleInputChange} 
+                  handleSaveRow={handleSaveRow} 
+                  savingIds={{ ...savingIds, ...syncingIds }}
+                  onSyncRow={handleSyncRow}
+                />
+              )}
             </div>
           </div>
         ) : (

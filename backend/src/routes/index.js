@@ -16,6 +16,7 @@ import overtimePayRoutes from "./overtimePay.js";
 
 // <-- IMPORT ROUTE GỬI RƯỢU (BOTTLE KEEP) -->
 import bottleKeepRoutes from "./bottleKeep.js";
+import attendanceReportRoutes from "./attendanceReport.js";
 
 const router = express.Router();
 
@@ -36,5 +37,6 @@ router.use("/overtime-pay", overtimePayRoutes);
 
 // <-- GẮN API GỬI RƯỢU VÀO ĐÂY -->
 router.use("/bottle-keep", bottleKeepRoutes);
+router.use("/attendance-reports", attendanceReportRoutes);
 
 export default router;

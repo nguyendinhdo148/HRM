@@ -10,39 +10,31 @@ import {
   sendPayslipEmail,
   getPayrollRecordById,
   viewPayrollByCCCD,
-  updatePayrollAdjustment // ✅ Thêm route điều chỉnh CP khác
+  updatePayrollAdjustment,
+  syncPayrollRow   // ✅ THÊM
 } from "../controllers/payroll.js";
 
 const router = express.Router();
 
-// Lấy danh sách các kỳ lương đã tạo
 router.get("/months", authMiddleware, getPayrollMonths);
-
-// Lấy chi tiết bảng lương của 1 tháng/năm (?month=5&year=2026)
 router.get("/", authMiddleware, getPayrollByMonth);
-
-// Khởi tạo bảng lương tháng mới (Kéo data từ Nhân sự & Chấm công)
 router.post("/init", authMiddleware, initializePayroll);
-router.post("/initialize", authMiddleware, initializePayroll); // backward compatibility for older client calls
+router.post("/initialize", authMiddleware, initializePayroll);
 
 // ⚠️ ĐIỀU CHỈNH CHI PHÍ KHÁC — PHẢI ĐẶT TRƯỚC ROUTE GENERIC "/:recordId"
 router.put("/:recordId/adjustment", authMiddleware, updatePayrollAdjustment);
 
-// Cập nhật 1 dòng phiếu lương (Nhập thêm giờ, thưởng, thuế TNCN, ...)
+// ✅ SYNC 1 ROW — Cập nhật lại số liệu chấm công cho 1 nhân sự
+router.post("/:recordId/sync", authMiddleware, syncPayrollRow);
+
+// Cập nhật 1 dòng phiếu lương
 router.put("/:recordId", authMiddleware, updatePayrollRecord);
 
-// Đổi trạng thái bảng lương (Chốt / Thanh toán)
 router.put("/months/:monthId/status", authMiddleware, updatePayrollStatus);
-
-// Xóa bảng lương (Nếu tạo nhầm)
 router.delete("/", authMiddleware, deletePayrollMonth);
 
 router.post("/send-email/:payrollRecordId", sendPayslipEmail);
 router.get("/record/:id", authMiddleware, getPayrollRecordById);
-
-// ==========================================
-// ✅ ROUTE PUBLIC: NHÂN VIÊN TỰ TRA CỨU (KHÔNG DÙNG authMiddleware)
-// ==========================================
 router.post("/view-by-cccd", viewPayrollByCCCD);
 
 export default router;

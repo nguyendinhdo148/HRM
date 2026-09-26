@@ -1,5 +1,8 @@
 import mongoose from "mongoose";
 
+// ✅ HẰNG SỐ: Tạm ứng BHXH cố định
+const FIXED_INSURANCE_ADVANCE = 500000;
+
 const taxRecordSchema = new mongoose.Schema(
   {
     month: { type: Number, required: true },
@@ -19,6 +22,7 @@ const taxRecordSchema = new mongoose.Schema(
       personal: { type: Number, default: 15500000 },
       dependent: { type: Number, default: 0 },
       insurance: { type: Number, default: 0 },              // BHXH đã trừ 88k
+      insuranceAdvance: { type: Number, default: FIXED_INSURANCE_ADVANCE },  // ✅ THÊM: Tạm ứng BHXH 500k
       housingAllowance: { type: Number, default: 0 },       // Tiền ở
       total: { type: Number, default: 0 }
     },
@@ -49,11 +53,17 @@ taxRecordSchema.pre("save", async function (next) {
     this.deductions.personal = PERSONAL_DEDUCTION;
     this.deductions.dependent = employeeDependents * DEPENDENT_DEDUCTION;
 
-    // ===== TỔNG GIẢM TRỪ = Bản thân + NPT + BHXH + Tiền ở =====
+    // ✅ Đảm bảo insuranceAdvance luôn có giá trị 500k (fallback nếu document cũ thiếu)
+    if (this.deductions.insuranceAdvance === undefined || this.deductions.insuranceAdvance === null) {
+      this.deductions.insuranceAdvance = FIXED_INSURANCE_ADVANCE;
+    }
+
+    // ===== TỔNG GIẢM TRỪ = Bản thân + NPT + BHXH + Tạm ứng BHXH + Tiền ở =====
     this.deductions.total =
       (this.deductions.personal || 0) +
       (this.deductions.dependent || 0) +
       (this.deductions.insurance || 0) +
+      (this.deductions.insuranceAdvance || 0) +   // ✅ THÊM 500K VÀO ĐÂY
       (this.deductions.housingAllowance || 0);
 
     // ===== THU NHẬP TÍNH THUẾ =====

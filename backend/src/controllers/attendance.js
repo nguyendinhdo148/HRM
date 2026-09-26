@@ -1,12 +1,10 @@
 import { Attendance } from "../models/Attendance.js";
-import { AttendanceMonth } from "../models/AttendanceMonth.js";
 import { Employee } from "../models/Employee.js";
 
-// Hàm hỗ trợ đếm số ngày trong tháng
 const getDaysInMonth = (month, year) => new Date(year, month, 0).getDate();
 
 // ==========================================
-// 1. LẤY DANH SÁCH CÁC THÁNG ĐÃ KHỞI TẠO
+// 1. LẤY DANH SÁCH CÁC THÁNG
 // ==========================================
 export const getAttendanceMonths = async (req, res) => {
   try {
@@ -19,7 +17,7 @@ export const getAttendanceMonths = async (req, res) => {
 };
 
 // ==========================================
-// 2. LẤY CHI TIẾT BẢNG CHẤM CÔNG CỦA 1 THÁNG
+// 2. LẤY CHI TIẾT BẢNG CHẤM CÔNG
 // ==========================================
 export const getAttendanceByMonth = async (req, res) => {
   try {
@@ -28,7 +26,7 @@ export const getAttendanceByMonth = async (req, res) => {
 
     const attendances = await Attendance.find({ month: Number(month), year: Number(year) })
       .populate("employee", "employeeCode fullName workInfo salaryAndBenefits status")
-      .sort({ "employee.employeeCode": 1 }); // Sắp xếp theo mã nhân viên
+      .sort({ "employee.employeeCode": 1 });
 
     res.status(200).json(attendances);
   } catch (error) {
@@ -44,7 +42,6 @@ export const initializeMonthAttendance = async (req, res) => {
   try {
     const { month, year } = req.body;
 
-    // 1. Kiểm tra xem tháng này đã tạo chưa
     const existingMonth = await AttendanceMonth.findOne({ month, year });
     if (existingMonth) {
       if (existingMonth.status === "closed") {
@@ -54,30 +51,29 @@ export const initializeMonthAttendance = async (req, res) => {
       await AttendanceMonth.findByIdAndDelete(existingMonth._id);
     }
 
-    // 2. Lấy danh sách nhân viên: bao gồm nhân viên đang hoạt động và nhân viên nghỉ việc nếu nghỉ trong tháng này
     const activeEmployees = await Employee.find({ status: "active" });
     const start = new Date(year, month - 1, 1);
     const end = new Date(year, month, 0, 23, 59, 59);
-    const resignedThisMonth = await Employee.find({ status: "resigned", "workInfo.resignationDate": { $gte: start, $lte: end } });
+    const resignedThisMonth = await Employee.find({
+      status: "resigned",
+      "workInfo.resignationDate": { $gte: start, $lte: end }
+    });
 
     const allEmployees = [...activeEmployees, ...resignedThisMonth];
     if (allEmployees.length === 0) {
       return res.status(400).json({ message: "Không có nhân viên phù hợp để tạo bảng công!" });
     }
 
-    // 3. Setup mặc định (Mặc định để trắng "", rỗng OT/Shortfall/KPI)
     const daysInMonth = getDaysInMonth(month, year);
     const defaultRecords = {};
     const defaultOTRecords = {};
     const defaultShortfallRecords = {};
-    const defaultKpiRecords = {}; // Setup KPI mặc định
+    const defaultKpiRecords = {};
 
     for (let day = 1; day <= daysInMonth; day++) {
-      // ĐÃ SỬA: Để trống "" thay vì "x" như trước đây
       defaultRecords[day.toString()] = "";
     }
 
-    // 4. Lưu vào bảng AttendanceMonth trước
     const newMonth = await AttendanceMonth.create({
       month,
       year,
@@ -85,22 +81,21 @@ export const initializeMonthAttendance = async (req, res) => {
       totalEmployees: allEmployees.length
     });
 
-    // 5. Chuẩn bị mảng data cho bảng Attendance
     const attendanceDocs = allEmployees.map((emp) => ({
       employee: emp._id,
       month,
       year,
       advancePayment: 0,
+      summary: { totalPaidDays: 0 },
       records: defaultRecords,
       overtimeRecords: defaultOTRecords,
       shortfallRecords: defaultShortfallRecords,
-      kpiRecords: defaultKpiRecords // Gắn mảng KPI rỗng vào lúc khởi tạo
+      kpiRecords: defaultKpiRecords
     }));
 
-    // 6. Insert tất cả vào DB (Sử dụng create để chạy pre-save hook ngay lập tức)
     await Attendance.create(attendanceDocs);
 
-    res.status(201).json({ 
+    res.status(201).json({
       message: `Đã khởi tạo thành công tháng ${month}/${year} cho ${allEmployees.length} nhân sự.`,
       data: newMonth
     });
@@ -111,33 +106,45 @@ export const initializeMonthAttendance = async (req, res) => {
 };
 
 // ==========================================
-// 4. SỬA CÔNG CỦA 1 NHÂN VIÊN (CẬP NHẬT FULL ROW)
+// 4. ✅ SỬA CÔNG CỦA 1 NHÂN VIÊN (CẬP NHẬT FULL ROW)
 // ==========================================
 export const updateAttendanceBulk = async (req, res) => {
   try {
     const { recordId } = req.params;
-    // Lấy tất cả tham số truyền lên từ Frontend (Bao gồm cả kpiRecords)
-    const { advancePayment, records, overtimeRecords, shortfallRecords, kpiRecords } = req.body;
+
+    const {
+      advancePayment,
+      totalPaidDays,
+      records,
+      overtimeRecords,
+      shortfallRecords,
+      kpiRecords,
+      summary
+    } = req.body;
 
     const attendance = await Attendance.findById(recordId);
     if (!attendance) return res.status(404).json({ message: "Không tìm thấy dữ liệu nhân viên này" });
 
-    // Kiểm tra xem tháng có bị khóa (chốt công) chưa
-    const monthData = await AttendanceMonth.findOne({ month: attendance.month, year: attendance.year });
+    const monthData = await AttendanceMonth.findOne({
+      month: attendance.month,
+      year: attendance.year
+    });
     if (monthData && monthData.status === "closed") {
       return res.status(403).json({ message: "Kỳ chấm công này đã bị khóa, không thể sửa chữa!" });
     }
 
-    // Cập nhật các trường
-    attendance.advancePayment = advancePayment !== undefined ? advancePayment : attendance.advancePayment;
+    if (advancePayment !== undefined) attendance.advancePayment = Number(advancePayment) || 0;
     if (records) attendance.records = records;
     if (overtimeRecords) attendance.overtimeRecords = overtimeRecords;
     if (shortfallRecords) attendance.shortfallRecords = shortfallRecords;
-    
-    // ✅ CẬP NHẬT TRƯỜNG KPI SHOW
     if (kpiRecords) attendance.kpiRecords = kpiRecords;
 
-    // Gọi save() -> Hook pre('save') trong Model Attendance sẽ tự động quét tính tổng công, tổng giờ, và tổng show
+    const nextTotalDays = totalPaidDays !== undefined ? Number(totalPaidDays) : summary?.totalPaidDays;
+    if (nextTotalDays !== undefined && !Number.isNaN(Number(nextTotalDays))) {
+      const value = Number(nextTotalDays);
+      attendance.summary.totalPaidDays = value >= 0 ? value : 0;
+    }
+
     await attendance.save();
 
     res.status(200).json({ message: "Cập nhật thành công", data: attendance });
@@ -148,7 +155,7 @@ export const updateAttendanceBulk = async (req, res) => {
 };
 
 // ==========================================
-// 5. XÓA KỲ CHẤM CÔNG (Nếu tạo nhầm)
+// 5. XÓA KỲ CHẤM CÔNG
 // ==========================================
 export const deleteAttendanceMonth = async (req, res) => {
   try {
@@ -172,12 +179,12 @@ export const deleteAttendanceMonth = async (req, res) => {
 };
 
 // ==========================================
-// 6. CHỐT CÔNG (Khóa tháng, không cho sửa)
+// 6. CHỐT CÔNG
 // ==========================================
 export const toggleMonthStatus = async (req, res) => {
   try {
-    const { id } = req.params; 
-    const { status } = req.body; 
+    const { id } = req.params;
+    const { status } = req.body;
 
     const monthData = await AttendanceMonth.findByIdAndUpdate(id, { status }, { new: true });
     if (!monthData) return res.status(404).json({ message: "Không tìm thấy kỳ chấm công" });

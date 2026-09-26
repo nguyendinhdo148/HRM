@@ -5,6 +5,7 @@ import { InsuranceRecord } from "../models/InsuranceRecord.js";
 
 // ===== HẰNG SỐ =====
 const COMPANY_INSURANCE_SUPPORT = 88000;
+const FIXED_INSURANCE_ADVANCE = 500000;   // ✅ THÊM
 
 export const getTaxMonths = async (req, res) => {
   try {
@@ -78,8 +79,9 @@ export const initializeTaxMonth = async (req, res) => {
           personal: 15500000,
           dependent: 0,
           insurance: insuranceAfterSupport,    // ← ĐÃ TRỪ 88K
+          insuranceAdvance: FIXED_INSURANCE_ADVANCE,   // ✅ THÊM: 500.000 cố định
           housingAllowance: housingAllowance,  // ← TIỀN Ở
-          total: 0,
+          total: 0,   // sẽ được tính lại bởi pre-save hook trong model
         }
       };
     });

@@ -107,7 +107,7 @@ export const buildPayslipTemplate = (record, companyName = "CÔNG TY CỔ PHẦN
     incomeRows.push([
       "Tiền ăn ca",
       formatMoney(allw.meal),
-      "Theo số ngày công, tối đa 1.800.000đ/tháng"
+      "Theo số ngày công và đơn giá tiền ăn ca đã nhập"
     ]);
 
   if (hasValue(allw.housingAllowance))

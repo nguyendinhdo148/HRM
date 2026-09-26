@@ -7,6 +7,9 @@ import XLSX from "xlsx-js-style";
 
 const API_BASE_URL = `${import.meta.env.VITE_API_URL}/tax`;
 
+// ✅ HẰNG SỐ: Tạm ứng BHXH cố định
+const FIXED_INSURANCE_ADVANCE = 500000;
+
 const getAuthHeaders = () => ({
   "Content-Type": "application/json",
   Authorization: `Bearer ${localStorage.getItem("token") || ""}`,
@@ -107,17 +110,17 @@ export default function TaxBoard() {
     wsData.push([{ v: `BẢNG TÍNH THUẾ THU NHẬP CÁ NHÂN - THÁNG ${m}/${y}`, s: titleStyle }]);
     wsData.push([]);
 
-    // BỎ cột "Tiền ăn"
+    // ✅ Đã thêm cột "Tạm ứng BHXH" sau "Tiền ở"
     const headers = [
       "STT", "Mã NV", "Họ và tên", "Chức vụ", 
-      "Lương Gross", "Tiền ở", 
+      "Lương Gross", "Tiền ở", "Tạm ứng BHXH",
       "Giảm trừ bản thân", "Số NPT", "Giảm trừ NPT", 
       "BH trừ vào lương", "Tổng giảm trừ", 
       "Thu nhập tính thuế", "Thuế TNCN"
     ];
     wsData.push(headers.map(h => ({ v: h, s: headerStyle })));
 
-    const subHeaders = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M"];
+    const subHeaders = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N"];
     wsData.push(subHeaders.map(h => ({ v: h, s: subHeaderStyle })));
 
     records.forEach((r, index) => {
@@ -130,6 +133,7 @@ export default function TaxBoard() {
         { v: r.employeeSnapshot?.position || "", s: cellCenter },
         { v: Number(r.taxableIncome) || 0, t: "n", z: "#,##0", s: cellRightBold },
         { v: Number(housingAllowance), t: "n", z: "#,##0", s: cellRight },
+        { v: FIXED_INSURANCE_ADVANCE, t: "n", z: "#,##0", s: cellRight },   // ✅ Tạm ứng BHXH
         { v: Number(r.deductions?.personal) || 0, t: "n", z: "#,##0", s: cellRight },
         { v: Number((r.deductions?.dependent || 0) / 6200000), t: "n", s: cellCenter },
         { v: Number(r.deductions?.dependent) || 0, t: "n", z: "#,##0", s: cellRight },
@@ -144,7 +148,7 @@ export default function TaxBoard() {
     ws["!merges"] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: headers.length - 1 } }];
     ws["!cols"] = [
       { wch: 6 }, { wch: 12 }, { wch: 25 }, { wch: 15 }, 
-      { wch: 20 }, { wch: 15 }, { wch: 18 }, { wch: 10 }, 
+      { wch: 20 }, { wch: 15 }, { wch: 16 }, { wch: 18 }, { wch: 10 }, 
       { wch: 15 }, { wch: 18 }, { wch: 18 }, 
       { wch: 20 }, { wch: 18 }
     ];
@@ -198,7 +202,8 @@ export default function TaxBoard() {
           <strong>Lưu ý: Bảng thuế cập nhật mới</strong><br/>
           + Mức Giảm Trừ Gia Cảnh bản thân <strong>15.5 Triệu Đồng/ Tháng</strong>.<br/>
           + Mỗi Người Phụ Thuộc <strong>6.2 Triệu/ Tháng</strong>.<br/>
-          + <strong>Công thức:</strong> Thu nhập tính thuế = Lương Gross - (BHXH - 88k) - Tiền ở - 15.5tr - (6.2tr × NPT)
+          + Tạm ứng BHXH cố định <strong>500.000đ/ Tháng</strong>.<br/>
+          + <strong>Công thức:</strong> Thu nhập tính thuế = Lương Gross - (BHXH - 88k) - Tiền ở - 500.000 - 15.5tr - (6.2tr × NPT)
         </div>
       </div>
 
@@ -208,7 +213,7 @@ export default function TaxBoard() {
           {isDataLoading ? (
             <div className="h-64 flex items-center justify-center"><Loader /></div>
           ) : (
-            <table className="w-full text-xs border-collapse min-w-[1400px]">
+            <table className="w-full text-xs border-collapse min-w-[1480px]">
               <thead>
                 <tr className="bg-[#0f172a] text-white">
                   <th className="border border-slate-700 p-3 text-center">STT</th>
@@ -217,6 +222,8 @@ export default function TaxBoard() {
                   <th className="border border-slate-700 p-3 text-left">Chức vụ</th>
                   <th className="border border-slate-700 p-3 text-right text-emerald-300">Lương Gross</th>
                   <th className="border border-slate-700 p-3 text-right text-amber-300">Tiền ở</th>
+                  {/* ✅ CỘT MỚI: TẠM ỨNG BHXH */}
+                  <th className="border border-slate-700 p-3 text-right text-orange-300">Tạm ứng BHXH</th>
                   <th className="border border-slate-700 p-3 text-right">Giảm trừ bản thân</th>
                   <th className="border border-slate-700 p-3 text-center">Số NPT</th>
                   <th className="border border-slate-700 p-3 text-right">Giảm trừ NPT</th>
@@ -226,12 +233,12 @@ export default function TaxBoard() {
                   <th className="border border-slate-700 p-3 text-right bg-rose-900/50 font-bold">Thuế TNCN</th>
                 </tr>
                 <tr className="bg-slate-800 text-slate-400 text-[10px] font-mono">
-                  <th className="border border-slate-700 p-1">A</th><th className="border border-slate-700 p-1">B</th><th className="border border-slate-700 p-1">C</th><th className="border border-slate-700 p-1">D</th><th className="border border-slate-700 p-1">E</th><th className="border border-slate-700 p-1">F</th><th className="border border-slate-700 p-1">G</th><th className="border border-slate-700 p-1">H</th><th className="border border-slate-700 p-1">I</th><th className="border border-slate-700 p-1">J</th><th className="border border-slate-700 p-1">K</th><th className="border border-slate-700 p-1">L</th><th className="border border-slate-700 p-1">M</th>
+                  <th className="border border-slate-700 p-1">A</th><th className="border border-slate-700 p-1">B</th><th className="border border-slate-700 p-1">C</th><th className="border border-slate-700 p-1">D</th><th className="border border-slate-700 p-1">E</th><th className="border border-slate-700 p-1">F</th><th className="border border-slate-700 p-1">G</th><th className="border border-slate-700 p-1">H</th><th className="border border-slate-700 p-1">I</th><th className="border border-slate-700 p-1">J</th><th className="border border-slate-700 p-1">K</th><th className="border border-slate-700 p-1">L</th><th className="border border-slate-700 p-1">M</th><th className="border border-slate-700 p-1">N</th>
                 </tr>
               </thead>
               <tbody className="bg-white">
                 {records.length === 0 ? (
-                  <tr><td colSpan={13} className="text-center p-10 text-slate-400">Chưa có dữ liệu</td></tr>
+                  <tr><td colSpan={14} className="text-center p-10 text-slate-400">Chưa có dữ liệu</td></tr>
                 ) : records.map((r, idx) => {
                   const housingAllowance = r.deductions?.housingAllowance || 0;
                   return (
@@ -246,6 +253,11 @@ export default function TaxBoard() {
                       </td>
 
                       <td className="p-2 border-r text-right font-bold text-amber-700 bg-amber-50/20">{formatMoney(housingAllowance)}</td>
+                      {/* ✅ CỘT MỚI: TẠM ỨNG BHXH */}
+                      <td className="p-2 border-r text-right font-bold text-orange-700 bg-orange-50/20">
+                        {formatMoney(FIXED_INSURANCE_ADVANCE)}
+                      </td>
+                      
                       <td className="p-2 border-r text-right font-medium text-slate-600">{formatMoney(r.deductions?.personal)}</td>
                       
                       <td className="p-2 border-r text-center font-bold text-slate-700">
