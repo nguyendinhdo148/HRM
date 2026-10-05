@@ -22,10 +22,17 @@ const getAuthHeaders = () => ({
 });
 
 const formatCurrency = (val: number) => new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(val || 0);
+
+// ⭐ Format số nguyên có dấu chấm phân cách (đã làm tròn)
 const formatNumberWithDot = (val: string | number) => {
   if (val === undefined || val === null || val === "") return "0";
-  return val.toString().replace(/\D/g, "").replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+  // Làm tròn về số nguyên trước khi format
+  const rounded = Math.round(Number(val)) || 0;
+  return rounded.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
 };
+
+// ⭐ Làm tròn số (dùng cho tính toán)
+const roundNumber = (val: any) => Math.round(Number(val) || 0);
 
 const clampMeal = (val: number, cap: number | null = null) => {
   const numericVal = Number(val) || 0;
@@ -34,32 +41,34 @@ const clampMeal = (val: number, cap: number | null = null) => {
 };
 
 // ===== HELPER: Lấy giá trị Ca tập theo chế độ của nhân viên =====
+// ⭐ Luôn trả về số nguyên (đã làm tròn)
 const getTrainingAllowance = (p: any) => {
   const incomeAllw = p?.incomes?.allowances || {};
   const sb = p?.employee?.salaryAndBenefits || p?.employeeSnapshot?.salaryAndBenefits || {};
   const type = sb.trainingAllowanceType || "NONE";
 
   if (type === "FIXED") {
-    return Number(incomeAllw.trainingAllowance ?? sb.trainingAllowanceFixed ?? sb.trainingAllowance ?? 0) || 0;
+    return roundNumber(incomeAllw.trainingAllowance ?? sb.trainingAllowanceFixed ?? sb.trainingAllowance ?? 0);
   }
 
   if (type === "PER_SESSION") {
     const rate = Number(sb.trainingAllowanceRate || 0);
     const bigCount = Number(p?.stats?.totalBigshow ?? p?.actualBigShow ?? 0) || 0;
-    return Number(incomeAllw.trainingAllowance ?? ((rate ?? 0) * (bigCount ?? 0))) || 0;
+    // ⭐ Làm tròn kết quả rate * bigCount
+    return roundNumber(incomeAllw.trainingAllowance ?? (rate * bigCount));
   }
 
-  return Number(incomeAllw.trainingAllowance ?? sb.trainingAllowance ?? sb.trainingAllowanceFixed ?? sb.trainingAllowanceRate ?? 0) || 0;
+  return roundNumber(incomeAllw.trainingAllowance ?? sb.trainingAllowance ?? sb.trainingAllowanceFixed ?? sb.trainingAllowanceRate ?? 0);
 };
 
-// ===== HELPER: Lấy Tạm ứng lương (từ deductions.advance — field có sẵn trong schema PayrollRecord) =====
+// ===== HELPER: Lấy Tạm ứng lương =====
 const getAdvancePayment = (p: any) => {
-  return Number(
+  return roundNumber(
     p?.deductions?.advance ??
     p?.advancePayment ??
     p?.attendanceSnapshot?.advancePayment ??
     0
-  ) || 0;
+  );
 };
 
 // ===== INPUT TIỆN DỤNG: clear "0" khi focus =====
@@ -129,12 +138,15 @@ const TabGrossPayrollTable = ({ filteredPayrolls, editingRecords, isClosed, hand
               const snap = p.employeeSnapshot;
               const allowances = p.incomes?.allowances || {};
               const mealCap = Number(p.employee?.salaryAndBenefits?.mealRate) || null;
-              const mealDisplay = clampMeal(allowances.meal, mealCap);
-              const housingDisplay = allowances.housingAllowance || 0;
+              
+              // ⭐ Làm tròn các giá trị hiển thị
+              const mealDisplay = roundNumber(clampMeal(allowances.meal, mealCap));
+              const housingDisplay = roundNumber(allowances.housingAllowance || 0);
               const trainingDisplay = getTrainingAllowance(p);
-              const totalAllw = mealDisplay + housingDisplay + trainingDisplay;
-              const insuranceAdvance = edit?.incomes?.insuranceAdvance ?? DEFAULT_INSURANCE_ADVANCE;
-              const penalty = edit?.incomes?.penalty ?? 0;
+              const totalAllw = roundNumber(mealDisplay + housingDisplay + trainingDisplay);
+              
+              const insuranceAdvance = roundNumber(edit?.incomes?.insuranceAdvance ?? DEFAULT_INSURANCE_ADVANCE);
+              const penalty = roundNumber(edit?.incomes?.penalty ?? 0);
               const advancePayment = getAdvancePayment(p);
               const rowBg = idx % 2 === 0 ? "bg-white" : "bg-[#f8fafc]";
               const isSaving = savingIds?.[p._id];
@@ -373,15 +385,19 @@ export default function PayrollBoard() {
 
       const sourceRecord = payrolls.find((p) => p._id === recordId);
       const allw = currentEdit.incomes.allowances || {};
-      const totalAllw =
+      
+      // ⭐ Làm tròn các thành phần phụ cấp
+      const totalAllw = roundNumber(
         clampMeal(allw.meal) +
         (allw.housingAllowance || 0) +
-        getTrainingAllowance(sourceRecord || currentEdit);
-      const insuranceAdvance = Number(currentEdit.incomes.insuranceAdvance) || 0;
-      const penalty = Number(currentEdit.incomes.penalty) || 0;
+        getTrainingAllowance(sourceRecord || currentEdit)
+      );
+      const insuranceAdvance = roundNumber(currentEdit.incomes.insuranceAdvance) || 0;
+      const penalty = roundNumber(currentEdit.incomes.penalty) || 0;
       const advancePayment = getAdvancePayment(sourceRecord || currentEdit);
 
-      currentEdit.incomes.totalGross = Math.max(0,
+      // ⭐ Tổng Gross làm tròn về số nguyên
+      currentEdit.incomes.totalGross = Math.max(0, roundNumber(
         (currentEdit.incomes.timeSalary || 0) +
         totalAllw +
         (currentEdit.incomes.overtime || 0) +
@@ -392,7 +408,7 @@ export default function PayrollBoard() {
         insuranceAdvance -
         penalty -
         advancePayment
-      );
+      ));
 
       return { ...prev, [recordId]: currentEdit };
     });
@@ -448,7 +464,7 @@ export default function PayrollBoard() {
     }
   };
 
-  // ===== SYNC 1 ROW — Cập nhật lại số liệu chấm công cho 1 nhân sự =====
+  // ===== SYNC 1 ROW =====
   const handleSyncRow = async (recordId: string) => {
     const record = payrolls.find(p => p._id === recordId);
     const empName = record?.employeeSnapshot?.fullName || "nhân sự này";
@@ -460,7 +476,6 @@ export default function PayrollBoard() {
     )) return;
 
     setSyncingIds(prev => ({ ...prev, [recordId]: true }));
-    // Đồng thời set savingIds để disable input trong lúc sync
     setSavingIds(prev => ({ ...prev, [recordId]: true }));
 
     try {
@@ -471,18 +486,15 @@ export default function PayrollBoard() {
       const result = await res.json().catch(() => ({}));
 
       if (res.ok) {
-        // ✅ Update local state với record mới từ BE
         const newRecord = result.record || result.data;
         if (newRecord) {
           setPayrolls(prev => prev.map(p => 
             p._id === recordId ? { ...p, ...newRecord } : p
           ));
         } else {
-          // Fallback: fetch lại toàn bộ list
           await fetchPayrollData(selectedMonthDoc.month, selectedMonthDoc.year);
         }
 
-        // Xóa editingRecords của record này (vì đã có data mới từ BE)
         setEditingRecords(prev => {
           const next = { ...prev };
           delete next[recordId];
@@ -519,12 +531,12 @@ export default function PayrollBoard() {
     const exportData = filteredPayrolls.map((p, index) => {
       const snap = p.employeeSnapshot || {};
       const allowances = p.incomes?.allowances || {};
-      const mealDisplay = clampMeal(allowances.meal);
-      const housingDisplay = allowances.housingAllowance || 0;
+      const mealDisplay = roundNumber(clampMeal(allowances.meal));
+      const housingDisplay = roundNumber(allowances.housingAllowance || 0);
       const trainingDisplay = getTrainingAllowance(p);
-      const totalAllw = mealDisplay + housingDisplay + trainingDisplay;
-      const insuranceAdvance = p.incomes?.insuranceAdvance ?? DEFAULT_INSURANCE_ADVANCE;
-      const penalty = p.incomes?.penalty ?? 0;
+      const totalAllw = roundNumber(mealDisplay + housingDisplay + trainingDisplay);
+      const insuranceAdvance = roundNumber(p.incomes?.insuranceAdvance ?? DEFAULT_INSURANCE_ADVANCE);
+      const penalty = roundNumber(p.incomes?.penalty ?? 0);
       const advancePayment = getAdvancePayment(p);
 
       return {

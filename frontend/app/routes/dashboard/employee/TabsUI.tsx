@@ -118,36 +118,159 @@ const normalizeSalaryAndBenefits = (sb: any) => {
 };
 
 // ============================================================
-// INLINE NUMBER INPUT — memo
+// INLINE NUMBER INPUT — hỗ trợ nhập công thức
+// ⭐ Ví dụ: ( 15000000 / 26 ) / 6 = 96153.846... → hiển thị 96,154
+// ⭐ Giá trị lưu (onChange) là số gốc chưa làm tròn (96153.846...)
 // ============================================================
-const InlineNumberInput = memo(({ value, onChange, disabled, className = "", min = 0, placeholder = "0" }: any) => {
-  const [focused, setFocused] = useState(false);
+const InlineNumberInput = memo(
+  ({
+    value,
+    onChange,
+    disabled,
+    className = "",
+    min = 0,
+    placeholder = "0",
+    allowFormula = true,
+  }: any) => {
+    const [focused, setFocused] = useState(false);
+    const [inputValue, setInputValue] = useState<string>("");
+    const inputRef = useRef<HTMLInputElement>(null);
 
-  const displayValue =
-    focused && (value === 0 || value === "0" || value === null || value === undefined)
-      ? ""
-      : (value ?? "");
+    // Format số hiển thị (làm tròn + phân cách nghìn)
+    const formatDisplay = useCallback((v: any) => {
+      const num = Number(v);
+      if (isNaN(num)) return "";
+      return Math.round(num).toLocaleString("en-US");
+    }, []);
 
-  return (
-    <input
-      type="number"
-      min={min}
-      disabled={disabled}
-      placeholder={placeholder}
-      className={`w-full border border-slate-300 rounded-md px-2 py-1 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none transition-all disabled:bg-slate-50 disabled:cursor-not-allowed ${className}`}
-      value={displayValue}
-      onFocus={(e) => {
-        setFocused(true);
-        e.target.select?.();
-      }}
-      onBlur={() => setFocused(false)}
-      onChange={(e) => {
-        const v = e.target.value === "" ? 0 : Number(e.target.value);
-        onChange?.(v);
-      }}
-    />
-  );
-});
+    // Khi không focus: đồng bộ chuỗi hiển thị với value ngoài
+    useEffect(() => {
+      if (!focused) {
+        setInputValue(
+          value === 0 || value === null || value === undefined ? "" : formatDisplay(value)
+        );
+      }
+    }, [value, focused, formatDisplay]);
+
+    // ⭐ Tính toán công thức an toàn (chỉ cho phép số và toán tử)
+    const evaluateExpression = useCallback((raw: string): number | null => {
+      if (!raw || raw.trim() === "") return 0;
+      try {
+        // Loại bỏ dấu phẩy phân cách nghìn, khoảng trắng
+        const cleaned = raw.replace(/,/g, "").replace(/\s+/g, "");
+        // Chỉ cho phép các ký tự số và toán tử
+        if (!/^[0-9+\-*/().]+$/.test(cleaned)) return null;
+        // eslint-disable-next-line no-new-func
+        const result = Function(`"use strict"; return (${cleaned})`)();
+        if (typeof result !== "number" || !isFinite(result) || isNaN(result)) return null;
+        return result;
+      } catch {
+        return null;
+      }
+    }, []);
+
+    // ⭐ Commit khi blur/Enter
+    const commitValue = useCallback(() => {
+      const raw = inputValue;
+
+      // Rỗng → 0
+      if (raw.trim() === "") {
+        onChange?.(0);
+        setInputValue("");
+        return;
+      }
+
+      const result = evaluateExpression(raw);
+
+      if (result === null) {
+        // Công thức sai → khôi phục giá trị cũ
+        setInputValue(
+          value === 0 || value === null || value === undefined ? "" : formatDisplay(value)
+        );
+        return;
+      }
+
+      // ⭐ Lưu giá trị GỐC (chưa làm tròn) để tính lương
+      onChange?.(result);
+      // ⭐ Hiển thị giá trị ĐÃ LÀM TRÒN
+      setInputValue(formatDisplay(result));
+    }, [inputValue, value, onChange, evaluateExpression, formatDisplay]);
+
+    // Fallback: nếu không cho phép công thức → dùng input number như cũ
+    if (!allowFormula) {
+      const displayValue =
+        focused && (value === 0 || value === "0" || value === null || value === undefined)
+          ? ""
+          : value ?? "";
+
+      return (
+        <input
+          type="number"
+          min={min}
+          disabled={disabled}
+          placeholder={placeholder}
+          className={`w-full border border-slate-300 rounded-md px-2 py-1 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none transition-all disabled:bg-slate-50 disabled:cursor-not-allowed ${className}`}
+          value={displayValue}
+          onFocus={(e) => {
+            setFocused(true);
+            e.target.select?.();
+          }}
+          onBlur={() => setFocused(false)}
+          onChange={(e) => {
+            const v = e.target.value === "" ? 0 : Number(e.target.value);
+            onChange?.(v);
+          }}
+        />
+      );
+    }
+
+    return (
+      <input
+        ref={inputRef}
+        type="text"
+        inputMode="text"
+        disabled={disabled}
+        placeholder={placeholder}
+        className={`w-full border border-slate-300 rounded-md px-2 py-1 text-sm text-right focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none transition-all disabled:bg-slate-50 disabled:cursor-not-allowed ${className}`}
+        value={
+          focused
+            ? inputValue
+            : value === 0 || value === null || value === undefined
+            ? ""
+            : formatDisplay(value)
+        }
+        onFocus={(e) => {
+          setFocused(true);
+          // Khi focus: hiện giá trị thô để dễ sửa công thức
+          setInputValue(
+            value === 0 || value === null || value === undefined ? "" : String(value)
+          );
+          setTimeout(() => e.target.select?.(), 0);
+        }}
+        onBlur={() => {
+          commitValue();
+          setFocused(false);
+        }}
+        onChange={(e) => {
+          setInputValue(e.target.value);
+        }}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            commitValue();
+            inputRef.current?.blur();
+          }
+          if (e.key === "Escape") {
+            setInputValue(
+              value === 0 || value === null || value === undefined ? "" : formatDisplay(value)
+            );
+            inputRef.current?.blur();
+          }
+        }}
+      />
+    );
+  }
+);
 InlineNumberInput.displayName = "InlineNumberInput";
 
 // ============================================================
@@ -291,6 +414,7 @@ const EmployeeRow = memo(
               value={sb.minishowRate}
               onChange={(v: number) => onUpdateDraftField(emp._id, "minishowRate", v)}
               placeholder="65000"
+              allowFormula={true}
               disabled={isSavingAll}
             />
           ) : (
@@ -307,6 +431,7 @@ const EmployeeRow = memo(
               value={sb.bigshowRate}
               onChange={(v: number) => onUpdateDraftField(emp._id, "bigshowRate", v)}
               placeholder="213462"
+              allowFormula={true}
               disabled={isSavingAll}
             />
           ) : (
