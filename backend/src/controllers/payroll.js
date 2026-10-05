@@ -12,10 +12,10 @@ const STANDARD_MEAL_DAYS = 26;
 const DEFAULT_INSURANCE_ADVANCE = 500000;
 
 // ===== HELPERS =====
-const getMealAllowanceCap = (emp) => {
+const getMealAllowanceRate = (emp) => {
   const userValue = Number(emp?.salaryAndBenefits?.mealRate);
   if (Number.isFinite(userValue) && userValue > 0) return userValue;
-  return DEFAULT_MEAL_ALLOWANCE;
+  return DEFAULT_MEAL_ALLOWANCE / STANDARD_MEAL_DAYS;
 };
 
 const calculateNetWithCompanySupport = (record, taxTNCN, advancePayment, insuranceTotal) => {
@@ -44,9 +44,7 @@ const getEmployeeRates = (emp) => {
 const calcMealAllowance = (emp, actualDays) => {
   const days = Number(actualDays) || 0;
   if (days <= 0) return 0;
-  const mealCap = getMealAllowanceCap(emp);
-  const mealRate = Math.round(mealCap / STANDARD_MEAL_DAYS);
-  if (days >= STANDARD_MEAL_DAYS) return mealCap;
+  const mealRate = getMealAllowanceRate(emp);
   return Math.round(days * mealRate);
 };
 

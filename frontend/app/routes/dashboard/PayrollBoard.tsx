@@ -34,12 +34,6 @@ const formatNumberWithDot = (val: string | number) => {
 // ⭐ Làm tròn số (dùng cho tính toán)
 const roundNumber = (val: any) => Math.round(Number(val) || 0);
 
-const clampMeal = (val: number, cap: number | null = null) => {
-  const numericVal = Number(val) || 0;
-  if (!cap || cap <= 0) return numericVal;
-  return Math.min(numericVal, cap);
-};
-
 // ===== HELPER: Lấy giá trị Ca tập theo chế độ của nhân viên =====
 // ⭐ Luôn trả về số nguyên (đã làm tròn)
 const getTrainingAllowance = (p: any) => {
@@ -137,10 +131,8 @@ const TabGrossPayrollTable = ({ filteredPayrolls, editingRecords, isClosed, hand
               const edit = editingRecords[p._id] || p;
               const snap = p.employeeSnapshot;
               const allowances = p.incomes?.allowances || {};
-              const mealCap = Number(p.employee?.salaryAndBenefits?.mealRate) || null;
-              
               // ⭐ Làm tròn các giá trị hiển thị
-              const mealDisplay = roundNumber(clampMeal(allowances.meal, mealCap));
+              const mealDisplay = roundNumber(allowances.meal);
               const housingDisplay = roundNumber(allowances.housingAllowance || 0);
               const trainingDisplay = getTrainingAllowance(p);
               const totalAllw = roundNumber(mealDisplay + housingDisplay + trainingDisplay);
@@ -388,7 +380,7 @@ export default function PayrollBoard() {
       
       // ⭐ Làm tròn các thành phần phụ cấp
       const totalAllw = roundNumber(
-        clampMeal(allw.meal) +
+        (allw.meal || 0) +
         (allw.housingAllowance || 0) +
         getTrainingAllowance(sourceRecord || currentEdit)
       );
@@ -531,7 +523,7 @@ export default function PayrollBoard() {
     const exportData = filteredPayrolls.map((p, index) => {
       const snap = p.employeeSnapshot || {};
       const allowances = p.incomes?.allowances || {};
-      const mealDisplay = roundNumber(clampMeal(allowances.meal));
+      const mealDisplay = roundNumber(allowances.meal);
       const housingDisplay = roundNumber(allowances.housingAllowance || 0);
       const trainingDisplay = getTrainingAllowance(p);
       const totalAllw = roundNumber(mealDisplay + housingDisplay + trainingDisplay);

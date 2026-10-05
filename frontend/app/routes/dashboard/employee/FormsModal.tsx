@@ -3,6 +3,27 @@ import { X, Info, Briefcase, DollarSign, Calendar, FileText } from "lucide-react
 import { Button } from "@/components/ui/button";
 import { EMPLOYEE_STATUSES, CONTRACT_TYPES, GENDER_OPTIONS, PAYMENT_METHODS } from "./utils";
 
+// ⭐ Tiền ăn ca mặc định: 1.800.000 / 26 = 69230.76923076923
+// ⭐ Giữ nguyên hệ số để tính lương chính xác
+const DEFAULT_MEAL_RATE = 1800000 / 26;
+
+// ⭐ Format số giữ nguyên hệ số, không làm tròn
+// VD: 69230.76923076923 → "69.230,76923076923"
+const formatFullNumber = (val: any) => {
+  if (val === undefined || val === null || val === "") return "0";
+  const num = Number(val);
+  if (isNaN(num)) return "0";
+
+  if (Number.isInteger(num)) {
+    return num.toLocaleString("vi-VN");
+  }
+
+  const str = num.toString();
+  const [intPart, decPart] = str.split(".");
+  const formattedInt = Number(intPart).toLocaleString("vi-VN");
+  return decPart ? `${formattedInt},${decPart}` : formattedInt;
+};
+
 /**
  * Input số: khi focus vào mà giá trị đang là 0 thì tự xoá để user nhập luôn.
  * Khi blur mà để trống thì trả về 0.
@@ -101,10 +122,16 @@ export const EmployeeModal = ({ isOpen, onClose, selectedEmp, empForm, setEmpFor
     const dormitoryDeduction = sb.dormitoryDeduction || 0;
     const housingAllowance = housingCost - dormitoryDeduction;
 
+    // ⭐ Tiền ăn ca: nếu user để 0 → dùng mặc định 1800000/26 (giữ nguyên hệ số)
+    const mealRateRaw = Number(sb.mealRate);
+    const mealRate = mealRateRaw > 0 ? mealRateRaw : DEFAULT_MEAL_RATE;
+
     const finalForm = {
       ...empForm,
       salaryAndBenefits: {
         ...sb,
+        // ⭐ Gán mealRate đã xử lý mặc định (giữ hệ số 69230.76923076923)
+        mealRate,
         housingCost,
         dormitoryDeduction,
         housingAllowance,
@@ -364,10 +391,23 @@ export const EmployeeModal = ({ isOpen, onClose, selectedEmp, empForm, setEmpFor
                   <NumberInput className="w-full border border-purple-300 rounded-md p-2" value={empForm.salaryAndBenefits.bigshowRate || 213462} onChange={(v: number) => setEmpForm({...empForm, salaryAndBenefits: {...empForm.salaryAndBenefits, bigshowRate: v}})}/>
                   <p className="text-[10px] text-purple-600 mt-1 leading-tight">Mặc định: 213.462</p>
                 </div>
+                {/* ⭐ TIỀN ĂN / CÔNG — hiển thị đầy đủ hệ số mặc định 1800000/26 */}
                 <div className="bg-emerald-50 p-2 rounded border border-emerald-200">
                   <label className="block text-sm font-bold text-emerald-800 mb-1">Tiền ăn / Công (VNĐ)</label>
-                  <NumberInput className="w-full border border-emerald-300 rounded-md p-2" value={empForm.salaryAndBenefits.mealRate ?? 0} onChange={(v: number) => setEmpForm({...empForm, salaryAndBenefits: {...empForm.salaryAndBenefits, mealRate: v}})}/>
-                  <p className="text-[10px] text-emerald-600 mt-1 leading-tight">Để 0 = dùng mặc định 1.800.000/26 ≈ 69.231</p>
+                  <NumberInput
+                    className="w-full border border-emerald-300 rounded-md p-2"
+                    value={
+                      // ⭐ Nếu value = 0 → hiển thị hệ số mặc định đầy đủ để user biết
+                      Number(empForm.salaryAndBenefits.mealRate) > 0
+                        ? empForm.salaryAndBenefits.mealRate
+                        : Number(DEFAULT_MEAL_RATE.toFixed(8)) // 69230.76923077
+                    }
+                    onChange={(v: number) => setEmpForm({...empForm, salaryAndBenefits: {...empForm.salaryAndBenefits, mealRate: v}})}
+                  />
+                  {/* ⭐ Ghi chú: hiển thị ĐẦY ĐỦ hệ số, không làm tròn */}
+                  <p className="text-[10px] text-emerald-600 mt-1 leading-tight">
+                    Để 0 = dùng mặc định <b>1.800.000/26</b> = <b>{formatFullNumber(DEFAULT_MEAL_RATE)}</b>
+                  </p>
                 </div>
               </div>
 
