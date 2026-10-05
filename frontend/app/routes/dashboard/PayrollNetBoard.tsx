@@ -19,18 +19,26 @@ const getAuthHeaders = () => ({
   Authorization: `Bearer ${localStorage.getItem("token") || ""}`,
 });
 
-const formatCurrency = (val: number) => new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(val || 0);
+const formatCurrency = (val: number) => new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(Math.round(Number(val) || 0));
+
+// ⭐ Làm tròn helper
+const roundNumber = (val: any) => Math.round(Number(val) || 0);
+
+// ⭐ Format số nguyên có dấu chấm phân cách (đã làm tròn)
 const formatNumberWithDot = (val: string | number) => {
   if (val === undefined || val === null || val === "") return "0";
-  return val.toString().replace(/\D/g, "").replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+  const rounded = Math.round(Number(val)) || 0;
+  return rounded.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
 };
-// Format số có dấu âm: -500.000
+
+// ⭐ Format số có dấu âm — đã làm tròn
 const formatNumberWithDotSigned = (val: string | number) => {
   if (val === undefined || val === null || val === "") return "0";
   const num = Number(val);
   if (isNaN(num)) return "0";
-  const sign = num < 0 ? "-" : "";
-  return sign + Math.abs(num).toString().replace(/\D/g, "").replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+  const rounded = Math.round(num);
+  const sign = rounded < 0 ? "-" : "";
+  return sign + Math.abs(rounded).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
 };
 
 // ==========================================
@@ -199,22 +207,22 @@ const TabTaxSummary = ({ reportData, isReportingFetching, filterProps }: any) =>
     
     const dataRows = reportData.map((d: any, i: number) => [
       Number(i + 1), d.employeeCode, d.fullName, d.position, d.department,
-      Number(d.actualDays) || 0, Number(d.timeSalary) || 0, Number(d.overtime) || 0, 
-      Number(d.miniShowMoney) || 0, Number(d.bigShowMoney) || 0, Number(d.kpiBonus) || 0, 
-      Number(d.meal) || 0, Number(d.transport) || 0, Number(d.phone) || 0, Number(d.clothing) || 0, Number(d.housing) || 0, 
-      Number(d.bonus) || 0, Number(d.totalGross) || 0, 
-      Number(d.advance) || 0, Number(d.taxTNCN) || 0, Number(d.accountingDeductions) || 0, Number(d.accountingNet) || 0,
-      Number(d.adjustment) || 0, Number(d.finalPayment) || 0
+      Number(d.actualDays) || 0, roundNumber(d.timeSalary), roundNumber(d.overtime), 
+      roundNumber(d.miniShowMoney), roundNumber(d.bigShowMoney), roundNumber(d.kpiBonus), 
+      roundNumber(d.meal), roundNumber(d.transport), roundNumber(d.phone), roundNumber(d.clothing), roundNumber(d.housing), 
+      roundNumber(d.bonus), roundNumber(d.totalGross), 
+      roundNumber(d.advance), roundNumber(d.taxTNCN), roundNumber(d.accountingDeductions), roundNumber(d.accountingNet),
+      roundNumber(d.adjustment), roundNumber(d.finalPayment)
     ]);
 
     const totalRow = [
       "", "", "TỔNG CỘNG", "", "", 
-      Number(totals.actualDays) || 0, Number(totals.timeSalary) || 0, Number(totals.overtime) || 0, 
-      Number(totals.miniShowMoney) || 0, Number(totals.bigShowMoney) || 0, Number(totals.kpiBonus) || 0, 
-      Number(totals.meal) || 0, Number(totals.transport) || 0, Number(totals.phone) || 0, Number(totals.clothing) || 0, Number(totals.housing) || 0, 
-      Number(totals.bonus) || 0, Number(totals.gross) || 0, 
-      Number(totals.advance) || 0, Number(totals.taxTNCN) || 0, Number(totals.deductions) || 0, Number(totals.net) || 0,
-      Number(totals.adjustment) || 0, Number(totals.finalPayment) || 0
+      Number(totals.actualDays) || 0, roundNumber(totals.timeSalary), roundNumber(totals.overtime), 
+      roundNumber(totals.miniShowMoney), roundNumber(totals.bigShowMoney), roundNumber(totals.kpiBonus), 
+      roundNumber(totals.meal), roundNumber(totals.transport), roundNumber(totals.phone), roundNumber(totals.clothing), roundNumber(totals.housing), 
+      roundNumber(totals.bonus), roundNumber(totals.gross), 
+      roundNumber(totals.advance), roundNumber(totals.taxTNCN), roundNumber(totals.deductions), roundNumber(totals.net),
+      roundNumber(totals.adjustment), roundNumber(totals.finalPayment)
     ];
 
     const wsData = [titleRow, emptyRow, headers, ...dataRows, totalRow];
@@ -448,23 +456,23 @@ const TabEmployeeSummary = ({ reportData, isReportingFetching, filterProps }: an
         { v: d.employeeCode || "", s: cellCenter }, 
         { v: d.fullName || "", s: cellLeft }, 
         { v: d.department || "", s: cellCenter },
-        { v: Number(d.totalGross) || 0, s: {} },
-        { v: Number(d.advance) || 0, s: {} },
+        { v: roundNumber(d.totalGross), s: {} },
+        { v: roundNumber(d.advance), s: {} },
         { v: 0, s: {} }, 
-        { v: Number(d.employeeNet) || 0, s: { ...cellRightBold, font: { ...FONT, bold: true, color: { rgb: "9C0006" } }, fill: { fgColor: { rgb: "FFC7CE" } } } },
-        { v: Number(d.adjustment) || 0, s: {} },
-        { v: Number(d.finalPayment) || 0, s: { ...cellRightBold, fill: { fgColor: { rgb: "DBEAFE" } }, font: { ...FONT, bold: true, color: { rgb: "1E3A8A" } } } }
+        { v: roundNumber(d.employeeNet), s: { ...cellRightBold, font: { ...FONT, bold: true, color: { rgb: "9C0006" } }, fill: { fgColor: { rgb: "FFC7CE" } } } },
+        { v: roundNumber(d.adjustment), s: {} },
+        { v: roundNumber(d.finalPayment), s: { ...cellRightBold, fill: { fgColor: { rgb: "DBEAFE" } }, font: { ...FONT, bold: true, color: { rgb: "1E3A8A" } } } }
       ]);
     });
 
     const totalRow = [
       { v: "", s: cellCenter }, { v: "", s: cellCenter }, { v: "TỔNG CỘNG", s: { ...cellLeft, font: { ...FONT, bold: true } } }, { v: "", s: cellCenter },
-      { v: Number(totals.gross) || 0, s: cellRightBold },
-      { v: Number(totals.advance) || 0, s: cellRightBold },
+      { v: roundNumber(totals.gross), s: cellRightBold },
+      { v: roundNumber(totals.advance), s: cellRightBold },
       { v: 0, s: cellRightBold },
-      { v: Number(totals.employeeNet) || 0, s: { ...cellRightBold, fill: { fgColor: { rgb: "FFC7CE" } }, font: { ...FONT, bold: true, color: { rgb: "9C0006" } } } },
-      { v: Number(totals.adjustment) || 0, s: cellRightBold },
-      { v: Number(totals.finalPayment) || 0, s: { ...cellRightBold, fill: { fgColor: { rgb: "DBEAFE" } }, font: { ...FONT, bold: true, color: { rgb: "1E3A8A" } } } }
+      { v: roundNumber(totals.employeeNet), s: { ...cellRightBold, fill: { fgColor: { rgb: "FFC7CE" } }, font: { ...FONT, bold: true, color: { rgb: "9C0006" } } } },
+      { v: roundNumber(totals.adjustment), s: cellRightBold },
+      { v: roundNumber(totals.finalPayment), s: { ...cellRightBold, fill: { fgColor: { rgb: "DBEAFE" } }, font: { ...FONT, bold: true, color: { rgb: "1E3A8A" } } } }
     ];
     wsData.push(totalRow);
 
@@ -688,28 +696,29 @@ export default function PayrollNetBoard() {
             const allw = p.incomes?.allowances || {};
             const ded = p.deductions || {};
 
+            // ⭐ Làm tròn từng thành phần trước khi cộng dồn (tránh tích tụ số lẻ)
             map[code].actualDays += Number(p.actualDays || 0);
-            map[code].timeSalary += Number(p.incomes?.timeSalary || 0);
-            map[code].overtime += Number(p.incomes?.overtime || 0);
-            map[code].miniShowMoney += Number(p.incomes?.miniShowMoney || 0);
-            map[code].bigShowMoney += Number(p.incomes?.bigShowMoney || 0);
-            map[code].kpiBonus += Number(p.incomes?.kpiBonus || 0);
-            map[code].meal += Number(allw.meal || 0);
-            map[code].transport += Number(allw.transport || 0);
-            map[code].phone += Number(allw.phone || 0);
-            map[code].clothing += Number(allw.clothing || 0);
-            map[code].housing += Number(allw.housing || 0);
-            map[code].bonus += Number(p.incomes?.bonus || 0);
+            map[code].timeSalary += roundNumber(p.incomes?.timeSalary);
+            map[code].overtime += roundNumber(p.incomes?.overtime);
+            map[code].miniShowMoney += roundNumber(p.incomes?.miniShowMoney);
+            map[code].bigShowMoney += roundNumber(p.incomes?.bigShowMoney);
+            map[code].kpiBonus += roundNumber(p.incomes?.kpiBonus);
+            map[code].meal += roundNumber(allw.meal);
+            map[code].transport += roundNumber(allw.transport);
+            map[code].phone += roundNumber(allw.phone);
+            map[code].clothing += roundNumber(allw.clothing);
+            map[code].housing += roundNumber(allw.housing);
+            map[code].bonus += roundNumber(p.incomes?.bonus);
 
-            const gross = Number(p.incomes?.totalGross || 0);
-            const advance = Number(ded.advance || 0);
+            const gross = roundNumber(p.incomes?.totalGross);
+            const advance = roundNumber(ded.advance);
 
             map[code].totalGross += gross;
             map[code].advance += advance;
-            map[code].taxTNCN += Number(ded.taxTNCN || 0);
+            map[code].taxTNCN += roundNumber(ded.taxTNCN);
 
             // Cộng dồn điều chỉnh CP khác
-            map[code].adjustment += Number(p.incomes?.adjustment || 0);
+            map[code].adjustment += roundNumber(p.incomes?.adjustment);
 
             // Thực nhận nhân viên = Gross - Tạm ứng
             map[code].employeeNet += (gross - advance);
@@ -718,6 +727,13 @@ export default function PayrollNetBoard() {
       });
 
       const finalData = Object.values(map).map((d: any) => {
+        // ⭐ Làm tròn lại lần cuối để chắc chắn số nguyên
+        d.totalGross = roundNumber(d.totalGross);
+        d.advance = roundNumber(d.advance);
+        d.taxTNCN = roundNumber(d.taxTNCN);
+        d.employeeNet = roundNumber(d.employeeNet);
+        d.adjustment = roundNumber(d.adjustment);
+        
         // Tổng khấu trừ gốc = Tạm ứng + Thuế
         d.accountingDeductions = d.advance + d.taxTNCN;
         d.accountingNet = d.totalGross - d.accountingDeductions;
@@ -760,18 +776,21 @@ export default function PayrollNetBoard() {
     const value = editingAdjustments[payrollId];
     if (value === undefined) return;
     
+    // ⭐ Làm tròn giá trị trước khi gửi
+    const roundedValue = roundNumber(value);
+    
     setSavingIds(prev => ({ ...prev, [payrollId]: true }));
     try {
       const res = await fetch(`${API_BASE_URL}/${payrollId}/adjustment`, {
         method: "PUT",
         headers: getAuthHeaders(),
-        body: JSON.stringify({ adjustment: value })
+        body: JSON.stringify({ adjustment: roundedValue })
       });
       
       if (res.ok) {
         // ===== CẬP NHẬT LOCAL STATE — KHÔNG FETCH LẠI =====
         const matchedPayroll = payrolls.find(p => p._id === payrollId);
-        const oldAdjustment = Number(matchedPayroll?.incomes?.adjustment || 0);
+        const oldAdjustment = roundNumber(matchedPayroll?.incomes?.adjustment);
 
         // Cập nhật payrolls local
         setPayrolls(prev => prev.map(p => {
@@ -780,7 +799,7 @@ export default function PayrollNetBoard() {
               ...p,
               incomes: {
                 ...p.incomes,
-                adjustment: value
+                adjustment: roundedValue
               }
             };
           }
@@ -792,7 +811,7 @@ export default function PayrollNetBoard() {
           const empCode = matchedPayroll.employeeSnapshot?.employeeCode;
           setReportData(prev => prev.map(d => {
             if (d.employeeCode === empCode) {
-              const newAdjustment = d.adjustment + (value - oldAdjustment);
+              const newAdjustment = d.adjustment + (roundedValue - oldAdjustment);
               return {
                 ...d,
                 adjustment: newAdjustment,
@@ -877,12 +896,19 @@ export default function PayrollNetBoard() {
       const snap = p.employeeSnapshot || {};
       const allw = p.incomes?.allowances || {};
       const ded = p.deductions || {};
-      const totalAllw = Number(allw.meal || 0) + Number(allw.transport || 0) + Number(allw.phone || 0) + Number(allw.clothing || 0) + Number(allw.housing || 0);
+      
+      // ⭐ Làm tròn tất cả các thành phần
+      const meal = roundNumber(allw.meal);
+      const transport = roundNumber(allw.transport);
+      const phone = roundNumber(allw.phone);
+      const clothing = roundNumber(allw.clothing);
+      const housing = roundNumber(allw.housing);
+      const totalAllw = meal + transport + phone + clothing + housing;
 
-      const advance = Number(ded.advance || 0);
-      const taxTNCN = Number(ded.taxTNCN || 0);
-      const gross = Number(p.incomes?.totalGross || 0);
-      const adjustment = Number(p.incomes?.adjustment || 0);
+      const advance = roundNumber(ded.advance);
+      const taxTNCN = roundNumber(ded.taxTNCN);
+      const gross = roundNumber(p.incomes?.totalGross);
+      const adjustment = roundNumber(p.incomes?.adjustment);
 
       const accountingDeductions = advance + taxTNCN;
       const accountingNet = gross - accountingDeductions;
@@ -890,10 +916,10 @@ export default function PayrollNetBoard() {
 
       wsData.push([
         { v: Number(index + 1), s: cellCenter }, { v: snap.employeeCode || "", s: cellCenter }, { v: snap.fullName || "", s: cellLeft }, { v: snap.department || "", s: cellCenter }, { v: snap.position || "", s: cellCenter },
-        { v: Number(p.baseSalary) || 0, s: {} }, { v: Number(p.actualDays) || 0, s: cellCenter }, { v: Number(p.incomes?.timeSalary) || 0, s: {} }, { v: Number(p.incomes?.overtime) || 0, s: {} },
-        { v: Number(p.incomes?.miniShowMoney) || 0, s: {} }, { v: Number(p.incomes?.bigShowMoney) || 0, s: {} }, { v: Number(p.incomes?.kpiBonus) || 0, s: {} },
-        { v: Number(allw.meal) || 0, s: {} }, { v: Number(allw.transport) || 0, s: {} }, { v: Number(allw.phone) || 0, s: {} }, { v: Number(allw.clothing) || 0, s: {} }, { v: Number(allw.housing) || 0, s: {} }, { v: totalAllw, s: cellRightBold },
-        { v: Number(p.incomes?.bonus) || 0, s: {} }, { v: gross, s: cellRightBold },
+        { v: roundNumber(p.baseSalary), s: {} }, { v: Number(p.actualDays) || 0, s: cellCenter }, { v: roundNumber(p.incomes?.timeSalary), s: {} }, { v: roundNumber(p.incomes?.overtime), s: {} },
+        { v: roundNumber(p.incomes?.miniShowMoney), s: {} }, { v: roundNumber(p.incomes?.bigShowMoney), s: {} }, { v: roundNumber(p.incomes?.kpiBonus), s: {} },
+        { v: meal, s: {} }, { v: transport, s: {} }, { v: phone, s: {} }, { v: clothing, s: {} }, { v: housing, s: {} }, { v: totalAllw, s: cellRightBold },
+        { v: roundNumber(p.incomes?.bonus), s: {} }, { v: gross, s: cellRightBold },
         { v: advance, s: {} }, { v: taxTNCN, s: {} }, { v: accountingDeductions, s: cellRightBold },
         { v: accountingNet, s: { ...cellRightBold, fill: { fgColor: { rgb: "FFF2CC" } } } },
         { v: adjustment, s: {} },
@@ -982,8 +1008,8 @@ export default function PayrollNetBoard() {
     filteredPayrolls.forEach((p, index) => {
       const snap = p.employeeSnapshot || {};
       const ded = p.deductions || {};
-      const adjustment = Number(p.incomes?.adjustment || 0);
-      const netSalary = Number(p.netSalary) || 0;
+      const adjustment = roundNumber(p.incomes?.adjustment);
+      const netSalary = roundNumber(p.netSalary);
       const finalPayment = netSalary + adjustment;
       
       wsData.push([
@@ -991,8 +1017,8 @@ export default function PayrollNetBoard() {
         { v: snap.employeeCode || "", s: cellCenter }, 
         { v: snap.fullName || "", s: cellLeft }, 
         { v: snap.department || "", s: cellCenter },
-        { v: Number(p.incomes?.totalGross) || 0, s: {} },
-        { v: Number(ded.advance) || 0, s: {} },
+        { v: roundNumber(p.incomes?.totalGross), s: {} },
+        { v: roundNumber(ded.advance), s: {} },
         { v: 0, s: {} }, 
         { v: netSalary, s: { ...cellRightBold, font: { ...FONT, bold: true, color: { rgb: "9C0006" } }, fill: { fgColor: { rgb: "FFC7CE" } } } },
         { v: adjustment, s: {} },
@@ -1157,18 +1183,29 @@ export default function PayrollNetBoard() {
                           const snap = p.employeeSnapshot || {};
                           const allw = p.incomes?.allowances || {};
                           const ded = p.deductions || {};
-                          const totalAllw = Number(allw.meal||0) + Number(allw.transport||0) + Number(allw.phone||0) + Number(allw.clothing||0) + Number(allw.housing||0);
+                          
+                          // ⭐ Làm tròn các thành phần phụ cấp
+                          const meal = roundNumber(allw.meal);
+                          const transport = roundNumber(allw.transport);
+                          const phone = roundNumber(allw.phone);
+                          const clothing = roundNumber(allw.clothing);
+                          const housing = roundNumber(allw.housing);
+                          const totalAllw = meal + transport + phone + clothing + housing;
+                          
                           const rowBg = idx % 2 === 0 ? "bg-white" : "bg-slate-50/60";
 
-                          const accountingDeductions = Number(ded.advance || 0) + Number(ded.taxTNCN || 0);
-                          const accountingNet = Number(p.incomes?.totalGross || 0) - accountingDeductions;
+                          const advance = roundNumber(ded.advance);
+                          const taxTNCN = roundNumber(ded.taxTNCN);
+                          const gross = roundNumber(p.incomes?.totalGross);
+                          const accountingDeductions = advance + taxTNCN;
+                          const accountingNet = gross - accountingDeductions;
                           
                           const adjustment = editingAdjustments[p._id] !== undefined 
                             ? editingAdjustments[p._id] 
-                            : Number(p.incomes?.adjustment || 0);
+                            : roundNumber(p.incomes?.adjustment);
                           const finalPayment = accountingNet + adjustment;
                           const isAdjustmentDirty = editingAdjustments[p._id] !== undefined 
-                            && editingAdjustments[p._id] !== Number(p.incomes?.adjustment || 0);
+                            && editingAdjustments[p._id] !== roundNumber(p.incomes?.adjustment);
                           const isSaving = savingIds[p._id];
 
                           return (
@@ -1185,16 +1222,16 @@ export default function PayrollNetBoard() {
                               <td className="p-2 border-r border-b border-slate-200 text-right text-purple-700">{formatNumberWithDot(p.incomes?.miniShowMoney)}</td>
                               <td className="p-2 border-r border-b border-slate-200 text-right text-purple-700">{formatNumberWithDot(p.incomes?.bigShowMoney)}</td>
                               <td className="p-2 border-r border-b border-slate-200 text-right text-purple-800">{formatNumberWithDot(p.incomes?.kpiBonus)}</td>
-                              <td className="p-2 border-r border-b border-slate-200 text-right text-teal-700">{formatNumberWithDot(allw.meal)}</td>
-                              <td className="p-2 border-r border-b border-slate-200 text-right text-teal-700">{formatNumberWithDot(allw.transport)}</td>
-                              <td className="p-2 border-r border-b border-slate-200 text-right text-teal-700">{formatNumberWithDot(allw.phone)}</td>
-                              <td className="p-2 border-r border-b border-slate-200 text-right text-teal-700">{formatNumberWithDot(allw.clothing)}</td>
-                              <td className="p-2 border-r border-b border-slate-200 text-right text-teal-700">{formatNumberWithDot(allw.housing)}</td>
+                              <td className="p-2 border-r border-b border-slate-200 text-right text-teal-700">{formatNumberWithDot(meal)}</td>
+                              <td className="p-2 border-r border-b border-slate-200 text-right text-teal-700">{formatNumberWithDot(transport)}</td>
+                              <td className="p-2 border-r border-b border-slate-200 text-right text-teal-700">{formatNumberWithDot(phone)}</td>
+                              <td className="p-2 border-r border-b border-slate-200 text-right text-teal-700">{formatNumberWithDot(clothing)}</td>
+                              <td className="p-2 border-r border-b border-slate-200 text-right text-teal-700">{formatNumberWithDot(housing)}</td>
                               <td className="p-2 border-r border-b border-slate-200 text-right font-bold text-teal-800 bg-teal-50/20">{formatNumberWithDot(totalAllw)}</td>
                               <td className="p-2 border-r border-b border-slate-200 text-right text-rose-600 font-medium">{formatNumberWithDot(p.incomes?.bonus)}</td>
-                              <td className="p-2 border-r border-b border-slate-200 text-right font-black text-emerald-800 bg-emerald-50/20">{formatNumberWithDot(p.incomes?.totalGross)}</td>
-                              <td className="p-2 border-r border-b border-slate-200 text-right text-slate-600">{formatNumberWithDot(ded.advance)}</td>
-                              <td className="p-2 border-r border-b border-slate-200 text-right text-amber-600" title="Thuế phát sinh gốc">{formatNumberWithDot(ded.taxTNCN)}</td>
+                              <td className="p-2 border-r border-b border-slate-200 text-right font-black text-emerald-800 bg-emerald-50/20">{formatNumberWithDot(gross)}</td>
+                              <td className="p-2 border-r border-b border-slate-200 text-right text-slate-600">{formatNumberWithDot(advance)}</td>
+                              <td className="p-2 border-r border-b border-slate-200 text-right text-amber-600" title="Thuế phát sinh gốc">{formatNumberWithDot(taxTNCN)}</td>
                               <td className="p-2 border-r border-b border-slate-200 text-right font-bold text-rose-700 bg-rose-50/20">{formatNumberWithDot(accountingDeductions)}</td>
                               <td className="p-2 border-r border-b border-slate-200 text-right font-black text-amber-900 bg-amber-50 text-xs">{formatNumberWithDot(accountingNet)}</td>
                               
@@ -1284,8 +1321,8 @@ export default function PayrollNetBoard() {
                           
                           const adjustment = editingAdjustments[p._id] !== undefined 
                             ? editingAdjustments[p._id] 
-                            : Number(p.incomes?.adjustment || 0);
-                          const finalPayment = Number(p.netSalary || 0) + adjustment;
+                            : roundNumber(p.incomes?.adjustment);
+                          const finalPayment = roundNumber(p.netSalary) + adjustment;
 
                           return (
                             <tr key={p._id} className={`${rowBg} hover:bg-emerald-50/40 transition-colors`}>
