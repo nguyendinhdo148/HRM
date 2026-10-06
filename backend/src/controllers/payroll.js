@@ -9,13 +9,22 @@ import { sendEmail, buildPayslipTemplate } from "../libs/send-email.js";
 // ===== HẰNG SỐ =====
 const DEFAULT_MEAL_ALLOWANCE = 1800000;
 const STANDARD_MEAL_DAYS = 26;
+const DEFAULT_MEAL_DAILY_RATE = DEFAULT_MEAL_ALLOWANCE / STANDARD_MEAL_DAYS;
 const DEFAULT_INSURANCE_ADVANCE = 500000;
 
 // ===== HELPERS =====
-const getMealAllowanceRate = (emp) => {
+export const getMealAllowanceRate = (emp) => {
   const userValue = Number(emp?.salaryAndBenefits?.mealRate);
-  if (Number.isFinite(userValue) && userValue > 0) return userValue;
-  return DEFAULT_MEAL_ALLOWANCE / STANDARD_MEAL_DAYS;
+  if (Number.isFinite(userValue) && userValue > 0) {
+    return userValue / STANDARD_MEAL_DAYS;
+  }
+  return DEFAULT_MEAL_DAILY_RATE;
+};
+
+const getMealAllowanceLimit = (emp) => {
+  const userValue = Number(emp?.salaryAndBenefits?.mealRate);
+  if (Number.isFinite(userValue) && userValue > 0) return Math.max(0, userValue);
+  return DEFAULT_MEAL_ALLOWANCE;
 };
 
 const calculateNetWithCompanySupport = (record, taxTNCN, advancePayment, insuranceTotal) => {
@@ -41,11 +50,16 @@ const getEmployeeRates = (emp) => {
   };
 };
 
-const calcMealAllowance = (emp, actualDays) => {
+// ⭐ BỎ Math.round — giữ nguyên số thực
+export const calcMealAllowance = (emp, actualDays) => {
   const days = Number(actualDays) || 0;
   if (days <= 0) return 0;
+
   const mealRate = getMealAllowanceRate(emp);
-  return Math.round(days * mealRate);
+  const mealLimit = getMealAllowanceLimit(emp);
+  const rawAllowance = days * mealRate;
+
+  return Math.min(rawAllowance, mealLimit);
 };
 
 const calcTrainingAllowance = (emp, bigshowCount) => {
@@ -65,6 +79,7 @@ const calcTrainingAllowance = (emp, bigshowCount) => {
   return 0;
 };
 
+// ⭐ Cộng tất cả giá trị RAW, chỉ round ở totalGross cuối cùng
 const recomputeGross = (inc) => {
   const allw = inc.allowances || {};
   const totalAllw =
@@ -74,7 +89,7 @@ const recomputeGross = (inc) => {
   const insuranceAdvance = Number(inc.insuranceAdvance) || 0;
   const penalty = Number(inc.penalty) || 0;
 
-  inc.totalGross = Math.max(0,
+  inc.totalGross = Math.max(0, Math.round(
     (inc.timeSalary || 0) +
     (inc.overtime || 0) +
     (inc.miniShowMoney || 0) +
@@ -84,7 +99,7 @@ const recomputeGross = (inc) => {
     totalAllw -
     insuranceAdvance -
     penalty
-  );
+  ));
   return totalAllw;
 };
 
@@ -130,7 +145,6 @@ const calcActualDaysFromRow = (row) => {
   const computed = fullDays + halfDays * 0.5;
   const manual = Number(row.summary?.totalPaidDays);
 
-  // Nếu manual > 0 và khác computed → dùng manual (user đã override)
   if (Number.isFinite(manual) && manual > 0 && Math.abs(manual - computed) > 0.01) {
     return manual;
   }
@@ -207,7 +221,6 @@ export const getPayrollByMonth = async (req, res) => {
   try {
     const { month, year } = req.query;
 
-    // ✅ Tìm tất cả report gắn với tháng lương này
     const reports = await AttendanceReport.find({
       payrollMonth: Number(month),
       payrollYear: Number(year),
@@ -309,7 +322,6 @@ export const initializePayroll = async (req, res) => {
     const { month, year, standardDays } = req.body;
     const stdDays = Number(standardDays) || 26;
 
-    // ✅ Tìm TẤT CẢ report cho tháng lương này
     const reports = await AttendanceReport.find({
       payrollMonth: Number(month),
       payrollYear: Number(year),
@@ -324,7 +336,6 @@ export const initializePayroll = async (req, res) => {
 
     console.log(`🔄 Gom ${reports.length} report cho lương ${month}/${year}:`, reports.map(r => r.name).join(", "));
 
-    // ✅ Tập hợp tất cả rows từ reports
     const allRows = [];
     for (const report of reports) {
       if (!report.rows) continue;
@@ -335,14 +346,12 @@ export const initializePayroll = async (req, res) => {
 
     console.log(`✅ Có ${allRows.length} rows từ reports`);
 
-    // ✅ Map row theo employeeId
     const attendanceMap = new Map();
     allRows.forEach((row) => {
       const empId = row.employee?.toString();
       if (empId) attendanceMap.set(empId, row);
     });
 
-    // ✅ CHỈ lấy employee có trong report (KHÔNG lấy all active)
     const employeeIds = [...attendanceMap.keys()];
     const employeesInReports = await Employee.find({
       _id: { $in: employeeIds },
@@ -350,14 +359,12 @@ export const initializePayroll = async (req, res) => {
 
     console.log(`✅ Tìm thấy ${employeesInReports.length} employee documents`);
 
-    // ✅ Lấy map employee theo id
     const employeeMap = new Map();
     employeesInReports.forEach((emp) => employeeMap.set(emp._id.toString(), emp));
 
-    // ✅ Đảm bảo thứ tự: lặp theo attendanceMap (những người có row)
     const employeesOrdered = employeeIds
       .map((id) => employeeMap.get(id))
-      .filter(Boolean); // bỏ những employee không tồn tại
+      .filter(Boolean);
 
     const previousRecords = await PayrollRecord.find({ month, year }).select("employee incomes.adjustment");
     const previousAdjustmentsByEmployee = new Map(
@@ -372,7 +379,6 @@ export const initializePayroll = async (req, res) => {
       TaxRecord.find({ month, year }),
     ]);
 
-    // ✅ Lặp qua employeesOrdered (chỉ người trong report)
     const payrollDocs = employeesOrdered.map((emp) => {
       const empIdStr = emp._id.toString();
       const row = attendanceMap.get(empIdStr);
@@ -386,14 +392,17 @@ export const initializePayroll = async (req, res) => {
       const actualDays = calcActualDaysFromRow(row);
       const stats = calcStatsFromRow(row);
 
-      let timeSalary = actualDays >= stdDays
+      // ⭐ BỎ Math.round — giữ số thực
+      const timeSalary = actualDays >= stdDays
         ? baseSalary
-        : Math.round((baseSalary / stdDays) * actualDays);
+        : (baseSalary / stdDays) * actualDays;
 
       const miniShowMoney = stats.totalMinishow * rates.minishow;
       const bigShowMoney = stats.totalBigshow * rates.bigshow;
       const responsibilityBonus = emp.salaryAndBenefits?.bonuses?.responsibility || 0;
-      const kpiBonus = Math.round((responsibilityBonus / 26) * (((stats.totalMinishow / 5) + stats.totalBigshow) / 2));
+
+      // ⭐ BỎ Math.round — giữ số thực
+      const kpiBonus = (responsibilityBonus / 26) * (((stats.totalMinishow / 5) + stats.totalBigshow) / 2);
 
       const housingAllowance = actualDays > 0 ? getHousingAllowance(emp) : 0;
       const meal = calcMealAllowance(emp, actualDays);
@@ -412,6 +421,7 @@ export const initializePayroll = async (req, res) => {
           fullName: emp.fullName,
           position: emp.workInfo?.position,
           department: emp.workInfo?.department,
+          salaryAndBenefits: emp.salaryAndBenefits,
         },
         baseSalary,
         standardDays: stdDays,
@@ -470,6 +480,7 @@ export const initializePayroll = async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 };
+
 // ==========================================
 // API: CẬP NHẬT 1 BẢN GHI LƯƠNG
 // ==========================================
@@ -485,7 +496,6 @@ export const updatePayrollRecord = async (req, res) => {
     if (insuranceAdvance !== undefined) record.incomes.insuranceAdvance = Number(insuranceAdvance);
     if (penalty !== undefined) record.incomes.penalty = Number(penalty);
 
-    // ✅ Tìm row từ reports
     const row = await findRowForEmployee(record.employee._id, record.month, record.year);
 
     const actualDays = calcActualDaysFromRow(row);
@@ -640,6 +650,7 @@ export const updatePayrollAdjustment = async (req, res) => {
     res.status(500).json({ message: "Lỗi cập nhật điều chỉnh", error: error.message });
   }
 };
+
 // ==========================================
 // API: SYNC 1 BẢN GHI LƯƠNG — Cập nhật lại số liệu chấm công cho 1 nhân sự
 // ==========================================
@@ -647,7 +658,6 @@ export const syncPayrollRow = async (req, res) => {
   try {
     const { recordId } = req.params;
 
-    // 1. Tìm record
     const record = await PayrollRecord.findById(recordId)
       .populate({ path: "employee", select: "email status salaryAndBenefits workInfo fullName employeeCode" });
 
@@ -661,10 +671,8 @@ export const syncPayrollRow = async (req, res) => {
     const emp = record.employee;
     const empIdStr = emp._id.toString();
 
-    // 2. Lấy row từ AttendanceReport
     const row = await findRowForEmployee(emp._id, record.month, record.year);
 
-    // 3. Lấy tax / insurance / overtime (giống init)
     const [overtimes, insurances, taxes] = await Promise.all([
       OvertimePayRecord.find({ month: record.month, year: record.year }),
       InsuranceRecord.find({ month: record.month, year: record.year }),
@@ -675,7 +683,6 @@ export const syncPayrollRow = async (req, res) => {
     const ins = insurances.find((i) => i.employee?.toString() === empIdStr);
     const tax = taxes.find((t) => t.employee?.toString() === empIdStr);
 
-    // 4. Tính lại các field TỰ ĐỘNG
     const rates = getEmployeeRates(emp);
     const baseSalary = emp.salaryAndBenefits?.baseSalary || 0;
     const stdDays = record.standardDays || 26;
@@ -683,14 +690,17 @@ export const syncPayrollRow = async (req, res) => {
     const actualDays = calcActualDaysFromRow(row);
     const stats = calcStatsFromRow(row);
 
+    // ⭐ BỎ Math.round — giữ số thực
     const timeSalary = actualDays >= stdDays
       ? baseSalary
-      : Math.round((baseSalary / stdDays) * actualDays);
+      : (baseSalary / stdDays) * actualDays;
 
     const miniShowMoney = stats.totalMinishow * rates.minishow;
     const bigShowMoney = stats.totalBigshow * rates.bigshow;
     const responsibilityBonus = emp.salaryAndBenefits?.bonuses?.responsibility || 0;
-    const kpiBonus = Math.round((responsibilityBonus / 26) * (((stats.totalMinishow / 5) + stats.totalBigshow) / 2));
+
+    // ⭐ BỎ Math.round — giữ số thực
+    const kpiBonus = (responsibilityBonus / 26) * (((stats.totalMinishow / 5) + stats.totalBigshow) / 2);
 
     const housingAllowance = actualDays > 0 ? getHousingAllowance(emp) : 0;
     const meal = calcMealAllowance(emp, actualDays);
@@ -712,14 +722,11 @@ export const syncPayrollRow = async (req, res) => {
     record.incomes.bigShowMoney = bigShowMoney;
     record.incomes.kpiBonus = kpiBonus;
 
-    // ✅ Phụ cấp — CHỈ ghi đè meal, housingAllowance, trainingAllowance
-    // Giữ nguyên: transport, housing, phone, clothing (nếu user đã nhập)
     if (!record.incomes.allowances) record.incomes.allowances = {};
     record.incomes.allowances.meal = meal;
     record.incomes.allowances.housingAllowance = housingAllowance;
     record.incomes.allowances.trainingAllowance = trainingAllowance;
 
-    // ✅ Deductions từ hệ thống
     if (!record.deductions) record.deductions = {};
     if (!record.deductions.insurance) record.deductions.insurance = {};
     record.deductions.advance = advancePayment;
@@ -732,7 +739,6 @@ export const syncPayrollRow = async (req, res) => {
 
     // ❌ KHÔNG ĐỤNG: incomes.bonus, incomes.insuranceAdvance, incomes.penalty, incomes.adjustment
 
-    // 6. Cập nhật snapshot (thêm salaryAndBenefits để FE fallback)
     record.employeeSnapshot = {
       employeeCode: emp.employeeCode,
       fullName: emp.fullName,
@@ -741,13 +747,11 @@ export const syncPayrollRow = async (req, res) => {
       salaryAndBenefits: emp.salaryAndBenefits,
     };
 
-    // 7. Tính lại totalGross + netSalary
     recomputeGross(record.incomes);
     calculateNetWithCompanySupport(record, taxTNCN, advancePayment, insTotal);
 
     await record.save();
 
-    // Populate lại để trả về FE
     const freshRecord = await PayrollRecord.findById(record._id)
       .populate({ path: "employee", select: "email status salaryAndBenefits" });
 

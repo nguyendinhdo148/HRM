@@ -23,36 +23,56 @@ const getAuthHeaders = () => ({
 
 const formatCurrency = (val: number) => new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(val || 0);
 
-// ⭐ Format số nguyên có dấu chấm phân cách (đã làm tròn)
+// ⭐ Format số nguyên có dấu chấm phân cách (đã làm tròn) — dùng cho TIỀN VND
 const formatNumberWithDot = (val: string | number) => {
   if (val === undefined || val === null || val === "") return "0";
-  // Làm tròn về số nguyên trước khi format
   const rounded = Math.round(Number(val)) || 0;
   return rounded.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+};
+
+// ⭐ Format số THỰC — KHÔNG làm tròn, giữ nguyên phần thập phân
+// Dùng cho Mini Show / Big Show / Tiền ăn ca / Nhà ở / Ca tập
+const formatNumberRaw = (val: string | number) => {
+  if (val === undefined || val === null || val === "") return "0";
+  const num = Number(val);
+  if (isNaN(num)) return "0";
+  return num.toLocaleString("vi-VN", {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 10,
+  });
 };
 
 // ⭐ Làm tròn số (dùng cho tính toán)
 const roundNumber = (val: any) => Math.round(Number(val) || 0);
 
 // ===== HELPER: Lấy giá trị Ca tập theo chế độ của nhân viên =====
-// ⭐ Luôn trả về số nguyên (đã làm tròn)
-const getTrainingAllowance = (p: any) => {
+// ⭐ Trả về số THỰC (không làm tròn) — dùng cho TÍNH TOÁN và HIỂN THỊ
+const getRawTrainingAllowance = (p: any) => {
   const incomeAllw = p?.incomes?.allowances || {};
   const sb = p?.employee?.salaryAndBenefits || p?.employeeSnapshot?.salaryAndBenefits || {};
   const type = sb.trainingAllowanceType || "NONE";
 
   if (type === "FIXED") {
-    return roundNumber(incomeAllw.trainingAllowance ?? sb.trainingAllowanceFixed ?? sb.trainingAllowance ?? 0);
+    return Number(incomeAllw.trainingAllowance ?? sb.trainingAllowanceFixed ?? sb.trainingAllowance ?? 0);
   }
 
   if (type === "PER_SESSION") {
     const rate = Number(sb.trainingAllowanceRate || 0);
     const bigCount = Number(p?.stats?.totalBigshow ?? p?.actualBigShow ?? 0) || 0;
-    // ⭐ Làm tròn kết quả rate * bigCount
-    return roundNumber(incomeAllw.trainingAllowance ?? (rate * bigCount));
+    return Number(incomeAllw.trainingAllowance ?? (rate * bigCount));
   }
 
-  return roundNumber(incomeAllw.trainingAllowance ?? sb.trainingAllowance ?? sb.trainingAllowanceFixed ?? sb.trainingAllowanceRate ?? 0);
+  return Number(incomeAllw.trainingAllowance ?? sb.trainingAllowance ?? sb.trainingAllowanceFixed ?? sb.trainingAllowanceRate ?? 0);
+};
+
+// ===== HELPER: Lấy Tiền ăn ca (raw — không round) =====
+const getRawMealAllowance = (p: any) => {
+  return Number(p?.incomes?.allowances?.meal || 0);
+};
+
+// ===== HELPER: Lấy Nhà ở (raw — không round) =====
+const getRawHousingAllowance = (p: any) => {
+  return Number(p?.incomes?.allowances?.housingAllowance || 0);
 };
 
 // ===== HELPER: Lấy Tạm ứng lương =====
@@ -131,11 +151,12 @@ const TabGrossPayrollTable = ({ filteredPayrolls, editingRecords, isClosed, hand
               const edit = editingRecords[p._id] || p;
               const snap = p.employeeSnapshot;
               const allowances = p.incomes?.allowances || {};
-              // ⭐ Làm tròn các giá trị hiển thị
-              const mealDisplay = roundNumber(allowances.meal);
-              const housingDisplay = roundNumber(allowances.housingAllowance || 0);
-              const trainingDisplay = getTrainingAllowance(p);
-              const totalAllw = roundNumber(mealDisplay + housingDisplay + trainingDisplay);
+              
+              // ⭐ Tất cả đều lấy RAW (không round) để hiển thị số thực
+              const mealDisplay = getRawMealAllowance(p);
+              const housingDisplay = getRawHousingAllowance(p);
+              const trainingDisplay = getRawTrainingAllowance(p);
+              const totalAllw = mealDisplay + housingDisplay + trainingDisplay;
               
               const insuranceAdvance = roundNumber(edit?.incomes?.insuranceAdvance ?? DEFAULT_INSURANCE_ADVANCE);
               const penalty = roundNumber(edit?.incomes?.penalty ?? 0);
@@ -162,14 +183,16 @@ const TabGrossPayrollTable = ({ filteredPayrolls, editingRecords, isClosed, hand
                   <td className="p-2 border-r border-b border-slate-200 text-right font-bold text-blue-800 bg-blue-50/30">{formatNumberWithDot(p.incomes?.timeSalary)}</td>
                   <td className="p-2 border-r border-b border-slate-200 text-right font-bold text-indigo-700 bg-indigo-50/30">{formatNumberWithDot(p.incomes?.overtime)}</td>
                   
-                  <td className="p-2 border-r border-b border-slate-200 text-right font-bold text-purple-700 bg-purple-50/20">{formatNumberWithDot(p.incomes?.miniShowMoney)}</td>
-                  <td className="p-2 border-r border-b border-slate-200 text-right font-bold text-purple-700 bg-purple-50/20">{formatNumberWithDot(p.incomes?.bigShowMoney)}</td>
+                  {/* ⭐ Mini Show / Big Show: hiển thị RAW (không round) */}
+                  <td className="p-2 border-r border-b border-slate-200 text-right font-bold text-purple-700 bg-purple-50/20">{formatNumberRaw(p.incomes?.miniShowMoney)}</td>
+                  <td className="p-2 border-r border-b border-slate-200 text-right font-bold text-purple-700 bg-purple-50/20">{formatNumberRaw(p.incomes?.bigShowMoney)}</td>
                   <td className="p-2 border-r border-b border-slate-200 text-right font-bold text-purple-800 bg-purple-100/30">{formatNumberWithDot(p.incomes?.kpiBonus)}</td>
 
-                  <td className="p-2 border-r border-b border-slate-200 text-right text-emerald-600">{formatNumberWithDot(mealDisplay)}</td>
-                  <td className="p-2 border-r border-b border-slate-200 text-right text-emerald-600">{formatNumberWithDot(housingDisplay)}</td>
-                  <td className="p-2 border-r border-b border-slate-200 text-right text-indigo-600 bg-indigo-50/30">{formatNumberWithDot(trainingDisplay)}</td>
-                  <td className="p-2 border-r border-b border-slate-200 text-right font-bold text-emerald-700 bg-emerald-50/50">{formatNumberWithDot(totalAllw)}</td>
+                  {/* ⭐ Tiền ăn ca / Nhà ở / Ca tập / Tổng PC: hiển thị RAW */}
+                  <td className="p-2 border-r border-b border-slate-200 text-right text-emerald-600">{formatNumberRaw(mealDisplay)}</td>
+                  <td className="p-2 border-r border-b border-slate-200 text-right text-emerald-600">{formatNumberRaw(housingDisplay)}</td>
+                  <td className="p-2 border-r border-b border-slate-200 text-right text-indigo-600 bg-indigo-50/30">{formatNumberRaw(trainingDisplay)}</td>
+                  <td className="p-2 border-r border-b border-slate-200 text-right font-bold text-emerald-700 bg-emerald-50/50">{formatNumberRaw(totalAllw)}</td>
 
                   <td className="p-1 border-r border-b border-slate-200 text-center bg-rose-50/30">
                     <NumberInput 
@@ -205,7 +228,6 @@ const TabGrossPayrollTable = ({ filteredPayrolls, editingRecords, isClosed, hand
                   {/* CỘT THAO TÁC: 2 nút — Cập nhật (sync) + Lưu */}
                   <td className={`p-1.5 sticky right-0 z-[40] ${rowBg} border-l border-b border-slate-200`}>
                     <div className="flex items-center justify-center gap-1">
-                      {/* Nút CẬP NHẬT — luôn hiện khi chưa khóa sổ */}
                       {!isClosed && (
                         <Button
                           size="sm"
@@ -219,7 +241,6 @@ const TabGrossPayrollTable = ({ filteredPayrolls, editingRecords, isClosed, hand
                         </Button>
                       )}
 
-                      {/* Nút LƯU — chỉ hiện khi có thay đổi */}
                       {hasChanges && !isClosed ? (
                         <Button 
                           size="sm" 
@@ -368,6 +389,7 @@ export default function PayrollBoard() {
   };
 
   // ===== XỬ LÝ THAY ĐỔI Ô INPUT =====
+  // ⭐ Dùng giá trị GỐC (không làm tròn) để tính totalGross, chỉ round kết quả cuối
   const handleInputChange = (recordId: string, field: "bonus" | "insuranceAdvance" | "penalty", value: string) => {
     const numValue = value.replace(/\D/g, "");
     setEditingRecords((prev) => {
@@ -377,29 +399,36 @@ export default function PayrollBoard() {
 
       const sourceRecord = payrolls.find((p) => p._id === recordId);
       const allw = currentEdit.incomes.allowances || {};
-      
-      // ⭐ Làm tròn các thành phần phụ cấp
-      const totalAllw = roundNumber(
-        (allw.meal || 0) +
-        (allw.housingAllowance || 0) +
-        getTrainingAllowance(sourceRecord || currentEdit)
-      );
-      const insuranceAdvance = roundNumber(currentEdit.incomes.insuranceAdvance) || 0;
-      const penalty = roundNumber(currentEdit.incomes.penalty) || 0;
-      const advancePayment = getAdvancePayment(sourceRecord || currentEdit);
 
-      // ⭐ Tổng Gross làm tròn về số nguyên
+      // ⭐ Lấy giá trị GỐC (không round) của tất cả thành phần
+      const rawMeal = Number(allw.meal || 0);
+      const rawHousing = Number(allw.housingAllowance || 0);
+      const rawTraining = getRawTrainingAllowance(sourceRecord || currentEdit);
+      const rawTotalAllw = rawMeal + rawHousing + rawTraining;
+
+      const rawInsuranceAdvance = Number(currentEdit.incomes.insuranceAdvance) || 0;
+      const rawPenalty = Number(currentEdit.incomes.penalty) || 0;
+      const rawAdvancePayment = Number(getAdvancePayment(sourceRecord || currentEdit)) || 0;
+
+      const rawTimeSalary = Number(currentEdit.incomes.timeSalary || 0);
+      const rawOvertime = Number(currentEdit.incomes.overtime || 0);
+      const rawBonus = Number(currentEdit.incomes.bonus || 0);
+      const rawMiniShow = Number(currentEdit.incomes.miniShowMoney || 0);
+      const rawBigShow = Number(currentEdit.incomes.bigShowMoney || 0);
+      const rawKpiBonus = Number(currentEdit.incomes.kpiBonus || 0);
+
+      // ⭐ Tổng Gross: cộng tất cả giá trị gốc, chỉ round kết quả cuối cùng
       currentEdit.incomes.totalGross = Math.max(0, roundNumber(
-        (currentEdit.incomes.timeSalary || 0) +
-        totalAllw +
-        (currentEdit.incomes.overtime || 0) +
-        (currentEdit.incomes.bonus || 0) +
-        (currentEdit.incomes.miniShowMoney || 0) +
-        (currentEdit.incomes.bigShowMoney || 0) +
-        (currentEdit.incomes.kpiBonus || 0) -
-        insuranceAdvance -
-        penalty -
-        advancePayment
+        rawTimeSalary +
+        rawTotalAllw +
+        rawOvertime +
+        rawBonus +
+        rawMiniShow +
+        rawBigShow +
+        rawKpiBonus -
+        rawInsuranceAdvance -
+        rawPenalty -
+        rawAdvancePayment
       ));
 
       return { ...prev, [recordId]: currentEdit };
@@ -522,11 +551,13 @@ export default function PayrollBoard() {
 
     const exportData = filteredPayrolls.map((p, index) => {
       const snap = p.employeeSnapshot || {};
-      const allowances = p.incomes?.allowances || {};
-      const mealDisplay = roundNumber(allowances.meal);
-      const housingDisplay = roundNumber(allowances.housingAllowance || 0);
-      const trainingDisplay = getTrainingAllowance(p);
-      const totalAllw = roundNumber(mealDisplay + housingDisplay + trainingDisplay);
+      
+      // ⭐ Tất cả đều RAW (không round)
+      const mealDisplay = getRawMealAllowance(p);
+      const housingDisplay = getRawHousingAllowance(p);
+      const trainingDisplay = getRawTrainingAllowance(p);
+      const totalAllw = mealDisplay + housingDisplay + trainingDisplay;
+      
       const insuranceAdvance = roundNumber(p.incomes?.insuranceAdvance ?? DEFAULT_INSURANCE_ADVANCE);
       const penalty = roundNumber(p.incomes?.penalty ?? 0);
       const advancePayment = getAdvancePayment(p);
@@ -542,13 +573,13 @@ export default function PayrollBoard() {
         "Ngày công": p.actualDays || 0,
         "Lương Thời Gian": formatNumberWithDot(p.incomes?.timeSalary || 0),
         "Làm Thêm Giờ": formatNumberWithDot(p.incomes?.overtime || 0),
-        "Mini Show": formatNumberWithDot(p.incomes?.miniShowMoney || 0),
-        "Big Show": formatNumberWithDot(p.incomes?.bigShowMoney || 0),
+        "Mini Show": formatNumberRaw(p.incomes?.miniShowMoney || 0),
+        "Big Show": formatNumberRaw(p.incomes?.bigShowMoney || 0),
         "Thưởng N.Công": formatNumberWithDot(p.incomes?.kpiBonus || 0),
-        "Tiền ăn ca": formatNumberWithDot(mealDisplay),
-        "Nhà ở": formatNumberWithDot(housingDisplay),
-        "Ca tập": formatNumberWithDot(trainingDisplay),
-        "Tổng Phụ Cấp": formatNumberWithDot(totalAllw),
+        "Tiền ăn ca": formatNumberRaw(mealDisplay),
+        "Nhà ở": formatNumberRaw(housingDisplay),
+        "Ca tập": formatNumberRaw(trainingDisplay),
+        "Tổng Phụ Cấp": formatNumberRaw(totalAllw),
         "Thưởng Mới": formatNumberWithDot(p.incomes?.bonus || 0),
         "Tạm ứng BHXH": formatNumberWithDot(insuranceAdvance),
         "Phạt": formatNumberWithDot(penalty),

@@ -201,8 +201,8 @@ const TabTaxSummary = ({ reportData, isReportingFetching, filterProps }: any) =>
       "Mini Show", "Big Show", "Thưởng N.Công", 
       "Tiền Ăn Ca", "Xăng Xe", "Điện Thoại", "Trang Phục", "Nhà Ở", 
       "Thưởng Mới", "TỔNG GROSS", 
-      "Tạm Ứng", "Thuế TNCN (100% Gốc)", "Tổng Khấu Trừ", "THỰC LĨNH",
-      "ĐIỀU CHỈNH CP KHÁC", "TỔNG THANH TOÁN CK"
+      "Tạm Ứng", "Thuế TNCN (100% Gốc)", "Tổng Khấu Trừ", "CÒN LẠI",
+      "ĐIỀU CHỈNH CP KHÁC", "TỔNG THANH TOÁN"
     ];
     
     const dataRows = reportData.map((d: any, i: number) => [
@@ -291,7 +291,7 @@ const TabTaxSummary = ({ reportData, isReportingFetching, filterProps }: any) =>
 
       <Card className="border-none shadow-sm rounded-2xl overflow-hidden bg-white flex-1 min-h-0 flex flex-col">
         <div className="w-full h-full overflow-auto custom-scrollbar relative">
-          <table className="w-full text-[11px] border-collapse min-w-[2450px]">
+          <table className="w-full text-[11px] border-collapse min-w-[2600px]">
             <thead className="bg-[#003366] text-white">
               <tr className="h-[40px]">
                 <th rowSpan={2} className="p-2 sticky left-0 top-0 bg-[#003366] z-[60] border-r border-b border-slate-600 text-center w-[45px]">STT</th>
@@ -303,9 +303,9 @@ const TabTaxSummary = ({ reportData, isReportingFetching, filterProps }: any) =>
                 <th colSpan={6} className="p-2 border-r border-b border-slate-600 bg-[#0f766e] text-center sticky top-0 z-[50]">Các Khoản Phụ Cấp & Thưởng</th>
                 <th rowSpan={2} className="p-2 bg-[#064e3b] text-emerald-300 font-black text-xs w-[110px] text-center sticky top-0 z-[50] border-r border-b border-slate-600">TỔNG GROSS</th>
                 <th colSpan={3} className="p-2 border-r border-b border-slate-600 bg-slate-800 text-center sticky top-0 z-[50]">Các Khoản Khấu Trừ Gốc</th>
-                <th rowSpan={2} className="p-2 bg-amber-700 text-white font-black text-sm w-[130px] text-right sticky top-0 z-[50] border-r border-b border-amber-800">THỰC LĨNH</th>
+                <th rowSpan={2} className="p-2 bg-amber-700 text-white font-black text-sm w-[130px] text-right sticky top-0 z-[50] border-r border-b border-amber-800">CÒN LẠI</th>
                 <th rowSpan={2} className="p-2 bg-orange-800 text-white font-black text-xs w-[140px] text-right sticky top-0 z-[50] border-r border-b border-orange-900">ĐIỀU CHỈNH CP KHÁC</th>
-                <th rowSpan={2} className="p-2 bg-indigo-800 text-white font-black text-sm w-[150px] text-right sticky right-0 top-0 z-[60] shadow-[-4px_0_10px_rgba(0,0,0,0.3)] border-b border-indigo-900">TỔNG THANH TOÁN CK</th>
+                <th rowSpan={2} className="p-2 bg-indigo-800 text-white font-black text-sm w-[150px] text-right sticky right-0 top-0 z-[60] shadow-[-4px_0_10px_rgba(0,0,0,0.3)] border-b border-indigo-900">TỔNG THANH TOÁN</th>
               </tr>
               <tr className="h-[32px] bg-slate-800 text-[10px] text-center text-slate-300">
                 <th className="p-1 border-r border-b border-slate-600 text-white sticky top-[40px] bg-slate-800 z-[50] w-[60px]">N.Công</th>
@@ -445,9 +445,9 @@ const TabEmployeeSummary = ({ reportData, isReportingFetching, filterProps }: an
       { v: "STT", s: headerStyle }, { v: "Mã NV", s: headerStyle }, { v: "Họ và tên", s: headerStyle }, { v: "Bộ phận", s: headerStyle },
       { v: "Tổng Thu Nhập (Gross)", s: headerStyle }, { v: "Tạm Ứng", s: headerStyle }, 
       { v: "Thuế TNCN", s: headerStyle },
-      { v: "THỰC NHẬN CHUYỂN KHOẢN", s: headerStyle },
+      { v: "CÒN LẠI", s: headerStyle },
       { v: "ĐIỀU CHỈNH CP KHÁC", s: headerStyle },
-      { v: "TỔNG THANH TOÁN CK", s: headerStyle }
+      { v: "TỔNG THANH TOÁN", s: headerStyle }
     ]);
 
     reportData.forEach((d: any, index: number) => {
@@ -510,7 +510,7 @@ const TabEmployeeSummary = ({ reportData, isReportingFetching, filterProps }: an
 
       <Card className="flex-1 overflow-hidden border-none rounded-2xl bg-white shadow-sm flex flex-col min-h-0">
         <div className="overflow-auto h-full custom-scrollbar relative">
-          <table className="w-full text-xs border-collapse min-w-[1250px] bg-white">
+          <table className="w-full text-xs border-collapse min-w-[1350px] bg-white">
             <thead className="bg-[#1e293b] text-white sticky top-0 z-30">
               <tr className="h-[44px]">
                 <th className="p-3 text-center w-[60px] border-b border-slate-700">STT</th>
@@ -520,9 +520,9 @@ const TabEmployeeSummary = ({ reportData, isReportingFetching, filterProps }: an
                 <th className="p-3 text-right text-emerald-300 w-[160px] border-b border-slate-700">Tổng Thu Nhập</th>
                 <th className="p-3 text-right text-rose-300 w-[130px] border-b border-slate-700">Tạm Ứng</th>
                 <th className="p-3 text-right text-rose-300 w-[130px] border-b border-slate-700">Thuế TNCN</th>
-                <th className="p-3 text-right text-amber-300 w-[150px] bg-slate-900 font-bold border-b border-slate-950">Thực Nhận</th>
+                <th className="p-3 text-right text-amber-300 w-[150px] bg-slate-900 font-bold border-b border-slate-950">CÒN LẠI</th>
                 <th className="p-3 text-right text-orange-300 w-[150px] border-b border-slate-700">Điều Chỉnh CP Khác</th>
-                <th className="p-3 text-right text-indigo-300 w-[160px] bg-indigo-900 font-bold border-b border-indigo-950">Tổng Thanh Toán CK</th>
+                <th className="p-3 text-right text-indigo-300 w-[160px] bg-indigo-900 font-bold border-b border-indigo-950">Tổng Thanh Toán</th>
               </tr>
             </thead>
             <tbody>
@@ -737,7 +737,7 @@ export default function PayrollNetBoard() {
         // Tổng khấu trừ gốc = Tạm ứng + Thuế
         d.accountingDeductions = d.advance + d.taxTNCN;
         d.accountingNet = d.totalGross - d.accountingDeductions;
-        // Tổng thanh toán CK = Thực lĩnh + Điều chỉnh CP khác
+        // Tổng thanh toán = CÒN LẠI + Điều chỉnh CP khác
         d.finalPayment = d.accountingNet + d.adjustment;
         return d;
       });
@@ -875,9 +875,9 @@ export default function PayrollNetBoard() {
       { v: "Các Khoản Phụ Cấp", s: headerMainStyle }, { v: "", s: headerMainStyle }, { v: "", s: headerMainStyle }, { v: "", s: headerMainStyle }, { v: "", s: headerMainStyle }, { v: "", s: headerMainStyle },
       { v: "Thưởng Mới", s: headerMainStyle }, { v: "TỔNG GROSS", s: headerMainStyle },
       { v: "Các Khoản Trích Trừ Vào Lương (Sổ Sách Gốc)", s: headerMainStyle }, { v: "", s: headerMainStyle }, { v: "", s: headerMainStyle },
-      { v: "THỰC LĨNH", s: headerMainStyle },
+      { v: "CÒN LẠI", s: headerMainStyle },
       { v: "ĐIỀU CHỈNH CP KHÁC", s: headerMainStyle },
-      { v: "TỔNG THANH TOÁN CK", s: headerMainStyle }
+      { v: "TỔNG THANH TOÁN", s: headerMainStyle }
     ]);
 
     wsData.push([
@@ -1000,9 +1000,9 @@ export default function PayrollNetBoard() {
       { v: "STT", s: headerStyle }, { v: "Mã NV", s: headerStyle }, { v: "Họ và tên", s: headerStyle }, { v: "Bộ phận", s: headerStyle },
       { v: "Tổng Thu Nhập (Gross)", s: headerStyle }, { v: "Tạm Ứng", s: headerStyle }, 
       { v: "Thuế TNCN (Công ty hỗ trợ)", s: headerStyle },
-      { v: "THỰC NHẬN CHUYỂN KHOẢN", s: headerStyle },
+      { v: "CÒN LẠI", s: headerStyle },
       { v: "ĐIỀU CHỈNH CP KHÁC", s: headerStyle },
-      { v: "TỔNG THANH TOÁN CK", s: headerStyle }
+      { v: "TỔNG THANH TOÁN", s: headerStyle }
     ]);
 
     filteredPayrolls.forEach((p, index) => {
@@ -1105,7 +1105,7 @@ export default function PayrollNetBoard() {
                   <h1 className="text-2xl font-black text-[#0f172a] flex items-center gap-3">
                     <HandCoins className="w-6 h-6 text-amber-600" /> Bảng Đối Soát
                   </h1>
-                  <p className="text-xs text-slate-400 mt-0.5">Bảng Đối Soát gốc (không trừ BHXH), có cột Điều chỉnh CP khác và Tổng thanh toán CK.</p>
+                  <p className="text-xs text-slate-400 mt-0.5">Bảng Đối Soát gốc (không trừ BHXH), có cột Điều chỉnh CP khác và Tổng thanh toán.</p>
                 </div>
                 
                 <TabsList className="bg-white border p-1 rounded-xl shadow-sm flex flex-wrap shrink-0">
@@ -1139,7 +1139,7 @@ export default function PayrollNetBoard() {
                 </div>
                 <Card className="flex-1 overflow-hidden border border-slate-200 rounded-2xl bg-white shadow-sm">
                   <div className="overflow-auto h-full custom-scrollbar relative">
-                    <table className="w-full text-[11px] border-collapse min-w-[2500px] bg-white">
+                    <table className="w-full text-[11px] border-collapse min-w-[2650px] bg-white">
                       <thead className="bg-[#003366] text-white sticky top-0 z-30">
                         <tr className="h-[44px]">
                           <th rowSpan={2} className="p-2 border-r border-b border-slate-700 text-center sticky left-0 bg-[#003366] z-40 w-[45px]">STT</th>
@@ -1155,9 +1155,9 @@ export default function PayrollNetBoard() {
                           <th rowSpan={2} className="p-2 border-r border-b border-slate-700 bg-rose-950 text-right w-[90px]">Thưởng Mới</th>
                           <th rowSpan={2} className="p-2 border-r border-b border-slate-700 bg-emerald-900 text-emerald-300 font-bold text-right w-[110px]">TỔNG GROSS</th>
                           <th colSpan={3} className="p-2 border-r border-b border-slate-700 bg-slate-800 text-center">Các Khoản Khấu Trừ Gốc</th>
-                          <th rowSpan={2} className="p-2 bg-amber-700 text-white font-black text-right w-[120px] border-b border-amber-800">THỰC LĨNH</th>
+                          <th rowSpan={2} className="p-2 bg-amber-700 text-white font-black text-right w-[120px] border-b border-amber-800">CÒN LẠI</th>
                           <th rowSpan={2} className="p-2 bg-orange-800 text-white font-black text-right w-[140px] border-b border-orange-900">ĐIỀU CHỈNH CP KHÁC</th>
-                          <th rowSpan={2} className="p-2 bg-indigo-800 text-white font-black text-right w-[150px] sticky right-0 z-20 shadow-[-2px_0_5px_rgba(0,0,0,0.1)] border-b border-indigo-900">TỔNG THANH TOÁN CK</th>
+                          <th rowSpan={2} className="p-2 bg-indigo-800 text-white font-black text-right w-[150px] sticky right-0 z-20 shadow-[-2px_0_5px_rgba(0,0,0,0.1)] border-b border-indigo-900">TỔNG THANH TOÁN</th>
                         </tr>
                         <tr className="h-[32px] bg-slate-800 text-[10px] text-slate-300">
                           <th className="p-1 border-r border-b border-slate-700 text-center w-[50px]">Công</th>
@@ -1203,7 +1203,13 @@ export default function PayrollNetBoard() {
                           const adjustment = editingAdjustments[p._id] !== undefined 
                             ? editingAdjustments[p._id] 
                             : roundNumber(p.incomes?.adjustment);
-                          const finalPayment = accountingNet + adjustment;
+                          
+                          // ⭐ CÒN LẠI = Gross - Tạm ứng - Thuế
+                          const conLai = accountingNet;
+                          
+                          // ⭐ TỔNG THANH TOÁN = Gross - Tạm ứng (KHÔNG trừ Thuế) + Điều chỉnh
+                          const tongThanhToan = (gross - advance) + adjustment;
+                          
                           const isAdjustmentDirty = editingAdjustments[p._id] !== undefined 
                             && editingAdjustments[p._id] !== roundNumber(p.incomes?.adjustment);
                           const isSaving = savingIds[p._id];
@@ -1233,7 +1239,7 @@ export default function PayrollNetBoard() {
                               <td className="p-2 border-r border-b border-slate-200 text-right text-slate-600">{formatNumberWithDot(advance)}</td>
                               <td className="p-2 border-r border-b border-slate-200 text-right text-amber-600" title="Thuế phát sinh gốc">{formatNumberWithDot(taxTNCN)}</td>
                               <td className="p-2 border-r border-b border-slate-200 text-right font-bold text-rose-700 bg-rose-50/20">{formatNumberWithDot(accountingDeductions)}</td>
-                              <td className="p-2 border-r border-b border-slate-200 text-right font-black text-amber-900 bg-amber-50 text-xs">{formatNumberWithDot(accountingNet)}</td>
+                              <td className="p-2 border-r border-b border-slate-200 text-right font-black text-amber-900 bg-amber-50 text-xs">{formatNumberWithDot(conLai)}</td>
                               
                               {/* CỘT ĐIỀU CHỈNH CP KHÁC — INPUT NHẬP TAY */}
                               <td className="p-1 border-r border-b border-slate-200 text-center bg-orange-50/50">
@@ -1263,7 +1269,7 @@ export default function PayrollNetBoard() {
                               </td>
                               
                               <td className="p-2 text-right font-black text-indigo-900 bg-indigo-50 text-xs sticky right-0 z-10 shadow-[-2px_0_4px_rgba(0,0,0,0.04)] border-b border-indigo-200">
-                                {formatNumberWithDot(finalPayment)}
+                                {formatNumberWithDot(tongThanhToan)}
                               </td>
                             </tr>
                           );
@@ -1296,7 +1302,7 @@ export default function PayrollNetBoard() {
                 </div>
                 <Card className="flex-1 overflow-hidden border border-slate-200 rounded-2xl bg-white shadow-sm">
                   <div className="overflow-auto h-full custom-scrollbar relative">
-                    <table className="w-full text-xs border-collapse min-w-[1350px] bg-white">
+                    <table className="w-full text-xs border-collapse min-w-[1500px] bg-white">
                       <thead className="bg-[#1e293b] text-white sticky top-0 z-30">
                         <tr className="h-[44px]">
                           <th className="p-3 text-center w-[60px] border-b border-slate-700">STT</th>
@@ -1306,9 +1312,9 @@ export default function PayrollNetBoard() {
                           <th className="p-3 text-right text-emerald-300 w-[150px] border-b border-slate-700">Tổng Thu Nhập</th>
                           <th className="p-3 text-right text-rose-300 w-[120px] border-b border-slate-700">Tạm Ứng</th>
                           <th className="p-3 text-right text-rose-300 w-[120px] border-b border-slate-700">Thuế TNCN</th>
-                          <th className="p-3 text-right text-amber-300 w-[140px] bg-slate-900 font-bold border-b border-slate-950">Thực Nhận</th>
+                          <th className="p-3 text-right text-amber-300 w-[140px] bg-slate-900 font-bold border-b border-slate-950">CÒN LẠI</th>
                           <th className="p-3 text-right text-orange-300 w-[140px] border-b border-slate-700">Điều Chỉnh CP Khác</th>
-                          <th className="p-3 text-right text-indigo-300 w-[150px] bg-indigo-900 font-bold border-b border-indigo-950">Tổng Thanh Toán CK</th>
+                          <th className="p-3 text-right text-indigo-300 w-[150px] bg-indigo-900 font-bold border-b border-indigo-950">Tổng Thanh Toán</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -1322,7 +1328,10 @@ export default function PayrollNetBoard() {
                           const adjustment = editingAdjustments[p._id] !== undefined 
                             ? editingAdjustments[p._id] 
                             : roundNumber(p.incomes?.adjustment);
-                          const finalPayment = roundNumber(p.netSalary) + adjustment;
+                          
+                          const conLai = roundNumber(p.netSalary);
+                          // ⭐ TỔNG THANH TOÁN = Gross - Tạm ứng (KHÔNG trừ Thuế) + Điều chỉnh
+                          const tongThanhToan = (roundNumber(p.incomes?.totalGross) - roundNumber(ded.advance)) + adjustment;
 
                           return (
                             <tr key={p._id} className={`${rowBg} hover:bg-emerald-50/40 transition-colors`}>
@@ -1343,13 +1352,13 @@ export default function PayrollNetBoard() {
                                 )}
                               </td>
                               <td className="p-3 text-right border-b border-slate-100 font-black text-emerald-700 bg-emerald-50/30 text-sm">
-                                {formatNumberWithDot(p.netSalary)}
+                                {formatNumberWithDot(conLai)}
                               </td>
                               <td className="p-3 text-right border-b border-slate-100 font-bold text-orange-700 bg-orange-50/30">
                                 {formatNumberWithDotSigned(adjustment)}
                               </td>
                               <td className="p-3 text-right border-b border-slate-100 font-black text-indigo-700 bg-indigo-50/30 text-sm">
-                                {formatNumberWithDot(finalPayment)}
+                                {formatNumberWithDot(tongThanhToan)}
                               </td>
                             </tr>
                           );

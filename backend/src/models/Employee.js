@@ -90,7 +90,7 @@ const employeeSchema = new mongoose.Schema(
       // ===== ĐƠN GIÁ SHOW, ĂN CA & CA TẬP =====
       minishowRate: { type: Number, default: 65000, description: "Đơn giá Mini Show" },
       bigshowRate: { type: Number, default: 213462, description: "Đơn giá Big Show" },
-      mealRate: { type: Number, default: 0, description: "Tiền ăn/công = 1.800.000/26" },
+      mealRate: { type: Number, default: 0, description: "Mức tối đa tiền ăn ca/tháng, mặc định 1.800.000" },
       // ===== PHỤ CẤP CA TẬP / CÔNG =====
       // Hình thức phụ cấp: cố định hoặc theo buổi, lưu riêng để UI và payroll đồng nhất.
       trainingAllowanceType: { type: String, enum: ["NONE", "FIXED", "PER_SESSION"], default: "NONE", description: "Hình thức phụ cấp ca tập" },
