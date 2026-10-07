@@ -317,14 +317,21 @@ export const getPayrollRecordById = async (req, res, next) => {
   } catch (error) { next(error); }
 };
 
+// ==========================================
+// ✅ API: KHỞI TẠO / ĐỒNG BỘ LƯƠNG THÁNG
+// — Dùng UPSERT: giữ nguyên các field NHẬP TAY
+//   (bonus, insuranceAdvance, penalty, adjustment)
+// ==========================================
 export const initializePayroll = async (req, res) => {
   try {
     const { month, year, standardDays } = req.body;
     const stdDays = Number(standardDays) || 26;
+    const monthNum = Number(month);
+    const yearNum = Number(year);
 
     const reports = await AttendanceReport.find({
-      payrollMonth: Number(month),
-      payrollYear: Number(year),
+      payrollMonth: monthNum,
+      payrollYear: yearNum,
     });
 
     if (reports.length === 0) {
@@ -366,20 +373,21 @@ export const initializePayroll = async (req, res) => {
       .map((id) => employeeMap.get(id))
       .filter(Boolean);
 
-    const previousRecords = await PayrollRecord.find({ month, year }).select("employee incomes.adjustment");
-    const previousAdjustmentsByEmployee = new Map(
+    // ⭐ Lấy trước các record cũ để giữ lại field nhập tay
+    const previousRecords = await PayrollRecord.find({ month: monthNum, year: yearNum });
+    const previousByEmployee = new Map(
       previousRecords
-        .filter((r) => r.employee && r.incomes?.adjustment !== undefined)
-        .map((r) => [r.employee.toString(), Number(r.incomes.adjustment) || 0])
+        .filter((r) => r.employee)
+        .map((r) => [r.employee.toString(), r])
     );
 
     const [overtimes, insurances, taxes] = await Promise.all([
-      OvertimePayRecord.find({ month, year }),
-      InsuranceRecord.find({ month, year }),
-      TaxRecord.find({ month, year }),
+      OvertimePayRecord.find({ month: monthNum, year: yearNum }),
+      InsuranceRecord.find({ month: monthNum, year: yearNum }),
+      TaxRecord.find({ month: monthNum, year: yearNum }),
     ]);
 
-    const payrollDocs = employeesOrdered.map((emp) => {
+    const ops = employeesOrdered.map(async (emp) => {
       const empIdStr = emp._id.toString();
       const row = attendanceMap.get(empIdStr);
       const ot = overtimes.find((o) => o.employee?.toString() === empIdStr);
@@ -408,13 +416,64 @@ export const initializePayroll = async (req, res) => {
       const meal = calcMealAllowance(emp, actualDays);
       const trainingAllowance = calcTrainingAllowance(emp, stats.totalBigshow);
 
-      const previousAdjustment = previousAdjustmentsByEmployee.get(emp._id.toString()) || 0;
       const taxTNCN = tax?.taxAmount || 0;
       const insTotal = ins?.employeePays?.total || 0;
       const advancePayment = row?.advancePayment || 0;
 
-      const recordDoc = {
-        month, year,
+      // ⭐ Lấy record cũ (nếu có) để giữ các field nhập tay
+      const oldRecord = previousByEmployee.get(empIdStr);
+
+      // ⭐ Giá trị nhập tay: ưu tiên record cũ, nếu chưa có thì dùng default
+      const manualBonus = oldRecord?.incomes?.bonus ?? 0;
+      const manualInsuranceAdvance = oldRecord?.incomes?.insuranceAdvance ?? DEFAULT_INSURANCE_ADVANCE;
+      const manualPenalty = oldRecord?.incomes?.penalty ?? 0;
+      const manualAdjustment = oldRecord?.incomes?.adjustment ?? 0;
+
+      // ⭐ Khởi tạo incomes với các giá trị tính toán
+      const incomes = {
+        timeSalary,
+        overtime: ot?.amounts?.totalMoney || 0,
+        miniShowMoney,
+        bigShowMoney,
+        kpiBonus,
+        insuranceAdvance: manualInsuranceAdvance,
+        penalty: manualPenalty,
+        adjustment: manualAdjustment,
+        allowances: {
+          // Giữ lại các allowance cũ không tính toán (transport, housing, phone, clothing)
+          transport: oldRecord?.incomes?.allowances?.transport || 0,
+          housing: oldRecord?.incomes?.allowances?.housing || 0,
+          phone: oldRecord?.incomes?.allowances?.phone || 0,
+          clothing: oldRecord?.incomes?.allowances?.clothing || 0,
+          // Các allowance tính toán
+          meal,
+          housingAllowance,
+          trainingAllowance,
+        },
+        bonus: manualBonus,
+        totalGross: 0,
+      };
+
+      const deductions = {
+        advance: advancePayment,
+        insurance: {
+          bhxh: ins?.employeePays?.bhxh || 0,
+          bhyt: ins?.employeePays?.bhyt || 0,
+          bhtn: ins?.employeePays?.bhtn || 0,
+          total: insTotal,
+        },
+        excludedFromInsurance: ins?.excludedFromInsurance || false,
+        taxTNCN: taxTNCN,
+        totalDeductions: 0,
+      };
+
+      // ⭐ Tính gross/net
+      recomputeGross(incomes);
+      const netSalary = Math.max(0, incomes.totalGross - (advancePayment + taxTNCN));
+
+      const setFields = {
+        month: monthNum,
+        year: yearNum,
         employee: emp._id,
         employeeSnapshot: {
           employeeCode: emp.employeeCode,
@@ -427,53 +486,58 @@ export const initializePayroll = async (req, res) => {
         standardDays: stdDays,
         actualDays,
         insuranceSalary: ins?.insuranceSalary || 0,
-        incomes: {
-          timeSalary,
-          overtime: ot?.amounts?.totalMoney || 0,
-          miniShowMoney,
-          bigShowMoney,
-          kpiBonus,
-          insuranceAdvance: DEFAULT_INSURANCE_ADVANCE,
-          penalty: 0,
-          adjustment: previousAdjustment,
-          allowances: {
-            meal,
-            housingAllowance,
-            trainingAllowance,
-            transport: 0,
-            housing: 0,
-            phone: 0,
-            clothing: 0,
-          },
-          bonus: 0,
-          totalGross: 0,
-        },
-        deductions: {
-          advance: advancePayment,
-          insurance: {
-            bhxh: ins?.employeePays?.bhxh || 0,
-            bhyt: ins?.employeePays?.bhyt || 0,
-            bhtn: ins?.employeePays?.bhtn || 0,
-            total: insTotal,
-          },
-          excludedFromInsurance: ins?.excludedFromInsurance || false,
-          taxTNCN: taxTNCN,
-          totalDeductions: 0,
-        },
-        netSalary: 0,
+        "incomes.timeSalary": incomes.timeSalary,
+        "incomes.overtime": incomes.overtime,
+        "incomes.miniShowMoney": incomes.miniShowMoney,
+        "incomes.bigShowMoney": incomes.bigShowMoney,
+        "incomes.kpiBonus": incomes.kpiBonus,
+        "incomes.allowances.meal": meal,
+        "incomes.allowances.housingAllowance": housingAllowance,
+        "incomes.allowances.trainingAllowance": trainingAllowance,
+        "incomes.totalGross": incomes.totalGross,
+        "deductions.advance": advancePayment,
+        "deductions.insurance.bhxh": deductions.insurance.bhxh,
+        "deductions.insurance.bhyt": deductions.insurance.bhyt,
+        "deductions.insurance.bhtn": deductions.insurance.bhtn,
+        "deductions.insurance.total": deductions.insurance.total,
+        "deductions.excludedFromInsurance": deductions.excludedFromInsurance,
+        "deductions.taxTNCN": taxTNCN,
+        "deductions.totalDeductions": advancePayment + taxTNCN,
+        netSalary,
       };
 
-      recomputeGross(recordDoc.incomes);
-      calculateNetWithCompanySupport(recordDoc, taxTNCN, advancePayment, insTotal);
-      return recordDoc;
+      // ⭐ Chỉ set các field NHẬP TAY khi INSERT MỚI (không ghi đè khi đã tồn tại)
+      const setOnInsertFields = {
+        "incomes.bonus": 0,
+        "incomes.insuranceAdvance": DEFAULT_INSURANCE_ADVANCE,
+        "incomes.penalty": 0,
+        "incomes.adjustment": 0,
+        "incomes.allowances.transport": 0,
+        "incomes.allowances.housing": 0,
+        "incomes.allowances.phone": 0,
+        "incomes.allowances.clothing": 0,
+        status: "draft",
+      };
+
+      return PayrollRecord.updateOne(
+        { employee: emp._id, month: monthNum, year: yearNum },
+        {
+          $set: setFields,
+          $setOnInsert: setOnInsertFields,
+        },
+        { upsert: true }
+      );
     });
 
-    await PayrollRecord.deleteMany({ month, year });
-    await PayrollRecord.insertMany(payrollDocs);
+    const results = await Promise.all(ops);
+    const upsertedCount = results.filter((r) => r.upsertedCount > 0).length;
+    const updatedCount = results.filter((r) => r.modifiedCount > 0 && r.upsertedCount === 0).length;
+
+    console.log(`✅ Upsert xong: ${upsertedCount} tạo mới, ${updatedCount} cập nhật`);
 
     res.status(201).json({
       success: true,
-      message: `Đã đồng bộ lương tháng ${month}/${year} cho ${employeesOrdered.length} nhân sự (từ ${reports.length} báo cáo: ${reports.map(r => r.name).join(", ")}).`,
+      message: `Đã đồng bộ lương tháng ${month}/${year} cho ${employeesOrdered.length} nhân sự (từ ${reports.length} báo cáo: ${reports.map(r => r.name).join(", ")}). Giữ nguyên Thưởng, Tạm ứng BHXH, Phạt và Điều chỉnh đã nhập.`,
     });
   } catch (error) {
     console.error("Lỗi initializePayroll:", error);
