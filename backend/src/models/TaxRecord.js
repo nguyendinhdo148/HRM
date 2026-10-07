@@ -3,6 +3,11 @@ import mongoose from "mongoose";
 // ✅ HẰNG SỐ: Tạm ứng BHXH cố định
 const FIXED_INSURANCE_ADVANCE = 500000;
 
+const normalizeInsuranceAdvance = (value) => {
+  const num = Number(value);
+  return Number.isFinite(num) && num >= 0 ? num : FIXED_INSURANCE_ADVANCE;
+};
+
 const taxRecordSchema = new mongoose.Schema(
   {
     month: { type: Number, required: true },
@@ -53,10 +58,8 @@ taxRecordSchema.pre("save", async function (next) {
     this.deductions.personal = PERSONAL_DEDUCTION;
     this.deductions.dependent = employeeDependents * DEPENDENT_DEDUCTION;
 
-    // ✅ Đảm bảo insuranceAdvance luôn có giá trị 500k (fallback nếu document cũ thiếu)
-    if (this.deductions.insuranceAdvance === undefined || this.deductions.insuranceAdvance === null) {
-      this.deductions.insuranceAdvance = FIXED_INSURANCE_ADVANCE;
-    }
+    // ✅ Đảm bảo insuranceAdvance luôn có giá trị hợp lệ, không bị reset về 500k khi document cũ hoặc dữ liệu mới không có giá trị.
+    this.deductions.insuranceAdvance = normalizeInsuranceAdvance(this.deductions.insuranceAdvance);
 
     // ===== TỔNG GIẢM TRỪ = Bản thân + NPT + BHXH + Tạm ứng BHXH + Tiền ở =====
     this.deductions.total =

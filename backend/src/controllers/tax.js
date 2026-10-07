@@ -7,6 +7,28 @@ import { InsuranceRecord } from "../models/InsuranceRecord.js";
 const COMPANY_INSURANCE_SUPPORT = 88000;
 const FIXED_INSURANCE_ADVANCE = 500000;   // ✅ THÊM
 
+export const resolveInsuranceAdvance = ({
+  existingInsuranceAdvance,
+  payrollInsuranceAdvance,
+  fallback = FIXED_INSURANCE_ADVANCE,
+}) => {
+  if (existingInsuranceAdvance !== null && existingInsuranceAdvance !== undefined && existingInsuranceAdvance !== "") {
+    const existingValue = Number(existingInsuranceAdvance);
+    if (Number.isFinite(existingValue) && existingValue >= 0) {
+      return existingValue;
+    }
+  }
+
+  if (payrollInsuranceAdvance !== null && payrollInsuranceAdvance !== undefined && payrollInsuranceAdvance !== "") {
+    const payrollValue = Number(payrollInsuranceAdvance);
+    if (Number.isFinite(payrollValue) && payrollValue >= 0) {
+      return payrollValue;
+    }
+  }
+
+  return fallback;
+};
+
 export const getTaxMonths = async (req, res) => {
   try {
     const months = await TaxRecord.aggregate([
@@ -33,22 +55,71 @@ export const getTaxByMonth = async (req, res) => {
 
 // ===== KHỞI TẠO BẢNG THUẾ =====
 // ===== KHỞI TẠO BẢNG THUẾ =====
+// ===== KHỞI TẠO BẢNG THUẾ =====
 export const initializeTaxMonth = async (req, res) => {
   try {
     const { month, year } = req.body;
 
-    const existingData = await TaxRecord.findOne({ month, year });
+    // =====================================================
+    // 1. LẤY DỮ LIỆU CŨ CỦA THÁNG NẾU ĐÃ TỒN TẠI
+    // =====================================================
+    const existingRecords = await TaxRecord.find({
+      month: Number(month),
+      year: Number(year),
+    });
 
-    if (existingData) {
-      await TaxRecord.deleteMany({ month, year });
+    // Lưu lại Tạm ứng BHXH cũ theo employee ID
+    //
+    // Ví dụ:
+    // employeeId -> 300000
+    // employeeId -> 700000
+    //
+    // Để khi tạo lại bảng không bị reset về 500.000.
+    const existingInsuranceAdvance = new Map();
+
+    existingRecords.forEach((record) => {
+      if (record.employee) {
+        existingInsuranceAdvance.set(
+          record.employee.toString(),
+          record.deductions?.insuranceAdvance ?? 500000
+        );
+      }
+    });
+
+    // =====================================================
+    // 2. XÓA DỮ LIỆU CŨ
+    // =====================================================
+    if (existingRecords.length > 0) {
+      await TaxRecord.deleteMany({
+        month: Number(month),
+        year: Number(year),
+      });
     }
 
+    // =====================================================
+    // 3. LẤY NHÂN SỰ ĐANG HOẠT ĐỘNG
+    // =====================================================
     const activeEmployees = await Employee.find({
       status: "active",
     });
 
-    const start = new Date(year, month - 1, 1);
-    const end = new Date(year, month, 0, 23, 59, 59);
+    // =====================================================
+    // 4. LẤY NHÂN SỰ ĐÃ NGHỈ TRONG THÁNG
+    // =====================================================
+    const start = new Date(
+      Number(year),
+      Number(month) - 1,
+      1
+    );
+
+    const end = new Date(
+      Number(year),
+      Number(month),
+      0,
+      23,
+      59,
+      59
+    );
 
     const resignedThisMonth = await Employee.find({
       status: "resigned",
@@ -63,51 +134,85 @@ export const initializeTaxMonth = async (req, res) => {
       ...resignedThisMonth,
     ];
 
+    // =====================================================
+    // 5. LẤY BẢNG LƯƠNG
+    // =====================================================
     const payrolls = await PayrollRecord.find({
-      month,
-      year,
+      month: Number(month),
+      year: Number(year),
     });
 
+    // =====================================================
+    // 6. LẤY BẢNG BẢO HIỂM
+    // =====================================================
     const insurances = await InsuranceRecord.find({
-      month,
-      year,
+      month: Number(month),
+      year: Number(year),
     });
 
+    // =====================================================
+    // 7. TẠO DỮ LIỆU THUẾ
+    // =====================================================
     const taxDocs = allEmployees.map((emp) => {
+      const employeeId = emp._id.toString();
+
       const payroll = payrolls.find(
         (p) =>
-          p.employee?.toString() === emp._id.toString()
+          p.employee?.toString() === employeeId
       );
 
       const insurance = insurances.find(
         (i) =>
-          i.employee?.toString() === emp._id.toString()
+          i.employee?.toString() === employeeId
       );
 
       const payrollAllowances =
         payroll?.incomes?.allowances || {};
 
-      // ===== 1. LƯƠNG GROSS =====
+      // ===================================================
+      // LƯƠNG GROSS
+      // ===================================================
       const grossFromPayroll = payroll
         ? payroll.incomes.totalGross
         : 0;
 
-      // ===== 2. BHXH NHÂN VIÊN ĐÓNG =====
+      // ===================================================
+      // BHXH NHÂN VIÊN ĐÓNG
+      // Trừ 88.000 công ty hỗ trợ
+      // ===================================================
       const employeeInsuranceTotal =
         insurance?.employeePays?.total || 0;
 
       const insuranceAfterSupport = Math.max(
         0,
-        employeeInsuranceTotal - COMPANY_INSURANCE_SUPPORT
+        employeeInsuranceTotal -
+          COMPANY_INSURANCE_SUPPORT
       );
 
-      // ===== 3. TIỀN Ở =====
+      // ===================================================
+      // TIỀN Ở
+      // ===================================================
       const housingAllowance =
         payrollAllowances.housingAllowance || 0;
 
+      // ===================================================
+      // TẠM ỨNG BHXH
+      //
+      // Nếu nhân viên đã có giá trị cũ:
+      //     giữ nguyên giá trị cũ
+      //
+      // Nếu nhân viên chưa có:
+      //     mặc định 500.000
+      // ===================================================
+      const payrollInsuranceAdvance = Number(payroll?.incomes?.insuranceAdvance);
+      const insuranceAdvance = resolveInsuranceAdvance({
+        existingInsuranceAdvance: existingInsuranceAdvance.get(employeeId),
+        payrollInsuranceAdvance,
+      });
+
       return {
-        month,
-        year,
+        month: Number(month),
+        year: Number(year),
 
         employee: emp._id,
 
@@ -118,47 +223,63 @@ export const initializeTaxMonth = async (req, res) => {
             emp.workInfo?.position || "Chưa có",
         },
 
-        // ===== THU NHẬP CHỊU THUẾ =====
+        // =================================================
+        // THU NHẬP CHỊU THUẾ
+        // =================================================
         taxableIncome: grossFromPayroll,
 
         deductions: {
+          // Giảm trừ bản thân
           personal: 15500000,
 
+          // NPT sẽ được tính lại trong pre-save
           dependent: 0,
 
           // BHXH sau khi trừ 88k công ty hỗ trợ
           insurance: insuranceAfterSupport,
 
-          // ===== MẶC ĐỊNH TẠM ỨNG BHXH = 500.000 =====
-          // Sau này người dùng có thể chỉnh sửa
-          // và giá trị mới sẽ được lưu vào DB.
-          insuranceAdvance: 500000,
+          // =================================================
+          // TẠM ỨNG BHXH
+          //
+          // Quan trọng:
+          // KHÔNG còn cố định 500.000 nữa.
+          //
+          // Nếu đã chỉnh trước đó -> giữ giá trị cũ.
+          // Nếu chưa có -> 500.000.
+          // =================================================
+          insuranceAdvance: insuranceAdvance,
 
           // Tiền ở
-          housingAllowance,
+          housingAllowance: housingAllowance,
 
-          // Model pre("save") sẽ tính lại
+          // pre-save sẽ tính lại
           total: 0,
         },
       };
     });
 
-    const createdRecords = await TaxRecord.insertMany(
-      taxDocs
-    );
+    // =====================================================
+    // 8. INSERT DỮ LIỆU MỚI
+    // =====================================================
+    const createdRecords =
+      await TaxRecord.insertMany(taxDocs);
 
-    // Chạy pre("save") để tính:
-    // - total
-    // - assessableIncome
-    // - taxAmount
+    // =====================================================
+    // 9. CHẠY PRE-SAVE ĐỂ TÍNH THUẾ
+    // =====================================================
     for (const doc of createdRecords) {
-      const record = await TaxRecord.findById(doc._id);
+      const record = await TaxRecord.findById(
+        doc._id
+      );
 
       if (record) {
         await record.save();
       }
     }
 
+    // =====================================================
+    // 10. TRẢ KẾT QUẢ
+    // =====================================================
     res.status(201).json({
       message: `Đã khởi tạo Bảng Thuế TNCN tháng ${month}/${year} cho ${allEmployees.length} nhân sự.`,
     });
@@ -192,17 +313,17 @@ export const updateTaxRecord = async (req, res) => {
       });
     }
 
-    // ===== CẬP NHẬT SỐ NGƯỜI PHỤ THUỘC =====
+    // Cập nhật số người phụ thuộc
     if (dependents !== undefined) {
       record.dependents = Number(dependents);
     }
 
-    // ===== CẬP NHẬT LƯƠNG CHỊU THUẾ =====
+    // Cập nhật thu nhập chịu thuế
     if (taxableIncome !== undefined) {
       record.taxableIncome = Number(taxableIncome);
     }
 
-    // ===== CẬP NHẬT TẠM ỨNG BHXH =====
+    // Cập nhật Tạm ứng BHXH
     if (insuranceAdvance !== undefined) {
       const value = Number(insuranceAdvance);
 
@@ -213,18 +334,16 @@ export const updateTaxRecord = async (req, res) => {
         });
       }
 
-      // Giá trị người dùng sửa sẽ được lưu vào DB
       record.deductions.insuranceAdvance = value;
     }
 
-    // ===== SAVE =====
-    // pre("save") trong TaxRecord sẽ tự động tính lại:
+    // pre("save") sẽ tính lại:
     // - deductions.total
     // - assessableIncome
     // - taxAmount
     await record.save();
 
-    res.status(200).json({
+    return res.status(200).json({
       message: "Cập nhật thành công",
       data: record,
     });
@@ -234,7 +353,7 @@ export const updateTaxRecord = async (req, res) => {
       error
     );
 
-    res.status(500).json({
+    return res.status(500).json({
       message: "Lỗi cập nhật Thuế",
     });
   }
