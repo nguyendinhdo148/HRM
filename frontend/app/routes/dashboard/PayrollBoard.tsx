@@ -544,66 +544,93 @@ export default function PayrollBoard() {
   };
 
   const handleExportExcel = () => {
-    if (!filteredPayrolls || filteredPayrolls.length === 0) {
-      alert("Không có dữ liệu để xuất!");
-      return;
-    }
+  if (!filteredPayrolls || filteredPayrolls.length === 0) {
+    alert("Không có dữ liệu để xuất!");
+    return;
+  }
 
-    const exportData = filteredPayrolls.map((p, index) => {
-      const snap = p.employeeSnapshot || {};
-      
-      // ⭐ Tất cả đều RAW (không round)
-      const mealDisplay = getRawMealAllowance(p);
-      const housingDisplay = getRawHousingAllowance(p);
-      const trainingDisplay = getRawTrainingAllowance(p);
-      const totalAllw = mealDisplay + housingDisplay + trainingDisplay;
-      
-      const insuranceAdvance = roundNumber(p.incomes?.insuranceAdvance ?? DEFAULT_INSURANCE_ADVANCE);
-      const penalty = roundNumber(p.incomes?.penalty ?? 0);
-      const advancePayment = getAdvancePayment(p);
+  const exportData = filteredPayrolls.map((p, index) => {
+    const snap = p.employeeSnapshot || {};
 
-      return {
-        "STT": index + 1,
-        "Họ và tên": snap.fullName || "",
-        "Mã NV": snap.employeeCode || "",
-        "Chức vụ": snap.position || "",
-        "Bộ phận": snap.department || "",
-        "Tạm Ứng Lương": formatNumberWithDot(advancePayment),
-        "Lương Cơ Bản": formatNumberWithDot(p.baseSalary || 0),
-        "Ngày công": p.actualDays || 0,
-        "Lương Thời Gian": formatNumberWithDot(p.incomes?.timeSalary || 0),
-        "Làm Thêm Giờ": formatNumberWithDot(p.incomes?.overtime || 0),
-        "Mini Show": formatNumberRaw(p.incomes?.miniShowMoney || 0),
-        "Big Show": formatNumberRaw(p.incomes?.bigShowMoney || 0),
-        "Thưởng N.Công": formatNumberWithDot(p.incomes?.kpiBonus || 0),
-        "Tiền ăn ca": formatNumberRaw(mealDisplay),
-        "Nhà ở": formatNumberRaw(housingDisplay),
-        "Ca tập": formatNumberRaw(trainingDisplay),
-        "Tổng Phụ Cấp": formatNumberRaw(totalAllw),
-        "Thưởng Mới": formatNumberWithDot(p.incomes?.bonus || 0),
-        "Tạm ứng BHXH": formatNumberWithDot(insuranceAdvance),
-        "Phạt": formatNumberWithDot(penalty),
-        "TỔNG GROSS": formatNumberWithDot(p.incomes?.totalGross || 0),
-      };
-    });
+    // ===== LẤY SỐ THỰC, KHÔNG FORMAT STRING =====
+    const mealDisplay = getRawMealAllowance(p);
+    const housingDisplay = getRawHousingAllowance(p);
+    const trainingDisplay = getRawTrainingAllowance(p);
+    const totalAllw = mealDisplay + housingDisplay + trainingDisplay;
 
-    const ws = XLSX.utils.json_to_sheet(exportData);
-    
-    const wscols = [
-      { wch: 5 }, { wch: 25 }, { wch: 15 }, { wch: 15 }, { wch: 20 },
-      { wch: 15 }, { wch: 15 }, { wch: 10 }, { wch: 15 }, { wch: 15 },
-      { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 12 }, { wch: 12 },
-      { wch: 12 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 12 },
-      { wch: 18 },
-    ];
-    ws['!cols'] = wscols;
+    const insuranceAdvance = roundNumber(
+      p.incomes?.insuranceAdvance ?? DEFAULT_INSURANCE_ADVANCE
+    );
 
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Bang_Luong_Gross");
-    
-    const fileName = `Bang_Luong_Gross_T${selectedMonthDoc?.month}_${selectedMonthDoc?.year}.xlsx`;
-    XLSX.writeFile(wb, fileName);
-  };
+    const penalty = roundNumber(p.incomes?.penalty ?? 0);
+    const advancePayment = getAdvancePayment(p);
+
+    return {
+      "STT": index + 1,
+      "Họ và tên": snap.fullName || "",
+      "Mã NV": snap.employeeCode || "",
+      "Chức vụ": snap.position || "",
+      "Bộ phận": snap.department || "",
+
+      // ===== TẤT CẢ TIỀN ĐỀU LÀ NUMBER =====
+      "Tạm Ứng Lương": Number(advancePayment) || 0,
+      "Lương Cơ Bản": Number(p.baseSalary) || 0,
+      "Ngày công": Number(p.actualDays) || 0,
+      "Lương Thời Gian": Number(p.incomes?.timeSalary) || 0,
+      "Làm Thêm Giờ": Number(p.incomes?.overtime) || 0,
+
+      "Mini Show": Number(p.incomes?.miniShowMoney) || 0,
+      "Big Show": Number(p.incomes?.bigShowMoney) || 0,
+      "Thưởng N.Công": Number(p.incomes?.kpiBonus) || 0,
+
+      "Tiền ăn ca": Number(mealDisplay) || 0,
+      "Nhà ở": Number(housingDisplay) || 0,
+      "Ca tập": Number(trainingDisplay) || 0,
+      "Tổng Phụ Cấp": Number(totalAllw) || 0,
+
+      "Thưởng Mới": Number(p.incomes?.bonus) || 0,
+      "Tạm ứng BHXH": Number(insuranceAdvance) || 0,
+      "Phạt": Number(penalty) || 0,
+
+      "TỔNG GROSS": Number(p.incomes?.totalGross) || 0,
+    };
+  });
+
+  const ws = XLSX.utils.json_to_sheet(exportData);
+
+  const wscols = [
+    { wch: 5 },
+    { wch: 25 },
+    { wch: 15 },
+    { wch: 15 },
+    { wch: 20 },
+    { wch: 15 },
+    { wch: 15 },
+    { wch: 10 },
+    { wch: 15 },
+    { wch: 15 },
+    { wch: 15 },
+    { wch: 15 },
+    { wch: 15 },
+    { wch: 15 },
+    { wch: 15 },
+    { wch: 15 },
+    { wch: 15 },
+    { wch: 15 },
+    { wch: 15 },
+    { wch: 12 },
+    { wch: 18 },
+  ];
+
+  ws["!cols"] = wscols;
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Bang_Luong_Gross");
+
+  const fileName = `Bang_Luong_Gross_T${selectedMonthDoc?.month}_${selectedMonthDoc?.year}.xlsx`;
+
+  XLSX.writeFile(wb, fileName);
+};
 
   if (isLoading && monthsList.length === 0) return <Loader />;
 
